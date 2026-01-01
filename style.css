@@ -1,9 +1,9 @@
 :root {
-	--background: #111;
-	--background1: #222;
-	--background2: #555;
-	--color: #eee;
-	--highlight: #fff;
+--background: #f3f3f3;
+  --background1: #eaeaea;
+  --background2: #d5d5d5;
+  --color: #161616;
+  --highlight: #161616;
 }
 
 *{
@@ -118,9 +118,32 @@ button {
 	font-family: monospace;
 	background: var(--highlight);
 }
-
 textarea {
 	background: var(--background);
 	width: 100%;
 	height: 100%;
+}
+
+.sidebar {
+	position: fixed;
+	width: 30vw;
+	height: 90vh;
+	top: 5vh;
+	background: var(--background1);
+	z-index: 299;
+}
+
+.sidebar[open='true']{
+	left: 1vw;
+}
+
+.sidebar[open='false']{
+	left: -40vw;
+}
+
+.section {
+	/* margin: 1em; */
+  border: 1px solid var(--color);
+  /* padding: .5em; */
+  font-family: monospace;
 }

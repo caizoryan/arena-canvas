@@ -115,6 +115,7 @@ export let dom = (tag, ...contents) => {
 	id ? doc.id = id : null
 
 	contents.forEach((e) => {
+		if (e == undefined) {return}
 		if (typeof e == 'string') doc.appendChild(new Text(e))
 		else if (e.isReactive) {
 			// check if it is marked reactive
@@ -178,6 +179,7 @@ export let dom = (tag, ...contents) => {
 		else if (Array.isArray(e)) doc.appendChild(dom(...e))
 		else if (isNode(e)) doc.appendChild(e)
 		else if (typeof e == 'object') Object.entries(e).map(([k, v]) => {
+			if (v == undefined) return
 			if (v.isReactive) {
 				doc.setAttribute(k, v.value())
 				v.subscribe(vv => doc.setAttribute(k, vv))

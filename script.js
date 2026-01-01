@@ -11,9 +11,17 @@ let headers = {
 	Authorization: "Bearer " + auth,
 }
 
-let slug = 'blog-feed'
-fetch("https://api.are.na/v3/channels/"+slug+"/contents?per=50&sort=position_desc", {headers})
-	.then(res => res.json()).then(res => render(res.data))
+let slug = 'list-are-na-api-possibilities'
+let set_channel = slug => {
+fetch("https://api.are.na/v3/channels/" + slug + "/contents?per=50&sort=position_desc", { headers })
+		.then(res => {
+			console.log(res.status)
+			return res.json()
+		})
+		.then(res => render(res.data))
+}
+
+set_channel(slug)
 
 // fetch("./data.json")
 // 	.then(res => res.json())
@@ -34,8 +42,8 @@ export const update_block = async (block_id, body, slug, fuck = false) => {
 };
 
 let data
-let d = localStorage.getItem("canvas")
-if (d) data = JSON.parse(d)
+// let d = localStorage.getItem("canvas")
+// if (d) data = JSON.parse(d)
 function round(value, precision) {
 	var multiplier = Math.pow(10, precision || 0);
 	return Math.round(value * multiplier) / multiplier;
@@ -46,34 +54,34 @@ let makeData = (e, i) => {
 	let r2 = Math.random() * 850
 	let d = {
 		id: e.id,
-		x: (i%8) * 400 + r1,
-		y: (Math.floor(i/8))*450+r2,
+		x: (i % 8) * 400 + r1,
+		y: (Math.floor(i / 8)) * 450 + r2,
 		width: 300,
 		height: 300,
 	}
-	if (e.type == "Text"){
+	if (e.type == "Text") {
 		console.log("Text Block")
 		d.type = 'text'
 		d.text = e.content.markdown
 	}
 
-	else if (e.type == "Image"){
+	else if (e.type == "Image") {
 		console.log("Image block")
 		d.type = 'link'
 		d.url = e.image.large.src
 	}
 
-	else if (e.type == "Link"){
+	else if (e.type == "Link") {
 		d.type = 'link'
 		d.url = e.source.url
 	}
 
-	else if (e.type == "Attachment"){
+	else if (e.type == "Attachment") {
 		d.type = 'link'
 		d.url = e.attachment.url
 	}
 
-	else if (e.type == "Embed"){
+	else if (e.type == "Embed") {
 		d.type = 'link'
 		d.url = e.source.url
 	}
@@ -183,7 +191,7 @@ let slidercursor = ({
 	let el = dom(
 		['.psuedo-container', { style: style },
 			['.psuedo-slider',
-			 { style: `height: ${height}px;width: ${width}px;`},
+				{ style: `height: ${height}px;width: ${width}px;` },
 				cursor, connectoutput_x, connectoutput_y,
 				connectinput_x, connectinput_y,]])
 
@@ -209,7 +217,6 @@ let sliderAxis = ({
 	let mapper = (v) => mapRange(v, 0, dimensionmax, min, max)
 	let reversemapper = (v) => mapRange(v, min, max, 0, dimensionmax)
 
-
 	left = reactive(left)
 	top = reactive(top)
 
@@ -234,11 +241,11 @@ let sliderAxis = ({
 		left: ${axis == 'horizontal' ? x.value() : -8}px;
 		top:  ${axis == 'vertical' ? x.value() : -8}px;`, [x])
 
-	let connectinput = inputConnector(-8,-36, x, [in_left, in_top])
-	let connectoutput = outputConnector(-8,height+5, x, [out_left, out_top])
+	let connectinput = inputConnector(-8, -36, x, [in_left, in_top])
+	let connectoutput = outputConnector(-8, height + 5, x, [out_left, out_top])
 
 	let cursor = dom(['.psuedo-cursor', { style: stylememo }])
-	let el = dom(['.psuedo-slider', { style }, cursor,  connectoutput,connectinput])
+	let el = dom(['.psuedo-slider', { style }, cursor, connectoutput, connectinput])
 
 	setTimeout(() => {
 		let set_left = (v) => axis == 'horizontal' ? x.next(v) : null
@@ -341,9 +348,9 @@ let reactiveEl = ({ left, top, value }) => {
 	left = reactive(left)
 	top = reactive(top)
 	let out_left = memo(() => left.value() + width + 45, [left])
-	let out_top = memo(() => top.value()+5, [top])
+	let out_top = memo(() => top.value() + 5, [top])
 	let in_left = memo(() => left.value() - 15, [left])
-	let in_top = memo(() => top.value()+5, [top])
+	let in_top = memo(() => top.value() + 5, [top])
 
 	let input = inputConnector(-35, 0, value, [in_left, in_top])
 	let output = outputConnector(-35, 0, value, [out_left, out_top])
@@ -356,9 +363,9 @@ let reactiveEl = ({ left, top, value }) => {
 `, [left, top])
 
 	let el = dom(['div.psuedo-slider', { style },
-								['div.psuedo-cursor',
-								 {style: `left: 5px; top:0px; width: 50`},
-								 memo(() => round(value.value(),5) + "", [value])],input, output])
+		['div.psuedo-cursor',
+			{ style: `left: 5px; top:0px; width: 50` },
+			memo(() => round(value.value(), 5) + "", [value])], input, output])
 	setTimeout(() => {
 		drag(el, { set_left: (v) => left.next(v), set_top: (v) => top.next(v) })
 	}, 100)
@@ -375,16 +382,16 @@ let keyPresser = ({ left, top, key }) => {
 	left = reactive(left)
 	top = reactive(top)
 	let out_left = memo(() => left.value() + width + 45, [left])
-	let out_top = memo(() => top.value()+5, [top])
+	let out_top = memo(() => top.value() + 5, [top])
 	let in_left = memo(() => left.value() - 15, [left])
-	let in_top = memo(() => top.value()+5, [top])
+	let in_top = memo(() => top.value() + 5, [top])
 
 	let input = inputConnector(-35, 0, inputvalue, [in_left, in_top])
 	let output = outputConnector(-35, 0, outputvalue, [out_left, out_top])
 
 	keys.push({
 		key,
-		fn: () =>{
+		fn: () => {
 			outputvalue.next(Math.random())
 			outputvalue.next(inputvalue.value())
 		}
@@ -398,8 +405,8 @@ let keyPresser = ({ left, top, key }) => {
 `, [left, top])
 
 	let el = dom(['div.psuedo-slider', { style },
-								['div.psuedo-cursor',
-								 {style: `left: 5px; top:0px; width: 50`}, key],input, output])
+		['div.psuedo-cursor',
+			{ style: `left: 5px; top:0px; width: 50` }, key], input, output])
 	setTimeout(() => {
 		drag(el, { set_left: (v) => left.next(v), set_top: (v) => top.next(v) })
 	}, 100)
@@ -439,64 +446,72 @@ let blockEl = block => {
 	let resize = memo(() => `
 left:${width.value()}px;
 top:${height.value()}px;
-`,[width, height])
+`, [width, height])
 
 	let resizewidth = memo(() => `
 left:${width.value()}px;
 top:0;
-`,[width])
+`, [width])
 
 	let resizeheight = memo(() => `
 top:${height.value()}px;
 left:0;
-`,[height])
+`, [height])
 
 
-	let resizer = dom(".psuedo-cursor", {style: resize})
-	let resizerwidth = dom(".psuedo-cursor", {style: resizewidth})
-	let resizerheight = dom(".psuedo-cursor", {style: resizeheight})
+	let resizer = dom(".psuedo-cursor", { style: resize })
+	let resizerwidth = dom(".psuedo-cursor", { style: resizewidth })
+	let resizerheight = dom(".psuedo-cursor", { style: resizeheight })
 
 	let draggable = dom('.draggable', { style: style }, resizer, resizerwidth, resizerheight)
 	let el
-	let image = block => ['img', { src: block.image.large.src }]
+	let image = block => ['img', { src: block.image?.large?.src }]
 	let edit = false
 
-	if (block.type == "Text"){
+	if (block.type == "Text") {
 		let value = block.content.markdown
 		let old = ''
-		let textarea = md => (old = value, dom([".block.text", save, cancel, ["textarea", {onclick: (e) => {
+		let textarea = md => (old = value, dom([".block.text", save, cancel, ["textarea", {
+			onclick: (e) => {
 				e.stopPropagation();
 				e.stopImmediatePropagation()
-		}, oninput: e => value = e.target.value }, md]]))
+			}, oninput: e => value = e.target.value
+		}, md]]))
 
-		let editbtn = ["button.edit",{onclick: () => {
-			edit=true
-			draggable.innerHTML = ``;
-			draggable.appendChild(textarea(value))
-			draggable.appendChild(resizer)
-			draggable.appendChild(resizerwidth)
-			draggable.appendChild(resizerheight)
-		}}, "edit"]
+		let editbtn = ["button.edit", {
+			onclick: () => {
+				edit = true
+				draggable.innerHTML = ``;
+				draggable.appendChild(textarea(value))
+				draggable.appendChild(resizer)
+				draggable.appendChild(resizerwidth)
+				draggable.appendChild(resizerheight)
+			}
+		}, "edit"]
 
-		let save = ["button.save",{onclick: () => {
-			edit=false
-			update_block(block.id, {content: value}).then(res => console.log(res))
-			draggable.innerHTML = ``;
-			draggable.appendChild(dom([".block.text", editbtn, ...MD(value)])) // 
-			draggable.appendChild(resizer)
-			draggable.appendChild(resizerwidth)
-			draggable.appendChild(resizerheight)
-		}}, "save"]
+		let save = ["button.save", {
+			onclick: () => {
+				edit = false
+				update_block(block.id, { content: value }).then(res => console.log(res))
+				draggable.innerHTML = ``;
+				draggable.appendChild(dom([".block.text", editbtn, ...MD(value)])) // 
+				draggable.appendChild(resizer)
+				draggable.appendChild(resizerwidth)
+				draggable.appendChild(resizerheight)
+			}
+		}, "save"]
 
-		let cancel = ["button",{onclick: () => {
-			value = old
-			edit=false
-			draggable.innerHTML = ``;
-			draggable.appendChild(dom([".block.text", editbtn, ...MD(value)])) // 
-			draggable.appendChild(resizer)
-			draggable.appendChild(resizerwidth)
-			draggable.appendChild(resizerheight)
-		}}, "cancel"]
+		let cancel = ["button", {
+			onclick: () => {
+				value = old
+				edit = false
+				draggable.innerHTML = ``;
+				draggable.appendChild(dom([".block.text", editbtn, ...MD(value)])) // 
+				draggable.appendChild(resizer)
+				draggable.appendChild(resizerwidth)
+				draggable.appendChild(resizerheight)
+			}
+		}, "cancel"]
 
 		el = [".block.text", editbtn, ...MD(value)]
 	}
@@ -504,8 +519,8 @@ left:0;
 	else if (block.type == "Attachment") el = [".block.image", image(block)]
 	else if (block.type == "Link") el = [".block.image", image(block)]
 	else if (block.type == "Embed") el = [".block.image", image(block)]
-
 	else el = [".block", block.id + ""]
+
 	el = dom(el)
 
 	draggable.appendChild(el)
@@ -514,17 +529,27 @@ left:0;
 		let set_left = (v) => left.next(v)
 		let set_top = (v) => top.next(v)
 		drag(draggable, { set_left, set_top, pan_switch: () => !edit })
-		drag(resizer, { set_left: (v) => width.next(v), set_top:(v) => height.next(v) })
-		drag(resizerwidth, { set_left: (v) => width.next(v), set_top:(v) => null })
-		drag(resizerheight, { set_left: (v) => null, set_top:(v) => height.next(v) })
+		drag(resizer, { set_left: (v) => width.next(v), set_top: (v) => height.next(v) })
+		drag(resizerwidth, { set_left: (v) => width.next(v), set_top: (v) => null })
+		drag(resizerheight, { set_left: (v) => null, set_top: (v) => height.next(v) })
 	}, 100)
 
 	return draggable
 }
 let dawg = reactive({ x: 0, y: 0 })
+let dotcanvas
 let render = (blocks) => {
+	data = undefined
+	// try find a .canvas block
+	dotcanvas = blocks.find(e => e.title == '.canvas')
+	if (dotcanvas) { data = JSON.parse(dotcanvas.content.plain) }
+	blocks = blocks.filter(e => e.title != ".canvas")
+	blocks = blocks.filter(e => e.type != ".canvas")
+
+	document.body.innerHTML = ''
+
 	if (!data) {
-		let nodes = blocks.map(makeData)
+		let nodes = blocks.filter(e => e.title != ".canvas").map(makeData)
 		data = { nodes }
 	}
 
@@ -532,15 +557,24 @@ let render = (blocks) => {
 	let w = 300
 	let x = reactive(0)
 	let y = reactive(0)
+	// make this nodeable
+	wheelfn = e => {
+		if (e.metaKey){
+			scale.next(f => f + (e.deltaY/500))
+		}
+		else {
+			y.next(f => f +e.deltaY)
+			x.next(f => f +e.deltaX)
+		}
+	}
 	let scale = reactive(1)
+	let timer = reactive(0)
+	setInterval(() => timer.next(e => e + 2.5), 500)
 
 	let stylemmeo = memo(() => `
 transform-origin: ${x.value() + window.innerWidth / 2}px ${y.value() + window.innerHeight / 2}px;
 transform: translate(${x.value() * -1}px, ${y.value() * -1}px) scale(${scale.value()}) ;
 `, [x, y, scale])
-
-	let other = reactive(scale.value())
-	let otherx = reactive(x.value())
 
 	let slcurse = slidercursor({
 		left: window.innerWidth - (w + 150),
@@ -553,10 +587,6 @@ transform: translate(${x.value() * -1}px, ${y.value() * -1}px) scale(${scale.val
 	})
 
 	let sls = sliderAxis({
-		style: (`
-  right: 70px;
-	bottom: ${window.innerHeight / 2 - w}px;
-	`),
 		left: window.innerWidth - 70,
 		top: window.innerHeight / 2 - w,
 		min: .1,
@@ -565,19 +595,9 @@ transform: translate(${x.value() * -1}px, ${y.value() * -1}px) scale(${scale.val
 		max: 2.5,
 		value: 1,
 		axis: 'vertical',
+		input: scale,
 		output: scale,
-		input: other,
 	})
-
-	let timer = reactive(0)
-	setInterval(() => timer.next(e => e + 2.5), 500)
-
-	let funkypunky = reactiveEl({
-		left: 100,
-		top: 100,
-		value: timer
-	})
-
 	let slx = sliderAxis({
 		min: -1500,
 		left: window.innerWidth - 340,
@@ -587,8 +607,8 @@ transform: translate(${x.value() * -1}px, ${y.value() * -1}px) scale(${scale.val
 		axis: 'horizontal',
 		max: 5000,
 		value: 1,
+		input: x,
 		output: x,
-		input: otherx,
 	})
 	let sly = sliderAxis({
 		min: -1500,
@@ -599,7 +619,14 @@ transform: translate(${x.value() * -1}px, ${y.value() * -1}px) scale(${scale.val
 		axis: 'vertical',
 		max: 5000,
 		value: 1,
+		input: y,
 		output: y
+	})
+
+	let funkypunky = reactiveEl({
+		left: 100,
+		top: 100,
+		value: timer
 	})
 
 	let lines = memo(() => {
@@ -608,42 +635,89 @@ transform: translate(${x.value() * -1}px, ${y.value() * -1}px) scale(${scale.val
 		connections.forEach(e => l.push(e.line()))
 		return l
 	}, [dawg])
+	let query = ""
+	let try_auth = () => {
+		console.log("will try auth with", auth)
+	}
 
+	let open = reactive("true")
+	let close = ["button", {
+		onclick: () => {
+			open.next(e => e == 'true' ? 'false' : 'true')
+		}
+	}, "close"]
+	let openbtn = ["button", {
+		style: 'position: fixed; left: 1em; top: 1em; z-index: 9999;', onclick: () => {
+			open.next(e => e == 'true' ? 'false' : 'true')
+		}
+	}, ">"]
+	let savebtn = ["button", {
+		style: 'position: fixed; left: 3em; top: 1em; z-index: 9999;', onclick: () => {
+			if (dotcanvas){
+				let content = JSON.stringify(data, null, 2)
+				update_block(dotcanvas.id, {content, title: ".canvas"})
+			}
+
+			else {
+				
+			}
+		}
+	}, "save"]
+
+	let search = [".section.search", ["h4", "search"],
+								["input", { oninput: (e) => query = e.target.value }],
+								["button", {onclick: (e) => set_channel(query)}, "set"]]
+
+	let authenticate = [".section.auth",
+		["h4", "Authenticate"],
+		["input", { oninput: (e) => auth = e.target.value.trim() }],
+		["button", {
+			onclick: (e) => {
+				localStorage.setItem("auth", auth)
+				try_auth()
+			}
+		}, "what"]]
+	let sidebar = [".sidebar", { open: open, onclick: (e) => console.log("PLEASE", e.target) }, close, search, authenticate, ]
 	let lineEls = memo(() => lines.value().map(f => svgline(...f, "white")), [lines])
 	let svg = ['svg.line-canvas', { width: window.innerWidth, height: window.innerHeight }, lineEls]
 	let blocksmapped = blocks.map(blockEl)
 	let root = [".container", { style: stylemmeo }, ...blocksmapped]
-	let nodes = [svg, slcurse, sls, funkypunky,  sly,slx]
+	let nodes = [svg, slcurse, sls, funkypunky, sly, slx]
 
 	document.body.appendChild(dom(['.nodes', ...nodes]))
 	document.body.appendChild(dom(root))
+
+	document.body.appendChild(dom(sidebar))
+	document.body.appendChild(dom(openbtn))
+	document.body.appendChild(dom(savebtn))
 }
 
-let addnode = node => 
+let addnode = node =>
 	document.querySelector(".nodes").appendChild(node)
 
+let wheelfn
 
 document.onkeydown = (e) => {
 	keys.forEach((key) => {
-		if (e.key == key.key) {key.fn()}
+		if (e.key == key.key) { key.fn() }
 	})
 
 	if (e.key == 'W') {
-		addnode(keyPresser({left: 150, top:250, key:'w'}))
+		addnode(keyPresser({ left: 150, top: 250, key: 'w' }))
 	}
 
 	if (e.key == 'A') {
-		addnode(keyPresser({left: 150, top:250, key:'a'}))
+		addnode(keyPresser({ left: 150, top: 250, key: 'a' }))
 	}
 
 	if (e.key == 'N') {
 		let value = reactive(Math.random() * 55)
 		addnode(reactiveEl({
-			left: 150,top:250, value
+			left: 150, top: 250, value
 		}))
 	}
 
-	if (e.key == 'd' && e.metaKey){
+	if (e.key == 'd' && e.metaKey) {
 		e.preventDefault()
 		let download_json = (json, file = 'data') => {
 			let a = document.createElement("a");
@@ -660,12 +734,15 @@ document.onkeydown = (e) => {
 		download_json(data)
 	}
 }
+document.addEventListener("wheel", (e) => {
+	if (wheelfn) wheelfn(e)
+})
 
 
 let svgline = (x1, y1, x2, y2, stroke = "blue") => ['line', { x1, y1, x2, y2, stroke, "stroke-width": 4 }]
-let svgx = (size, fill='blue') => ['svg', {width: size, height: size},
-																			svgline(0, 0, size, size, fill),
-																			svgline(size,0, 0,  size, fill),]
+let svgx = (size, fill = 'blue') => ['svg', { width: size, height: size },
+	svgline(0, 0, size, size, fill),
+	svgline(size, 0, 0, size, fill),]
 
 document.onmousemove = (e) => {
 	dawg.next({ x: parseFloat(e.clientX), y: parseFloat(e.clientY) })
