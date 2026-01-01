@@ -3,6 +3,7 @@ import { reactive, memo } from "./hok.js"
 import { drag } from "./drag.js"
 import { MD } from "./md.js"
 
+let dimensions = 10000
 let a = localStorage.getItem("auth")
 let auth = ''
 if (a) auth = a
@@ -150,6 +151,28 @@ let slidercursor = ({
 }) => {
 	let mapx = (v) => mapRange(v, 0, width, min, max)
 	let mapy = (v) => mapRange(v, 0, height, min, max)
+	let scaled = width/dimensions
+	//minimap doesn't work yet...
+	let mappednodes = data.nodes.map(e => {
+		let n = {}
+		n.x = e.x * scaled
+		n.y = e.y * scaled
+		n.width = e.width*scaled
+		n.height = e.height*scaled
+		console.log("wtfff", e.x, e.y, scaled, n.x, n.y)
+		return n
+	}).map(e => {
+
+		let style = `
+position: absolute;
+left: ${e.x}px;
+top: ${e.y}px;
+width: ${e.width}px;
+height: ${e.height}px;
+background-color:#0002; 
+`
+		return [".mini", {style}]
+	})
 
 	let y = reactive(value)
 	let x = reactive(value)
@@ -185,13 +208,15 @@ let slidercursor = ({
 	let stylememo = memo(() => `
 		top: ${y.value()}px;
 		left: ${x.value()}px;
+		background-color: #fff0; 
 `, [x, y])
 
-	let cursor = dom(['.psuedo-cursor', { style: stylememo }])
+	let cursor = dom(['.psuedo-cursor', { style: stylememo }], svgx(30))
 	let el = dom(
 		['.psuedo-container', { style: style },
 			['.psuedo-slider',
 				{ style: `height: ${height}px;width: ${width}px;` },
+				...mappednodes,
 				cursor, connectoutput_x, connectoutput_y,
 				connectinput_x, connectinput_y,]])
 
@@ -212,6 +237,7 @@ let sliderAxis = ({
 	min, max,
 	value,
 	input, output,
+	label = ''
 }) => {
 	let dimensionmax = axis == 'horizontal' ? width : height
 	let mapper = (v) => mapRange(v, 0, dimensionmax, min, max)
@@ -244,7 +270,7 @@ let sliderAxis = ({
 	let connectinput = inputConnector(-8, -36, x, [in_left, in_top])
 	let connectoutput = outputConnector(-8, height + 5, x, [out_left, out_top])
 
-	let cursor = dom(['.psuedo-cursor', { style: stylememo }])
+	let cursor = dom(['.psuedo-cursor.flex-center', { style: stylememo }, label])
 	let el = dom(['.psuedo-slider', { style }, cursor, connectoutput, connectinput])
 
 	setTimeout(() => {
@@ -444,26 +470,40 @@ let blockEl = block => {
 	`, [left, top, width, height])
 
 	let resize = memo(() => `
-left:${width.value()}px;
-top:${height.value()}px;
+left:${width.value()+10}px;
+top:${height.value()+10}px;
 `, [width, height])
 
 	let resizewidth = memo(() => `
-left:${width.value()}px;
-top:0;
+left:${width.value()+10}px;
+top:-10px;
 `, [width])
 
+	let resizewidthmiddle = memo(() => `
+left:${width.value()+10}px;
+top:${height.value()/2}px;
+`, [width, height])
+
+	let resizeheightmiddle = memo(() => `
+top:${height.value()+10}px;
+left:${width.value()/2}px;
+`, [height, width])
+
 	let resizeheight = memo(() => `
-top:${height.value()}px;
-left:0;
+top:${height.value()+10}px;
+left:-10px;
 `, [height])
 
 
-	let resizer = dom(".psuedo-cursor", { style: resize })
-	let resizerwidth = dom(".psuedo-cursor", { style: resizewidth })
-	let resizerheight = dom(".psuedo-cursor", { style: resizeheight })
+	let resizer = dom(".absolute.flex-center.box.cur-se", { style: resize }, svgx(30))
+	let resizerwidth = dom(".absolute.flex-center.box.cur-e", { style: resizewidth }, svgx(30))
+	let resizerheight = dom(".absolute.flex-center.box.cur-s", { style: resizeheight }, svgx(30))
 
-	let draggable = dom('.draggable', { style: style }, resizer, resizerwidth, resizerheight)
+	let resizerwidthmiddle = dom(".absolute.flex-center.box.cur-e", { style: resizewidthmiddle }, svgx(30))
+
+	let resizerheightmiddle = dom(".absolute.flex-center.box.cur-s", { style: resizeheightmiddle }, svgx(30))
+
+	let draggable = dom('.draggable', { style: style }, resizer, resizerwidth, resizerheight, resizerheightmiddle, resizerwidthmiddle)
 	let el
 	let image = block => ['img', { src: block.image?.large?.src }]
 	let edit = false
@@ -486,6 +526,9 @@ left:0;
 				draggable.appendChild(resizer)
 				draggable.appendChild(resizerwidth)
 				draggable.appendChild(resizerheight)
+
+				draggable.appendChild(resizerwidthmiddle)
+				draggable.appendChild(resizerheightmiddle)
 			}
 		}, "edit"]
 
@@ -498,6 +541,8 @@ left:0;
 				draggable.appendChild(resizer)
 				draggable.appendChild(resizerwidth)
 				draggable.appendChild(resizerheight)
+				draggable.appendChild(resizerwidthmiddle)
+				draggable.appendChild(resizerheightmiddle)
 			}
 		}, "save"]
 
@@ -510,6 +555,8 @@ left:0;
 				draggable.appendChild(resizer)
 				draggable.appendChild(resizerwidth)
 				draggable.appendChild(resizerheight)
+				draggable.appendChild(resizerwidthmiddle)
+				draggable.appendChild(resizerheightmiddle)
 			}
 		}, "cancel"]
 
@@ -532,6 +579,9 @@ left:0;
 		drag(resizer, { set_left: (v) => width.next(v), set_top: (v) => height.next(v) })
 		drag(resizerwidth, { set_left: (v) => width.next(v), set_top: (v) => null })
 		drag(resizerheight, { set_left: (v) => null, set_top: (v) => height.next(v) })
+
+		drag(resizerwidthmiddle, { set_left: (v) => width.next(v), set_top: (v) => null })
+		drag(resizerheightmiddle, { set_left: (v) => null, set_top: (v) => height.next(v) })
 	}, 100)
 
 	return draggable
@@ -560,16 +610,16 @@ let render = (blocks) => {
 	// make this nodeable
 	wheelfn = e => {
 		if (e.metaKey){
-			scale.next(f => f + (e.deltaY/500))
-		}
-		else {
 			y.next(f => f +e.deltaY)
 			x.next(f => f +e.deltaX)
+		}
+		else {
+			scale.next(f => f - (e.deltaY/2500))
 		}
 	}
 	let scale = reactive(1)
 	let timer = reactive(0)
-	setInterval(() => timer.next(e => e + 2.5), 500)
+	setInterval(() => timer.next(e => e + 1), 500)
 
 	let stylemmeo = memo(() => `
 transform-origin: ${x.value() + window.innerWidth / 2}px ${y.value() + window.innerHeight / 2}px;
@@ -577,10 +627,10 @@ transform: translate(${x.value() * -1}px, ${y.value() * -1}px) scale(${scale.val
 `, [x, y, scale])
 
 	let slcurse = slidercursor({
-		left: window.innerWidth - (w + 150),
-		top: window.innerHeight - (w + 150),
+		left: 40,
+		top: window.innerHeight - (w + 45),
 		min: 1,
-		max: 5000,
+		max: dimensions,
 		height: w,
 		width: w,
 		value: 1,
@@ -597,30 +647,33 @@ transform: translate(${x.value() * -1}px, ${y.value() * -1}px) scale(${scale.val
 		axis: 'vertical',
 		input: scale,
 		output: scale,
+		label: "+",
 	})
 	let slx = sliderAxis({
-		min: -1500,
-		left: window.innerWidth - 340,
-		top: window.innerHeight - 30,
+		min: 0,
+		left: 40,
+		top: window.innerHeight - (w + 125),
 		width: w,
 		height: 15,
 		axis: 'horizontal',
-		max: 5000,
+		max: dimensions,
 		value: 1,
 		input: x,
 		output: x,
+		label: "X",
 	})
 	let sly = sliderAxis({
-		min: -1500,
+		min: 0,
 		height: w,
-		left: window.innerWidth - 30,
-		top: window.innerHeight / 2 - w,
+		left: w + 105,
+		top: window.innerHeight - (w + 45),
 		width: 15,
 		axis: 'vertical',
-		max: 5000,
+		max: dimensions,
 		value: 1,
 		input: y,
-		output: y
+		output: y,
+		label: "Y",
 	})
 
 	let funkypunky = reactiveEl({
@@ -640,7 +693,7 @@ transform: translate(${x.value() * -1}px, ${y.value() * -1}px) scale(${scale.val
 		console.log("will try auth with", auth)
 	}
 
-	let open = reactive("true")
+	let open = reactive("false")
 	let close = ["button", {
 		onclick: () => {
 			open.next(e => e == 'true' ? 'false' : 'true')
