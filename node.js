@@ -1,5 +1,5 @@
 import { reactive, memo } from "./hok.js"
-import { svgx} from "./svg.js"
+import { svgArrow, svgx} from "./svg.js"
 import {dom} from "./dom.js"
 import { drag } from "./drag.js"
 import {state,
@@ -22,12 +22,13 @@ const mapRange = (value, inMin, inMax, outMin, outMax) =>
 // --------------
 // NODE: UI Elements
 // --------------
-let inputConnector = (left, top, signal, position) => {
+let inputConnector = (left, top, signal, position, label, side='s') => {
 	let bufferkill = reactive("false")
-	let colorx = memo(() => bufferkill.value() == 'false' ? '#fff2' : "yellow", [bufferkill])
+	let colorx = memo(() => bufferkill.value() == 'false' ? '#fff2' : "red", [bufferkill])
 
 	let style = `left: ${left}px; top: ${top}px;`
 	let element_x = dom(['.connection.input', {
+		title: '('+label + '): Input',
 		style,
 		onclick: () => {
 			if (bufferkill.value() != 'false') {
@@ -40,12 +41,13 @@ let inputConnector = (left, top, signal, position) => {
 				state.connectionBuffer.connectAsOutput(signal, position)
 			}
 		}
-	}, svgx(30,30, colorx)])
+	}, svgArrow(side, 25, 25, colorx)])
 
 	return element_x
 }
-let outputConnector = (left, top, signal, position) => {
+let outputConnector = (left, top, signal, position, label, side = 's') => {
 	return dom(['.connection.output', {
+		title: '('+label + '): Output',
 		style: `top: ${top}px; right: ${left}px;`,
 		onclick: () => {
 			if (state.connectionBuffer) { state.connectionBuffer = undefined }
@@ -54,7 +56,7 @@ let outputConnector = (left, top, signal, position) => {
 				state.connectionBuffer.connectAsInput(signal, position)
 			}
 		}
-	}, svgx(30)])
+	}, svgArrow(side, 25)])
 }
 
 export let slidercursor = ({
@@ -103,17 +105,17 @@ background-color:#0002;
 	let iny_left = memo(() => left.value() + 80, [left])
 	let iny_top = memo(() => top.value(), [top])
 
-	let outx_left = memo(() => left.value() + width + 5, [left])
+	let outx_left = memo(() => left.value() + width + 40, [left])
 	let outx_top = memo(() => top.value() + 40, [top])
 
-	let outy_left = memo(() => left.value() + width + 5, [left])
-	let outy_top = memo(() => top.value() + 80, [top])
+	let outy_left = memo(() => left.value() + width + 40, [left])
+	let outy_top = memo(() => top.value() + 70, [top])
 
-	let connectinput_x = inputConnector(0, -30, x, [inx_left, inx_top])
-	let connectinput_y = inputConnector(55, -30, y, [iny_left, iny_top])
+	let connectinput_x = inputConnector(0, -30, x, [inx_left, inx_top], "X")
+	let connectinput_y = inputConnector(55, -30, y, [iny_left, iny_top], "Y")
 
-	let connectoutput_x = outputConnector(-30, 10, x, [outx_left, outx_top])
-	let connectoutput_y = outputConnector(-30, 40, y, [outy_left, outy_top])
+	let connectoutput_x = outputConnector(-30, 10, x, [outx_left, outx_top], "X", 'e')
+	let connectoutput_y = outputConnector(-30, 40, y, [outy_left, outy_top], "Y", 'e')
 
 	let style = memo(() => `
 		left: ${left.value()}px;
@@ -187,8 +189,8 @@ export let sliderAxis = ({
 		left: ${axis == 'horizontal' ? x.value() : -8}px;
 		top:  ${axis == 'vertical' ? x.value() : -8}px;`, [x])
 
-	let connectinput = inputConnector(-8, -36, x, [in_left, in_top])
-	let connectoutput = outputConnector(-8, height + 5, x, [out_left, out_top])
+	let connectinput = inputConnector(-8, -36, x, [in_left, in_top], label, axis == 'horizontal' ? 'e' : 's')
+	let connectoutput = outputConnector(-8, height + 5, x, [out_left, out_top], label,axis == 'horizontal' ? 'e' : 's')
 
 	let cursor = dom(['.psuedo-cursor.flex-center', { style: stylememo }, label])
 	let el = dom(['.psuedo-slider', { style }, cursor, connectoutput, connectinput])

@@ -34,3 +34,42 @@ export let svgcurveline = (
     'stroke-width': width
   }
 ]
+
+export let svgArrow = (side, width, height, stroke = 'blue', weight = 3) => {
+	if (!height) height = width
+
+	let midX = width / 2
+	let midY = height / 2
+
+	switch (side) {
+		case 'e': // →
+			return ['svg', { width, height },
+				// shaft
+				svgline(0, midY, width, midY, stroke, weight),
+				// head
+				svgline(width - midY, 0, width, midY, stroke, weight),
+				svgline(width - midY, height, width, midY, stroke, weight),
+			]
+
+		case 'w': // ←
+			return ['svg', { width, height },
+				svgline(width, midY, 0, midY, stroke, weight),
+				svgline(midY, 0, 0, midY, stroke, weight),
+				svgline(midY, height, 0, midY, stroke, weight),
+			]
+
+		case 'n': // ↑
+			return ['svg', { width, height },
+				svgline(midX, height, midX, 0, stroke, weight),
+				svgline(0, midX, midX, 0, stroke, weight),
+				svgline(width, midX, midX, 0, stroke, weight),
+			]
+
+		case 's': // ↓
+			return ['svg', { width, height },
+				svgline(midX, 0, midX, height, stroke, weight),
+				svgline(0, height - midX, midX, height, stroke, weight),
+				svgline(width, height - midX, midX, height, stroke, weight),
+			]
+	}
+}

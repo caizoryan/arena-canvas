@@ -62,7 +62,7 @@ let keys = []
 let mountDone = false
 let w = 300
 
-let currentslug = 'isp-writing'
+let currentslug = "list-are-na-api-possibilities"
 let local_currentslug = localStorage.getItem("slug")
 if (local_currentslug) currentslug = local_currentslug
 

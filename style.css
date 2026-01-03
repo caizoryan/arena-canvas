@@ -127,24 +127,23 @@ button:active {
 	background: var(--highlight);
 }
 
-.connection.input {
+.connection{
 	position: absolute;
-	top: -30px;
-	left: 0px;
+	padding: 2px;
 	width: 30px;
 	height: 30px;
 	border: 2px solid var(--highlight);
-	background: var(--background);
+	background: var(--background1);
+}
+
+.connection.input {
+	top: -30px;
+	left: 0px;
 }
 
 .connection.output {
-	position: absolute;
 	bottom: -30px;
 	right: 0px;
-	width: 30px;
-	height: 30px;
-	border: 2px solid var(--highlight);
-	background: var(--background);
 }
 
 .line-canvas {
