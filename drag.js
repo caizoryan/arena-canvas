@@ -27,6 +27,7 @@ export const drag = (elem, options = {}) => {
 		elem.addEventListener("pointermove", handle_pointermove);
 	}
 
+	// Checks whether element is contained according to bounds
 	function normalize(elem) {
 		const width = elem.offsetWidth;
 		const widthp = elem.parentNode.offsetWidth;

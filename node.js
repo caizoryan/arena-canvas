@@ -1,0 +1,334 @@
+import { reactive, memo } from "./hok.js"
+import { svgx} from "./svg.js"
+import {dom} from "./dom.js"
+import { drag } from "./drag.js"
+import {state,
+				data, 
+				dataSubscriptions,
+				canvasScale, 
+				dimensions } from "./data.js"
+
+// -------------------
+// utils
+// -------------------
+const round = (value, precision)=> {
+	let multiplier = Math.pow(10, precision || 0);
+	return Math.round(value * multiplier) / multiplier;
+}
+const mapRange = (value, inMin, inMax, outMin, outMax) => 
+	 (value - inMin) * (outMax - outMin) / (inMax - inMin) + outMin;
+
+
+// --------------
+// NODE: UI Elements
+// --------------
+let inputConnector = (left, top, signal, position) => {
+	let bufferkill = reactive("false")
+	let colorx = memo(() => bufferkill.value() == 'false' ? '#fff2' : "yellow", [bufferkill])
+
+	let style = `left: ${left}px; top: ${top}px;`
+	let element_x = dom(['.connection.input', {
+		style,
+		onclick: () => {
+			if (bufferkill.value() != 'false') {
+				bufferkill.value().disconnect()
+				bufferkill.next('false')
+			}
+
+			else if (state.connectionBuffer) {
+				bufferkill.next(state.connectionBuffer)
+				state.connectionBuffer.connectAsOutput(signal, position)
+			}
+		}
+	}, svgx(30,30, colorx)])
+
+	return element_x
+}
+let outputConnector = (left, top, signal, position) => {
+	return dom(['.connection.output', {
+		style: `top: ${top}px; right: ${left}px;`,
+		onclick: () => {
+			if (state.connectionBuffer) { state.connectionBuffer = undefined }
+			else {
+				state.connectionBuffer = createConnection()
+				state.connectionBuffer.connectAsInput(signal, position)
+			}
+		}
+	}, svgx(30)])
+}
+
+export let slidercursor = ({
+	left, top,
+	width,
+	height,
+	value,
+}) => {
+	let scaled = width/dimensions
+	// will figure this out one day
+	let ughw = memo(() => scaled * (window.innerWidth), [canvasScale])
+	let ughh = memo(() => (scaled * window.innerHeight), [canvasScale])
+
+	let dataplug = reactive(data.data)
+	dataSubscriptions.push(f =>{dataplug.next(f)})
+
+	let mappednodes = memo(() => dataplug.value().nodes.map(e => {
+		let n = {}
+		n.x = e.x * scaled
+		n.y = e.y * scaled
+		n.width = e.width*scaled
+		n.height = e.height*scaled
+		return n
+	}).map(e => {
+
+		let style = `
+position: absolute;
+left: ${e.x}px;
+top: ${e.y}px;
+width: ${e.width}px;
+height: ${e.height}px;
+background-color:#0002; 
+`
+		return [".mini", {style}]
+	}), [dataplug])
+
+	let y = reactive(value)
+	let x = reactive(value)
+
+	left = reactive(left)
+	top = reactive(top)
+
+	let inx_left = memo(() => left.value() + 15, [left])
+	let inx_top = memo(() => top.value(), [top])
+
+	let iny_left = memo(() => left.value() + 80, [left])
+	let iny_top = memo(() => top.value(), [top])
+
+	let outx_left = memo(() => left.value() + width + 5, [left])
+	let outx_top = memo(() => top.value() + 40, [top])
+
+	let outy_left = memo(() => left.value() + width + 5, [left])
+	let outy_top = memo(() => top.value() + 80, [top])
+
+	let connectinput_x = inputConnector(0, -30, x, [inx_left, inx_top])
+	let connectinput_y = inputConnector(55, -30, y, [iny_left, iny_top])
+
+	let connectoutput_x = outputConnector(-30, 10, x, [outx_left, outx_top])
+	let connectoutput_y = outputConnector(-30, 40, y, [outy_left, outy_top])
+
+	let style = memo(() => `
+		left: ${left.value()}px;
+		top: ${top.value()}px;
+		height: ${height}px;
+		width: ${width}px;
+	`, [left, top])
+
+	let stylememo = memo(() => `
+		top: ${y.value()}px;
+		left: ${x.value()}px;
+		background-color: #fff5; 
+border: 2px solid blue;
+width: ${ughw.value()}px;
+height: ${ughh.value()}px;
+`, [x, y, ughw, ughh])
+
+	let cursor = dom(['.psuedo-cursor', { style: stylememo }], svgx(ughw, ughh, 'blue', 1))
+	let el = dom(
+		['.psuedo-container', { style: style },
+			['.psuedo-slider',
+				{ style: `height: ${height}px;width: ${width}px;` },
+				mappednodes,
+				cursor, connectoutput_x, connectoutput_y,
+				connectinput_x, connectinput_y,]])
+
+	setTimeout(() => {
+		let set_top = (v) => y.next(v)
+		let set_left = (v) => x.next(v)
+		drag(cursor, { set_left, set_top })
+		drag(el, { set_left: (v) => left.next(v), set_top: (v) => top.next(v) })
+	}, 100)
+
+	return el
+}
+export let sliderAxis = ({
+	top, left,
+	axis,
+	width,
+	height,
+	min, max,
+	value,
+	input, output,
+	label = ''
+}) => {
+	let dimensionmax = axis == 'horizontal' ? width : height
+	let mapper = (v) => mapRange(v, 0, dimensionmax, min, max)
+	let reversemapper = (v) => mapRange(v, min, max, 0, dimensionmax)
+
+	left = reactive(left)
+	top = reactive(top)
+
+	let in_left = memo(() => left.value() + 5, [left])
+	let in_top = memo(() => top.value() - 15, [top])
+
+	let out_left = memo(() => left.value() + width + 5, [left])
+	let out_top = memo(() => top.value() + height + 15, [top])
+
+	let style = memo(() => `
+		left:${left.value()}px;
+		top:${top.value()}px;
+		width: ${width}px;
+		height: ${height}px;
+`, [left, top])
+
+	let x = reactive(reversemapper(value))
+	if (input) input.subscribe(v => x.next(reversemapper(v)))
+	if (output) x.subscribe(v => output.next(mapper(v)))
+
+	let stylememo = memo(() => `
+		left: ${axis == 'horizontal' ? x.value() : -8}px;
+		top:  ${axis == 'vertical' ? x.value() : -8}px;`, [x])
+
+	let connectinput = inputConnector(-8, -36, x, [in_left, in_top])
+	let connectoutput = outputConnector(-8, height + 5, x, [out_left, out_top])
+
+	let cursor = dom(['.psuedo-cursor.flex-center', { style: stylememo }, label])
+	let el = dom(['.psuedo-slider', { style }, cursor, connectoutput, connectinput])
+
+	setTimeout(() => {
+		let set_left = (v) => axis == 'horizontal' ? x.next(v) : null
+		let set_top = (v) => axis == 'vertical' ? x.next(v) : null
+
+		drag(cursor, { set_left, set_top })
+		drag(el, { set_left: (v) => left.next(v), set_top: (v) => top.next(v) })
+	}, 100)
+
+	return el
+}
+export let reactiveEl = ({ left, top, value }) => {
+	let width = 80
+
+	left = reactive(left)
+	top = reactive(top)
+	let out_left = memo(() => left.value() + width + 45, [left])
+	let out_top = memo(() => top.value() + 5, [top])
+	let in_left = memo(() => left.value() - 15, [left])
+	let in_top = memo(() => top.value() + 5, [top])
+
+	let input = inputConnector(-35, 0, value, [in_left, in_top])
+	let output = outputConnector(-35, 0, value, [out_left, out_top])
+
+	let style = memo(() => `
+		left:${left.value()}px;
+		top:${top.value()}px;
+		width: ${width}px;
+		padding: 1em;
+`, [left, top])
+
+	let el = dom(['div.psuedo-slider', { style },
+		['div.psuedo-cursor',
+			{ style: `left: 5px; top:0px; width: 50` },
+			memo(() => round(value.value(), 5) + "", [value])], input, output])
+	setTimeout(() => {
+		drag(el, { set_left: (v) => left.next(v), set_top: (v) => top.next(v) })
+	}, 100)
+	return el
+
+}
+export let keyPresser = ({ left, top, key }) => {
+	let width = 80
+
+	let inputvalue = reactive(0)
+	let outputvalue = reactive(0)
+	left = reactive(left)
+	top = reactive(top)
+	let out_left = memo(() => left.value() + width + 45, [left])
+	let out_top = memo(() => top.value() + 5, [top])
+	let in_left = memo(() => left.value() - 15, [left])
+	let in_top = memo(() => top.value() + 5, [top])
+
+	let input = inputConnector(-35, 0, inputvalue, [in_left, in_top])
+	let output = outputConnector(-35, 0, outputvalue, [out_left, out_top])
+
+	keys.push({
+		key,
+		fn: () => {
+			outputvalue.next(Math.random())
+			outputvalue.next(inputvalue.value())
+		}
+	})
+
+	let style = memo(() => `
+		left:${left.value()}px;
+		top:${top.value()}px;
+		width: ${width}px;
+		padding: 1em;
+`, [left, top])
+
+	let el = dom(['div.psuedo-slider', { style },
+		['div.psuedo-cursor',
+			{ style: `left: 5px; top:0px; width: 50` }, key], input, output])
+	setTimeout(() => {
+		drag(el, { set_left: (v) => left.next(v), set_top: (v) => top.next(v) })
+	}, 100)
+	return el
+
+}
+
+
+// --------------
+// NODE: Connection
+// --------------
+
+// connection:
+// connectAsInput
+// connectAsOutput
+
+// createConnection ->
+// will create a closure with a signal
+// an input fn that writes to the signal
+// and an output fn that subscribes to signal
+export function createConnection() {
+	let signal = reactive(0)
+	let disconnectInput, disconnectOutput
+	let start, end
+	// let id = uuid
+	let self = {
+		line: () => {
+			let l = []
+			if (start && !end) l = [...start]
+			else if (start && end) l = [...start, ...end]
+			return l
+		},
+		connectAsInput: (v, position) => {
+			if (position.isReactive) {
+				start = position.value()
+				position.subscribe(v => start = v)
+			}
+			else start = position
+			signal.next(v.value())
+			disconnectInput = v.subscribe(x => signal.next(x))
+		},
+
+		connectAsOutput: (v, position) => {
+			if (position.isReactive) {
+				end = position.value()
+				position.subscribe(v => end = v)
+			}
+
+			else end = position
+
+			v.next(signal.value())
+			disconnectOutput = signal.subscribe(x => v.next(x))
+			state.connections.push(self)
+			state.connectionBuffer = undefined
+		},
+
+		disconnect: () => {
+			// delete line
+			disconnectInput()
+			disconnectOutput()
+			let us = state.connections.findIndex(v => v == self)
+			if (us != -1) state.connections.splice(us, 1)
+		}
+	}
+	return self
+}

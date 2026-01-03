@@ -2,55 +2,45 @@ import { dom } from "./dom.js"
 import { reactive, memo } from "./hok.js"
 import { drag } from "./drag.js"
 import { MD } from "./md.js"
+import { try_auth, update_block, add_block, get_channel } from "./arena.js"
+import { svgline, svgrect, svgx } from "./svg.js"
+import { sidebar, sidebarOpen } from "./sidebar.js"
+import {
+	authslug,
+	data, state,
+	save_data,
+	canvasScale, canvasX, canvasY, mouse,
+	dimensions, 
+	dataSubscriptions
+} from "./data.js"
+import { sliderAxis, slidercursor, reactiveEl, keyPresser } from "./node.js"
 
-let dimensions = 10000
-let a = localStorage.getItem("auth")
-let auth = ''
-if (a) auth = a
-let headers = {
-	"Content-Type": "application/json",
-	Authorization: "Bearer " + auth,
-}
+const uuid = () => Math.random().toString(36).slice(-6);
+const button = (t, fn, attr = {}) => ["button", { onclick: fn, ...attr }, t]
 
-let slug = 'list-are-na-api-possibilities'
-let set_channel = slug => {
-fetch("https://api.are.na/v3/channels/" + slug + "/contents?per=50&sort=position_desc", { headers })
-		.then(res => {
-			console.log(res.status)
-			return res.json()
-		})
-		.then(res => render(res.data))
-}
+// -------------------
+// DATA
+// -------------------
+// USE keymanager instead
+let keys = []
+let mountDone = false
+let w = 300
 
-set_channel(slug)
+let currentslug = 'isp-writing'
+let local_currentslug = localStorage.getItem("slug")
+if (local_currentslug) currentslug = local_currentslug
 
-// fetch("./data.json")
-// 	.then(res => res.json())
-// 	.then(res => data = res.nodes)
+// -------------------
+// Initialization FN
+// -------------------
+export let set_channel = slug => get_channel(slug)
+	.then((res) => {
+		currentslug = slug
+		localStorage.setItem('slug', slug)
+		renderBlocks(res.data)
+	})
 
-
-// let host = "http://localhost:3000/api/";
-let host = "https://api.are.na/v2/"
-export const update_block = async (block_id, body, slug, fuck = false) => {
-	return fetch(host + `blocks/${block_id}`, {
-		headers,
-		method: "PUT",
-		body: JSON.stringify(body),
-	}).then((res) => {
-		// if (fuck) { fuck_refresh(slug) }
-		return res
-	});
-};
-
-let data
-// let d = localStorage.getItem("canvas")
-// if (d) data = JSON.parse(d)
-function round(value, precision) {
-	var multiplier = Math.pow(10, precision || 0);
-	return Math.round(value * multiplier) / multiplier;
-}
-
-let makeData = (e, i) => {
+let constructBlockData = (e, i) => {
 	let r1 = Math.random() * 850
 	let r2 = Math.random() * 850
 	let d = {
@@ -95,355 +85,167 @@ let makeData = (e, i) => {
 
 	return d
 }
-let save_data = () => {
-	localStorage.setItem("canvas", JSON.stringify(data))
+let groupData = (x, y, width, height) => {
+	let d = {
+		type: 'group',
+		id: 'group-' + uuid(),
+		x, y, width, height,
+	}
+
+	return d
 }
 
-function mapRange(value, inMin, inMax, outMin, outMax) {
-	return (value - inMin) * (outMax - outMin) / (inMax - inMin) + outMin;
-}
-let buffer
-
-let inputConnector = (left, top, signal, position) => {
-	let bufferkill = reactive("false")
-	let colorx = memo(() => bufferkill.value() == 'false' ? '#fff2' : "yellow", [bufferkill])
-
-	let style = `left: ${left}px; top: ${top}px;`
-	let element_x = dom(['.connection.input', {
-		style,
-		onclick: () => {
-			if (bufferkill.value() != 'false') {
-				bufferkill.value().disconnect()
-				bufferkill.next('false')
-			}
-
-			else if (buffer) {
-				bufferkill.next(buffer)
-				buffer.connectAsOutput(signal, position)
-			}
+let groupEl = group => {
+		const isRectContained = (rect1, rect2) => {
+			return (
+				rect2.x >= rect1.x &&
+				rect2.y >= rect1.y &&
+				rect2.x + rect2.width <= rect1.x + rect1.width &&
+				rect2.y + rect2.height <= rect1.y + rect1.height
+			);
 		}
-	}, svgx(30, colorx)])
 
-	return element_x
-}
+	let anchored = []
+	console.log("GOT", group)
+	let position = data.data.nodes.find(e => e.id == group.id)
+	if (!position) console.error("BRUH HOW")
+	position = data.data.nodes.find(e => e.id == group.id)
 
-let outputConnector = (left, top, signal, position) => {
-	return dom(['.connection.output', {
-		style: `top: ${top}px; right: ${left}px;`,
-		onclick: () => {
-			if (buffer) { buffer = undefined }
-			else {
-				buffer = createConnection()
-				buffer.connectAsInput(signal, position)
-			}
-		}
-	}, svgx(30)])
-}
+	let left = reactive(position.x)
+	let top = reactive(position.y)
+	let width = reactive(position.width)
+	let height = reactive(position.height)
 
 
-let slidercursor = ({
-	left, top,
-	width,
-	height,
-	min,
-	max,
-	value,
-}) => {
-	let mapx = (v) => mapRange(v, 0, width, min, max)
-	let mapy = (v) => mapRange(v, 0, height, min, max)
-	let scaled = width/dimensions
-	//minimap doesn't work yet...
-	let mappednodes = data.nodes.map(e => {
-		let n = {}
-		n.x = e.x * scaled
-		n.y = e.y * scaled
-		n.width = e.width*scaled
-		n.height = e.height*scaled
-		console.log("wtfff", e.x, e.y, scaled, n.x, n.y)
-		return n
-	}).map(e => {
+	left.subscribe(v => position.x = v)
+	left.subscribe(save_data)
+	top.subscribe(v => position.y = v)
+	top.subscribe(save_data)
 
-		let style = `
-position: absolute;
-left: ${e.x}px;
-top: ${e.y}px;
-width: ${e.width}px;
-height: ${e.height}px;
-background-color:#0002; 
-`
-		return [".mini", {style}]
-	})
+	width.subscribe(v => position.width = v)
+	height.subscribe(v => position.height = v)
+	height.subscribe(save_data)
+	width.subscribe(save_data)
 
-	let y = reactive(value)
-	let x = reactive(value)
+	memo(() => {
+		position.x = left.value()
+		position.y = top.value()
+		position.width = width.value()
+		position.height = height.value()
+		save_data()
+	}, [left, top, width, height])
 
-	left = reactive(left)
-	top = reactive(top)
-
-	let inx_left = memo(() => left.value() + 15, [left])
-	let inx_top = memo(() => top.value(), [top])
-
-	let iny_left = memo(() => left.value() + 80, [left])
-	let iny_top = memo(() => top.value(), [top])
-
-	let outx_left = memo(() => left.value() + width + 5, [left])
-	let outx_top = memo(() => top.value() + 40, [top])
-
-	let outy_left = memo(() => left.value() + width + 5, [left])
-	let outy_top = memo(() => top.value() + 80, [top])
-
-	let connectinput_x = inputConnector(0, -30, x, [inx_left, inx_top])
-	let connectinput_y = inputConnector(55, -30, y, [iny_left, iny_top])
-
-	let connectoutput_x = outputConnector(-30, 10, x, [outx_left, outx_top])
-	let connectoutput_y = outputConnector(-30, 40, y, [outy_left, outy_top])
 
 	let style = memo(() => `
+		position: absolute;
 		left: ${left.value()}px;
 		top: ${top.value()}px;
-		height: ${height}px;
-		width: ${width}px;
-	`, [left, top])
+		width: ${width.value()}px;
+		height: ${height.value()}px
+	`, [left, top, width, height])
 
-	let stylememo = memo(() => `
-		top: ${y.value()}px;
-		left: ${x.value()}px;
-		background-color: #fff0; 
-`, [x, y])
+	let resize = memo(() => `
+		left:${width.value() + 10}px;
+		top:${height.value() + 10}px;
+`, [width, height])
 
-	let cursor = dom(['.psuedo-cursor', { style: stylememo }], svgx(30))
-	let el = dom(
-		['.psuedo-container', { style: style },
-			['.psuedo-slider',
-				{ style: `height: ${height}px;width: ${width}px;` },
-				...mappednodes,
-				cursor, connectoutput_x, connectoutput_y,
-				connectinput_x, connectinput_y,]])
+	let resizewidth = memo(() => `
+		left:${width.value() + 10}px;
+		top:-10px;
+`, [width])
 
-	setTimeout(() => {
-		let set_top = (v) => y.next(v)
-		let set_left = (v) => x.next(v)
-		drag(cursor, { set_left, set_top })
-		drag(el, { set_left: (v) => left.next(v), set_top: (v) => top.next(v) })
-	}, 100)
+	let resizewidthmiddle = memo(() => `
+		left:${width.value() + 10}px;
+		top:${height.value() / 2}px;
+`, [width, height])
 
-	return el
-}
-let sliderAxis = ({
-	top, left,
-	axis,
-	width,
-	height,
-	min, max,
-	value,
-	input, output,
-	label = ''
-}) => {
-	let dimensionmax = axis == 'horizontal' ? width : height
-	let mapper = (v) => mapRange(v, 0, dimensionmax, min, max)
-	let reversemapper = (v) => mapRange(v, min, max, 0, dimensionmax)
+	let resizeheightmiddle = memo(() => `
+		top:${height.value() + 10}px;
+		left:${width.value() / 2}px;
+`, [height, width])
 
-	left = reactive(left)
-	top = reactive(top)
+	let resizeheight = memo(() => `
+		top:${height.value() + 10}px;
+		left:-10px;
+`, [height])
 
-	let in_left = memo(() => left.value() + 5, [left])
-	let in_top = memo(() => top.value() - 15, [top])
 
-	let out_left = memo(() => left.value() + width + 5, [left])
-	let out_top = memo(() => top.value() + height + 15, [top])
+	let resizer = dom(".absolute.flex-center.box.cur-se", { style: resize }, svgx(30))
+	let resizerwidth = dom(".absolute.flex-center.box.cur-e", { style: resizewidth }, svgx(30))
+	let resizerheight = dom(".absolute.flex-center.box.cur-s", { style: resizeheight }, svgx(30))
+	let resizerwidthmiddle = dom(".absolute.flex-center.box.cur-e", { style: resizewidthmiddle }, svgx(30))
+	let resizerheightmiddle = dom(".absolute.flex-center.box.cur-s", { style: resizeheightmiddle }, svgx(30))
 
-	let style = memo(() => `
-		left:${left.value()}px;
-		top:${top.value()}px;
-		width: ${width}px;
-		height: ${height}px;
-`, [left, top])
+	let draggable = dom('.draggable.group', { style: style }, resizer, resizerwidth, resizerheight, resizerheightmiddle, resizerwidthmiddle)
+	let el
+	el = [".block.group", "DAWG"]
+	el = dom(el)
+	draggable.appendChild(el)
 
-	let x = reactive(reversemapper(value))
-	if (input) input.subscribe(v => x.next(reversemapper(v)))
-	if (output) x.subscribe(v => output.next(mapper(v)))
-
-	let stylememo = memo(() => `
-		left: ${axis == 'horizontal' ? x.value() : -8}px;
-		top:  ${axis == 'vertical' ? x.value() : -8}px;`, [x])
-
-	let connectinput = inputConnector(-8, -36, x, [in_left, in_top])
-	let connectoutput = outputConnector(-8, height + 5, x, [out_left, out_top])
-
-	let cursor = dom(['.psuedo-cursor.flex-center', { style: stylememo }, label])
-	let el = dom(['.psuedo-slider', { style }, cursor, connectoutput, connectinput])
-
-	setTimeout(() => {
-		let set_left = (v) => axis == 'horizontal' ? x.next(v) : null
-		let set_top = (v) => axis == 'vertical' ? x.next(v) : null
-
-		drag(cursor, { set_left, set_top })
-		drag(el, { set_left: (v) => left.next(v), set_top: (v) => top.next(v) })
-	}, 100)
-
-	return el
-}
-
-// connection:
-// connectAsInput
-// connectAsOutput
-
-// createConnection ->
-// will create a closure with a signal
-// an input fn that writes to the signal
-// and an output fn that subscribes to signal
-
-let connections = []
-let uuid = () => Math.random().toString(36).slice(-6);
-function createConnection() {
-	let signal = reactive(0)
-	let disconnectInput, disconnectOutput
-	let start, end
-	let id = uuid
-	let self = {
-		line: () => {
-			let l = []
-			if (start && !end) l = [...start]
-			else if (start && end) l = [...start, ...end]
-			return l
-		},
-		connectAsInput: (v, position) => {
-			if (position.isReactive) {
-				start = position.value()
-				position.subscribe(v => start = v)
+	let onstart = () => {
+		data.data.nodes.forEach((e) => {
+			if(e.type != 'group' && isRectContained(
+				{x: left.value(), y: top.value(), width: width.value(), height: height.value()},
+				{x: e.x, y: e.y, width: e.width, height: e.height},
+			)){
+				let item = {
+					block: e,
+					offset: {
+						x: e.x - left.value(),
+						y: e.y - top.value(),
+					}
+				}
+				anchored.push(item)
 			}
-			else start = position
-			signal.next(v.value())
-			disconnectInput = v.subscribe(x => signal.next(x))
-		},
-
-		connectAsOutput: (v, position) => {
-			if (position.isReactive) {
-				end = position.value()
-				position.subscribe(v => end = v)
-			}
-
-			else end = position
-
-			v.next(signal.value())
-			disconnectOutput = signal.subscribe(x => v.next(x))
-			connections.push(self)
-			buffer = undefined
-		},
-
-		disconnect: () => {
-			// delete line
-			disconnectInput()
-			disconnectOutput()
-			let us = connections.findIndex(v => v == self)
-			if (us != -1) connections.splice(us, 1)
-		}
+		})
 	}
-	return self
-}
 
-let sliderButtons = ({ style, width, height, min, max, divisions, value, setvalue, axis, input }) => {
-	let dimensionmax = axis == 'horizontal' ? width : height
-	let mapper = (v) => mapRange(v, 0, dimensionmax, min, max)
-	let reversemapper = (v) => mapRange(v, min, max, 0, dimensionmax)
-
-	let x = reactive(reversemapper(value))
-	x.subscribe(v => setvalue(mapper(v)))
-	if (input) input(v => x.next(reversemapper(v)))
-
-
-	let each = (dimensionmax / divisions)
-
-	let stylebtns = axis == 'horizontal' ? "width: " + each + "px;" : "height: " + each + "px;"
-
-	let btns = Array(divisions).fill(0).map((_, i) =>
-		['button', {
-			style: stylebtns,
-			onclick: () => x.next(i * each)
-		}, round(mapper(i * each), 1) + "%"]
-	)
-	let el = dom(['.psuedo-slider', { style: ` ${style}; width: ${width}px;height: ${height}px;` }, ...btns])
-
-	return el
-
-}
-
-let reactiveEl = ({ left, top, value }) => {
-	let width = 80
-
-	left = reactive(left)
-	top = reactive(top)
-	let out_left = memo(() => left.value() + width + 45, [left])
-	let out_top = memo(() => top.value() + 5, [top])
-	let in_left = memo(() => left.value() - 15, [left])
-	let in_top = memo(() => top.value() + 5, [top])
-
-	let input = inputConnector(-35, 0, value, [in_left, in_top])
-	let output = outputConnector(-35, 0, value, [out_left, out_top])
-
-	let style = memo(() => `
-		left:${left.value()}px;
-		top:${top.value()}px;
-		width: ${width}px;
-		padding: 1em;
-`, [left, top])
-
-	let el = dom(['div.psuedo-slider', { style },
-		['div.psuedo-cursor',
-			{ style: `left: 5px; top:0px; width: 50` },
-			memo(() => round(value.value(), 5) + "", [value])], input, output])
+	let onend = () => {
+		anchored = []
+	}
 	setTimeout(() => {
-		drag(el, { set_left: (v) => left.next(v), set_top: (v) => top.next(v) })
-	}, 100)
-	return el
-
-}
-
-let keys = []
-let keyPresser = ({ left, top, key }) => {
-	let width = 80
-
-	let inputvalue = reactive(0)
-	let outputvalue = reactive(0)
-	left = reactive(left)
-	top = reactive(top)
-	let out_left = memo(() => left.value() + width + 45, [left])
-	let out_top = memo(() => top.value() + 5, [top])
-	let in_left = memo(() => left.value() - 15, [left])
-	let in_top = memo(() => top.value() + 5, [top])
-
-	let input = inputConnector(-35, 0, inputvalue, [in_left, in_top])
-	let output = outputConnector(-35, 0, outputvalue, [out_left, out_top])
-
-	keys.push({
-		key,
-		fn: () => {
-			outputvalue.next(Math.random())
-			outputvalue.next(inputvalue.value())
+		let set_left = (v) =>{
+			left.next(v)
+			anchored.forEach(e => {
+				e.block.x = v + e.offset.x
+				save_data()
+			})
 		}
-	})
+		let set_top = (v) =>{
+			top.next(v)
+			anchored.forEach(e => {
+				e.block.y = v + e.offset.y
+				save_data()
+			})
+		}
 
-	let style = memo(() => `
-		left:${left.value()}px;
-		top:${top.value()}px;
-		width: ${width}px;
-		padding: 1em;
-`, [left, top])
-
-	let el = dom(['div.psuedo-slider', { style },
-		['div.psuedo-cursor',
-			{ style: `left: 5px; top:0px; width: 50` }, key], input, output])
-	setTimeout(() => {
-		drag(el, { set_left: (v) => left.next(v), set_top: (v) => top.next(v) })
+		drag(draggable, { set_left, set_top, onstart, onend })
+		drag(resizer, { set_left: (v) => width.next(v), set_top: (v) => height.next(v) })
+		drag(resizerwidth, { set_left: (v) => width.next(v), set_top: () => null })
+		drag(resizerheight, { set_left: () => null, set_top: (v) => height.next(v) })
+		drag(resizerwidthmiddle, { set_left: (v) => width.next(v), set_top: () => null })
+		drag(resizerheightmiddle, { set_left: () => null, set_top: (v) => height.next(v) })
 	}, 100)
-	return el
-
+	return draggable
+	
 }
-
 let blockEl = block => {
-	let position = data.nodes.find(e => e.id == block.id)
-	if (!position) data.nodes.push(makeData(block, 0))
-	position = data.nodes.find(e => e.id == block.id)
+	let position = data.data.nodes.find(e => e.id == block.id)
+	if (!position) data.data.nodes.push(constructBlockData(block, 0))
+	position = data.data.nodes.find(e => e.id == block.id)
+
+	let updateFn = (data) => {
+		let p = (data.nodes.find(e => e.id == block.id))
+		if (!p) console.log("GONNNNE")
+		if (!p) return
+
+		if (p.x != left.value()) left.next(p.x)
+		if (p.y != top.value()) top.next(p.y)
+		if (p.width != width.value()) width.next(p.width)
+		if (p.height != height.value()) height.next(p.height)
+	}
+
+	dataSubscriptions.push(updateFn)
 
 	let left = reactive(position.x)
 	let top = reactive(position.y)
@@ -460,6 +262,14 @@ let blockEl = block => {
 	height.subscribe(save_data)
 	width.subscribe(save_data)
 
+	memo(() => {
+		position.x = left.value()
+		position.y = top.value()
+		position.width = width.value()
+		position.height = height.value()
+		save_data()
+	}, [left, top, width, height])
+
 
 	let style = memo(() => `
 		position: absolute;
@@ -470,162 +280,220 @@ let blockEl = block => {
 	`, [left, top, width, height])
 
 	let resize = memo(() => `
-left:${width.value()+10}px;
-top:${height.value()+10}px;
+		left:${width.value() + 10}px;
+		top:${height.value() + 10}px;
 `, [width, height])
 
 	let resizewidth = memo(() => `
-left:${width.value()+10}px;
-top:-10px;
+		left:${width.value() + 10}px;
+		top:-10px;
 `, [width])
 
 	let resizewidthmiddle = memo(() => `
-left:${width.value()+10}px;
-top:${height.value()/2}px;
+		left:${width.value() + 10}px;
+		top:${height.value() / 2}px;
 `, [width, height])
 
 	let resizeheightmiddle = memo(() => `
-top:${height.value()+10}px;
-left:${width.value()/2}px;
+		top:${height.value() + 10}px;
+		left:${width.value() / 2}px;
 `, [height, width])
 
 	let resizeheight = memo(() => `
-top:${height.value()+10}px;
-left:-10px;
+		top:${height.value() + 10}px;
+		left:-10px;
 `, [height])
 
 
 	let resizer = dom(".absolute.flex-center.box.cur-se", { style: resize }, svgx(30))
 	let resizerwidth = dom(".absolute.flex-center.box.cur-e", { style: resizewidth }, svgx(30))
 	let resizerheight = dom(".absolute.flex-center.box.cur-s", { style: resizeheight }, svgx(30))
-
 	let resizerwidthmiddle = dom(".absolute.flex-center.box.cur-e", { style: resizewidthmiddle }, svgx(30))
-
 	let resizerheightmiddle = dom(".absolute.flex-center.box.cur-s", { style: resizeheightmiddle }, svgx(30))
 
 	let draggable = dom('.draggable', { style: style }, resizer, resizerwidth, resizerheight, resizerheightmiddle, resizerwidthmiddle)
 	let el
 	let image = block => ['img', { src: block.image?.large?.src }]
 	let edit = false
-
 	if (block.type == "Text") {
 		let value = block.content.markdown
 		let old = ''
-		let textarea = md => (old = value, dom([".block.text", save, cancel, ["textarea", {
-			onclick: (e) => {
-				e.stopPropagation();
-				e.stopImmediatePropagation()
-			}, oninput: e => value = e.target.value
-		}, md]]))
+		let textarea = md => {
+			// on creation keep old value to reset
+			old = value
+			return dom([".block.text", saveButton, cancelButton, ["textarea", {
+				onclick: (e) => {
+					e.stopPropagation();
+					e.stopImmediatePropagation()
+				},
+				oninput: e => value = e.target.value
+			}, md]])
+		}
+		let mountResizers = () => {
+			draggable.appendChild(resizer)
+			draggable.appendChild(resizerwidth)
+			draggable.appendChild(resizerheight)
+			draggable.appendChild(resizerwidthmiddle)
+			draggable.appendChild(resizerheightmiddle)
+		}
 
-		let editbtn = ["button.edit", {
-			onclick: () => {
-				edit = true
-				draggable.innerHTML = ``;
-				draggable.appendChild(textarea(value))
-				draggable.appendChild(resizer)
-				draggable.appendChild(resizerwidth)
-				draggable.appendChild(resizerheight)
+		let editBlock = () => {
+			edit = true
+			draggable.innerHTML = ``;
+			draggable.appendChild(textarea(value))
+			mountResizers()
+		}
+		let saveBlock = () => {
+			edit = false
+			update_block(block.id, { content: value }).then(res => console.log(res))
+			draggable.innerHTML = ``;
+			draggable.appendChild(dom([".block.text", editOrTag, ...MD(value)])) // 
+			mountResizers()
+		}
+		let cancelEdit = () => {
+			value = old
+			edit = false
+			draggable.innerHTML = ``;
+			draggable.appendChild(dom([".block.text", editOrTag, ...MD(value)])) // 
+			mountResizers()
+		}
 
-				draggable.appendChild(resizerwidthmiddle)
-				draggable.appendChild(resizerheightmiddle)
-			}
-		}, "edit"]
+		let saveButton = button("save", saveBlock)
+		let editButton = button('edit', editBlock)
+		let cancelButton = button('cancel', cancelEdit)
+		let blockUserTag = ["p.tag", block.user.slug]
+		let editOrTag = memo(() => block.user.slug == authslug.value() ? editButton : blockUserTag, [authslug])
 
-		let save = ["button.save", {
-			onclick: () => {
-				edit = false
-				update_block(block.id, { content: value }).then(res => console.log(res))
-				draggable.innerHTML = ``;
-				draggable.appendChild(dom([".block.text", editbtn, ...MD(value)])) // 
-				draggable.appendChild(resizer)
-				draggable.appendChild(resizerwidth)
-				draggable.appendChild(resizerheight)
-				draggable.appendChild(resizerwidthmiddle)
-				draggable.appendChild(resizerheightmiddle)
-			}
-		}, "save"]
-
-		let cancel = ["button", {
-			onclick: () => {
-				value = old
-				edit = false
-				draggable.innerHTML = ``;
-				draggable.appendChild(dom([".block.text", editbtn, ...MD(value)])) // 
-				draggable.appendChild(resizer)
-				draggable.appendChild(resizerwidth)
-				draggable.appendChild(resizerheight)
-				draggable.appendChild(resizerwidthmiddle)
-				draggable.appendChild(resizerheightmiddle)
-			}
-		}, "cancel"]
-
-		el = [".block.text", editbtn, ...MD(value)]
+		el = [".block.text", editOrTag, ...MD(value)]
 	}
+
 	else if (block.type == "Image") el = [".block.image", image(block)]
 	else if (block.type == "Attachment") el = [".block.image", image(block)]
 	else if (block.type == "Link") el = [".block.image", image(block)]
 	else if (block.type == "Embed") el = [".block.image", image(block)]
 	else el = [".block", block.id + ""]
-
 	el = dom(el)
-
 	draggable.appendChild(el)
 
 	setTimeout(() => {
 		let set_left = (v) => left.next(v)
 		let set_top = (v) => top.next(v)
-		drag(draggable, { set_left, set_top, pan_switch: () => !edit })
+		drag(draggable, { set_left, set_top, pan_switch: () => !edit, bound: 'inner' })
 		drag(resizer, { set_left: (v) => width.next(v), set_top: (v) => height.next(v) })
-		drag(resizerwidth, { set_left: (v) => width.next(v), set_top: (v) => null })
-		drag(resizerheight, { set_left: (v) => null, set_top: (v) => height.next(v) })
-
-		drag(resizerwidthmiddle, { set_left: (v) => width.next(v), set_top: (v) => null })
-		drag(resizerheightmiddle, { set_left: (v) => null, set_top: (v) => height.next(v) })
+		drag(resizerwidth, { set_left: (v) => width.next(v), set_top: () => null })
+		drag(resizerheight, { set_left: () => null, set_top: (v) => height.next(v) })
+		drag(resizerwidthmiddle, { set_left: (v) => width.next(v), set_top: () => null })
+		drag(resizerheightmiddle, { set_left: () => null, set_top: (v) => height.next(v) })
 	}, 100)
-
 	return draggable
 }
-let dawg = reactive({ x: 0, y: 0 })
-let dotcanvas
-let render = (blocks) => {
-	data = undefined
-	// try find a .canvas block
-	dotcanvas = blocks.find(e => e.title == '.canvas')
-	if (dotcanvas) { data = JSON.parse(dotcanvas.content.plain) }
+let processBlockForRendering = (blocks) => {
 	blocks = blocks.filter(e => e.title != ".canvas")
-	blocks = blocks.filter(e => e.type != ".canvas")
+	blocks = blocks.filter(e => e.type != "Channel")
 
-	document.body.innerHTML = ''
-
-	if (!data) {
-		let nodes = blocks.filter(e => e.title != ".canvas").map(makeData)
-		data = { nodes }
+	return blocks
+}
+let updateData = (blocks) => {
+	state.dotcanvas=(blocks.find(e => e.title == '.canvas'))  
+	if (state.dotcanvas) {
+		data.data = JSON.parse(state.dotcanvas.content.plain)
 	}
 
-
-	let w = 300
-	let x = reactive(0)
-	let y = reactive(0)
-	// make this nodeable
-	wheelfn = e => {
-		if (e.metaKey){
-			y.next(f => f +e.deltaY)
-			x.next(f => f +e.deltaX)
-		}
-		else {
-			scale.next(f => f - (e.deltaY/2500))
-		}
+	if (!data.data) {
+		let nodes = blocks.filter(e => e.title != ".canvas").map(constructBlockData)
+		data.data = { nodes }
 	}
-	let scale = reactive(1)
+}
+
+function intersectRect(r1, r2) {
+  return !(r2.left > r1.right ||
+    r2.right < r1.left ||
+    r2.top > r1.bottom ||
+    r2.bottom < r1.top);
+}
+
+let pointStart = reactive([0, 0])
+let pointEnd = reactive([100, 100])
+
+let renderBlocks = (blocks) => {
+	// reset stuff
+	// I think itll be a good idea to just do a page refresh
+	// connections = []
+	data.data = undefined
+	let c = document.querySelector(".container")
+	c? c.remove() : null
+
+	// try find a .canvas block
+	updateData(blocks)
+	blocks = processBlockForRendering(blocks)
+
+	if (!mountDone) mount()
+
 	let timer = reactive(0)
 	setInterval(() => timer.next(e => e + 1), 500)
 
 	let stylemmeo = memo(() => `
-transform-origin: ${x.value() + window.innerWidth / 2}px ${y.value() + window.innerHeight / 2}px;
-transform: translate(${x.value() * -1}px, ${y.value() * -1}px) scale(${scale.value()}) ;
-`, [x, y, scale])
+		transform-origin: ${canvasX.value() + window.innerWidth / 2}px ${canvasY.value() + window.innerHeight / 2}px;
+		transform: translate(${canvasX.value() * -1}px, ${canvasY.value() * -1}px) scale(${canvasScale.value()}) ;
+`, [canvasX, canvasY, canvasScale])
 
+
+	try_auth()
+	let blocksmapped = blocks.filter(e => e.type != 'group').map(blockEl)
+	let groupRender = reactive(0)
+	let groupmapped = memo(()=> data.data.nodes.filter(e => e.type == 'group').map(groupEl), [groupRender])
+
+	let onpointerdown = e => {
+		let target = e.target
+		console.log("Will start drag at: ", e.offsetX, e.offsetY,
+								"For element: ", e.target,
+								"ID: ", e.pointerId,
+							 )
+		pointStart.next([e.offsetX, e.offsetY])
+		pointEnd.next([e.offsetX, e.offsetY])
+		target.setPointerCapture(e.pointerId);
+	}
+	let onpointermove = e => {
+		let target = e.target
+
+		if (!target.hasPointerCapture(e.pointerId)) return;
+
+		const deltaX = e.movementX / canvasScale.value();
+		const deltaY = e.movementY / canvasScale.value();
+		pointEnd.next(v => [v[0] + deltaX, v[1] + deltaY])
+	}
+	let onpointerup = e => {
+		let target = e.target
+
+		let pointsToAt = (x1,y1,x2,y2) => ({
+			x: Math.min(x1, x2), y: Math.min(y1, y2),
+			width: Math.abs(x2 - x1),
+			height: Math.abs(y2 - y1),
+		})
+
+		let {x, y, width, height} = pointsToAt(...pointStart.value(), ...pointEnd.value())
+		let d = groupData(x, y, width, height)
+		data.data.nodes.push(d)
+		groupRender.next(e => e+1)
+
+		pointStart.next([0,0])
+		pointEnd.next([0,0])
+		target.releasePointerCapture(e.pointerId);
+	}
+
+	let bigline = memo(() => svgrect(...pointStart.value(), ...pointEnd.value(), "red", 8), [pointStart, pointEnd])
+	let stupidSVG = ['svg', { width: dimensions, height: dimensions }, bigline]
+
+	let root = [".container",
+							{ style: stylemmeo,
+								onpointerdown,onpointermove, onpointerup
+							}, stupidSVG, groupmapped, ...blocksmapped]
+
+	document.body.appendChild(dom(root))
+}
+let mount = () => {
+	mountDone = true;
+	// Nodes
 	let slcurse = slidercursor({
 		left: 40,
 		top: window.innerHeight - (w + 45),
@@ -635,18 +503,17 @@ transform: translate(${x.value() * -1}px, ${y.value() * -1}px) scale(${scale.val
 		width: w,
 		value: 1,
 	})
-
 	let sls = sliderAxis({
 		left: window.innerWidth - 70,
 		top: window.innerHeight / 2 - w,
 		min: .1,
+		max: 2.5,
 		height: w,
 		width: 15,
-		max: 2.5,
 		value: 1,
 		axis: 'vertical',
-		input: scale,
-		output: scale,
+		input: canvasScale,
+		output: canvasScale,
 		label: "+",
 	})
 	let slx = sliderAxis({
@@ -658,8 +525,8 @@ transform: translate(${x.value() * -1}px, ${y.value() * -1}px) scale(${scale.val
 		axis: 'horizontal',
 		max: dimensions,
 		value: 1,
-		input: x,
-		output: x,
+		input: canvasX,
+		output: canvasX,
 		label: "X",
 	})
 	let sly = sliderAxis({
@@ -671,75 +538,39 @@ transform: translate(${x.value() * -1}px, ${y.value() * -1}px) scale(${scale.val
 		axis: 'vertical',
 		max: dimensions,
 		value: 1,
-		input: y,
-		output: y,
+		input: canvasY,
+		output: canvasY,
 		label: "Y",
 	})
 
-	let funkypunky = reactiveEl({
-		left: 100,
-		top: 100,
-		value: timer
-	})
-
+	// SVG STUFF
+	// Fix the leaks here...
 	let lines = memo(() => {
 		let l = []
-		if (buffer) l.push([buffer.line()[0], buffer.line()[1], dawg.value().x, dawg.value().y])
-		connections.forEach(e => l.push(e.line()))
+		if (state.connectionBuffer)
+			l.push([
+				state.connectionBuffer.line()[0],
+				state.connectionBuffer.line()[1],
+				mouse.value().x,
+				mouse.value().y])
+		state.connections.forEach(e => l.push(e.line()))
 		return l
-	}, [dawg])
-	let query = ""
-	let try_auth = () => {
-		console.log("will try auth with", auth)
-	}
-
-	let open = reactive("false")
-	let close = ["button", {
-		onclick: () => {
-			open.next(e => e == 'true' ? 'false' : 'true')
-		}
-	}, "close"]
-	let openbtn = ["button", {
-		style: 'position: fixed; left: 1em; top: 1em; z-index: 9999;', onclick: () => {
-			open.next(e => e == 'true' ? 'false' : 'true')
-		}
-	}, ">"]
-	let savebtn = ["button", {
-		style: 'position: fixed; left: 3em; top: 1em; z-index: 9999;', onclick: () => {
-			if (dotcanvas){
-				let content = JSON.stringify(data, null, 2)
-				update_block(dotcanvas.id, {content, title: ".canvas"})
-			}
-
-			else {
-				
-			}
-		}
-	}, "save"]
-
-	let search = [".section.search", ["h4", "search"],
-								["input", { oninput: (e) => query = e.target.value }],
-								["button", {onclick: (e) => set_channel(query)}, "set"]]
-
-	let authenticate = [".section.auth",
-		["h4", "Authenticate"],
-		["input", { oninput: (e) => auth = e.target.value.trim() }],
-		["button", {
-			onclick: (e) => {
-				localStorage.setItem("auth", auth)
-				try_auth()
-			}
-		}, "what"]]
-	let sidebar = [".sidebar", { open: open, onclick: (e) => console.log("PLEASE", e.target) }, close, search, authenticate, ]
+	}, [mouse])
 	let lineEls = memo(() => lines.value().map(f => svgline(...f, "white")), [lines])
+	// Fix the leaks here...
 	let svg = ['svg.line-canvas', { width: window.innerWidth, height: window.innerHeight }, lineEls]
-	let blocksmapped = blocks.map(blockEl)
-	let root = [".container", { style: stylemmeo }, ...blocksmapped]
-	let nodes = [svg, slcurse, sls, funkypunky, sly, slx]
+
+	let nodes = [svg, slcurse, sls,  sly, slx]
+	let pos = (x, y) =>  `position: fixed; left: ${x}em; top: ${y}em; z-index: 9999;`
+
+	let openbtn = button(">", () => {sidebarOpen.next(e => e == 'true' ? 'false' : 'true')}, {style:pos(1,1)})
+	let savebtn = button("save", () => {
+			let content = JSON.stringify(data.data)
+			if (state.dotcanvas.id) update_block(state.dotcanvas.id, { content, title: ".canvas" })
+			else add_block(currentslug, '.canvas', content)
+	}, {style:pos(3,1),})
 
 	document.body.appendChild(dom(['.nodes', ...nodes]))
-	document.body.appendChild(dom(root))
-
 	document.body.appendChild(dom(sidebar))
 	document.body.appendChild(dom(openbtn))
 	document.body.appendChild(dom(savebtn))
@@ -747,8 +578,6 @@ transform: translate(${x.value() * -1}px, ${y.value() * -1}px) scale(${scale.val
 
 let addnode = node =>
 	document.querySelector(".nodes").appendChild(node)
-
-let wheelfn
 
 document.onkeydown = (e) => {
 	keys.forEach((key) => {
@@ -784,19 +613,20 @@ document.onkeydown = (e) => {
 		// 	nodes: data,
 		// 	edged: []
 		// }
-		download_json(data)
+		download_json(data.data)
 	}
 }
-document.addEventListener("wheel", (e) => {
-	if (wheelfn) wheelfn(e)
+document.onmousemove = (e) => {
+	mouse.next({ x: parseFloat(e.clientX), y: parseFloat(e.clientY) })
+}
+document.addEventListener("wheel", e => {
+	if (e.metaKey) {
+		canvasY.next(f => f + e.deltaY)
+		canvasX.next(f => f + e.deltaX)
+	}
+	else { canvasScale.next(f => f - (e.deltaY / 2500)) }
 })
 
+// make this nodeable
+set_channel(currentslug)
 
-let svgline = (x1, y1, x2, y2, stroke = "blue") => ['line', { x1, y1, x2, y2, stroke, "stroke-width": 4 }]
-let svgx = (size, fill = 'blue') => ['svg', { width: size, height: size },
-	svgline(0, 0, size, size, fill),
-	svgline(size, 0, 0, size, fill),]
-
-document.onmousemove = (e) => {
-	dawg.next({ x: parseFloat(e.clientX), y: parseFloat(e.clientY) })
-}

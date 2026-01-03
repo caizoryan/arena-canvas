@@ -8,6 +8,7 @@
 
 *{
 	color: var(--color);
+	font-family: monospace;
 }
 
 svg {
@@ -27,6 +28,7 @@ body {
   height: 100%;
 }
 
+
 .container {
 	width: 10000px;
 	height: 10000px;
@@ -43,7 +45,13 @@ body {
   /* overflow: hidden; */
   /* border-radius: 8px; */
   font-family: monospace;
+	z-index: 92;
   box-shadow: 6px 6px 0 rgba(0,0,0,.13);
+}
+
+.draggable.group{
+	z-index: 91;
+	background-color: #ff22;
 }
 
 .psuedo-container {
@@ -156,7 +164,13 @@ textarea {
 	height: 90vh;
 	top: 5vh;
 	background: var(--background1);
+	border: 1px solid var(--highlight);
 	z-index: 299;
+}
+
+.sidebar > *{
+	margin: 1rem;
+  padding: .5rem;
 }
 
 .sidebar[open='true']{
@@ -168,8 +182,6 @@ textarea {
 }
 
 .section {
-	/* margin: 1em; */
-  border: 1px solid var(--color);
-  /* padding: .5em; */
+  border-top: 1px solid var(--color);
   font-family: monospace;
 }

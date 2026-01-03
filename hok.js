@@ -42,7 +42,8 @@ export function reactive(value) {
 				? _value = v(value)
 				: _value = v
 
-			if (_value == value) return
+			if ((typeof _value == 'number'|| typeof _value == 'string')
+					&& _value == value) return
 			else {
 				value = _value
 				Object.values(subs).forEach(e =>  e(value))
@@ -79,12 +80,14 @@ export function memo (fn, subs /*,subs*/)  {
 		s.subscribe((v) => {
 			// check once and if any has changed mark for running... dont do all.
 			// will run multiple times
-			if (Array.isArray(v) || memoized[i] != v) {
+			// if (Array.isArray(v)
+			// 		// || memoized[i] != v
+			// 	 ) {
 				// then run
 				memoized[i] = v
 				run()
-			}
-			else return
+			// }
+			// else return
 		})
 	})
 
