@@ -10,7 +10,7 @@ import {
 	data, state,
 	save_data,
 	canvasScale, canvasX, canvasY, mouse,
-	dimensions, 
+	dimensions,
 	dataSubscriptions
 } from "./data.js"
 import { sliderAxis, slidercursor, reactiveEl, keyPresser } from "./node.js"
@@ -18,6 +18,20 @@ import { sliderAxis, slidercursor, reactiveEl, keyPresser } from "./node.js"
 const uuid = () => Math.random().toString(36).slice(-6);
 const button = (t, fn, attr = {}) => ["button", { onclick: fn, ...attr }, t]
 
+let colors = [
+	'#F5F5DC',
+	'#F5DCE9',
+	'#DCF5DF',
+	'#E4D4A0',
+  "#CFF0F5", // 5 - pastel cyan
+  "#E3CFF5",  // 6 - pastel purple
+  "#F5D1B8", // 2 - pastel orange
+  "#F5E8B8", // 3 - pastel yellow
+  "#CFF5D1", // 4 - pastel green
+];
+
+// [
+// ]
 // -------------------
 // DATA
 // -------------------
@@ -49,6 +63,7 @@ let constructBlockData = (e, i) => {
 		y: (Math.floor(i / 8)) * 450 + r2,
 		width: 300,
 		height: 300,
+		color: '1'
 	}
 	if (e.type == "Text") {
 		console.log("Text Block")
@@ -88,6 +103,7 @@ let constructBlockData = (e, i) => {
 let groupData = (x, y, width, height) => {
 	let d = {
 		type: 'group',
+		label: "Group",
 		id: 'group-' + uuid(),
 		x, y, width, height,
 	}
@@ -96,27 +112,30 @@ let groupData = (x, y, width, height) => {
 }
 
 let groupEl = group => {
-		const isRectContained = (rect1, rect2) => {
-			return (
-				rect2.x >= rect1.x &&
-				rect2.y >= rect1.y &&
-				rect2.x + rect2.width <= rect1.x + rect1.width &&
-				rect2.y + rect2.height <= rect1.y + rect1.height
-			);
-		}
-
+	const isRectContained = (rect1, rect2) => {
+		return (
+			rect2.x >= rect1.x &&
+			rect2.y >= rect1.y &&
+			rect2.x + rect2.width <= rect1.x + rect1.width &&
+			rect2.y + rect2.height <= rect1.y + rect1.height
+		);
+	}
 	let anchored = []
 	console.log("GOT", group)
 	let position = data.data.nodes.find(e => e.id == group.id)
 	if (!position) console.error("BRUH HOW")
 	position = data.data.nodes.find(e => e.id == group.id)
+	if (!position.color) position.color = '2'
+	if (!position.label) position.label = 'Group'
+	console.log("Position = group", position == group)
 
 	let left = reactive(position.x)
 	let top = reactive(position.y)
 	let width = reactive(position.width)
 	let height = reactive(position.height)
+	let color = reactive(position.color)
 
-
+	color.subscribe(v => position.color = v)
 	left.subscribe(v => position.x = v)
 	left.subscribe(save_data)
 	top.subscribe(v => position.y = v)
@@ -135,14 +154,33 @@ let groupEl = group => {
 		save_data()
 	}, [left, top, width, height])
 
+	let setcolorfn = i => () => color.next(i + "")
+	let removeButton = () => {
+		let click = reactive(0)
+		let words = ['delete', 'DELETE', "DELETE!", "DELETEEEEE", "DELEETEEEE!!!!"]
+		let onclick = () => {
+			click.next(e => e+1)
+			if (click.value() == 5) remove()
+		}
+		return button(memo(() => words[click.value()], [click]), onclick)
+	}
+	let colorbuttons = ['.color-bar', ...[1, 2, 3, 4, 5, 6].map((i) => button('x', setcolorfn(i), { style: 'background-color: ' + colors[i-1] + ";" })), removeButton()] 
+	let remove = () => {
+		let i = data.data.nodes.findIndex(e => e == position)
+		console.log('found', position, "at", i)
+		data.data.nodes.splice(i, 1)
+		draggable.remove()
+	}
+
 
 	let style = memo(() => `
 		position: absolute;
 		left: ${left.value()}px;
 		top: ${top.value()}px;
+		background-color: ${colors[parseInt(color.value())-1]};
 		width: ${width.value()}px;
 		height: ${height.value()}px
-	`, [left, top, width, height])
+	`, [left, top, width, height, color])
 
 	let resize = memo(() => `
 		left:${width.value() + 10}px;
@@ -156,12 +194,14 @@ let groupEl = group => {
 
 	let resizewidthmiddle = memo(() => `
 		left:${width.value() + 10}px;
-		top:${height.value() / 2}px;
+		top:${height.value() / 4}px;
+		height: ${height.value() / 2}px;
 `, [width, height])
 
 	let resizeheightmiddle = memo(() => `
 		top:${height.value() + 10}px;
-		left:${width.value() / 2}px;
+		left:${width.value() / 4}px;
+		width: ${width.value() / 2}px;
 `, [height, width])
 
 	let resizeheight = memo(() => `
@@ -176,18 +216,32 @@ let groupEl = group => {
 	let resizerwidthmiddle = dom(".absolute.flex-center.box.cur-e", { style: resizewidthmiddle }, svgx(30))
 	let resizerheightmiddle = dom(".absolute.flex-center.box.cur-s", { style: resizeheightmiddle }, svgx(30))
 
-	let draggable = dom('.draggable.group', { style: style }, resizer, resizerwidth, resizerheight, resizerheightmiddle, resizerwidthmiddle)
+	let draggable = dom('.draggable.group', { style: style }, colorbuttons, resizer, resizerheightmiddle, resizerwidthmiddle)
 	let el
-	el = [".block.group", "DAWG"]
+
+	let editingLabel = reactive(false)
+	let textLabel = () => ['h4', { onclick: () => { editingLabel.next(true) } }, position.label]
+	let editLabel = () => ['div', ['input',
+		{
+			onclick: (e) => { e.stopImmediatePropagation(); e.stopPropagation(); console.log("TYUF") },
+			oninput: (e) => { position.label = e.target.value },
+			value: position.label
+		}],
+
+		button("set", () => editingLabel.next(false))]
+
+	let title = dom(['.label', memo(() => editingLabel.value() ? editLabel() : textLabel(), [editingLabel])])
+
+	el = [".block.group", title]
 	el = dom(el)
 	draggable.appendChild(el)
 
 	let onstart = () => {
 		data.data.nodes.forEach((e) => {
-			if(e.type != 'group' && isRectContained(
-				{x: left.value(), y: top.value(), width: width.value(), height: height.value()},
-				{x: e.x, y: e.y, width: e.width, height: e.height},
-			)){
+			if (e.type != 'group' && isRectContained(
+				{ x: left.value(), y: top.value(), width: width.value(), height: height.value() },
+				{ x: e.x, y: e.y, width: e.width, height: e.height },
+			)) {
 				let item = {
 					block: e,
 					offset: {
@@ -204,14 +258,14 @@ let groupEl = group => {
 		anchored = []
 	}
 	setTimeout(() => {
-		let set_left = (v) =>{
+		let set_left = (v) => {
 			left.next(v)
 			anchored.forEach(e => {
 				e.block.x = v + e.offset.x
 				save_data()
 			})
 		}
-		let set_top = (v) =>{
+		let set_top = (v) => {
 			top.next(v)
 			anchored.forEach(e => {
 				e.block.y = v + e.offset.y
@@ -221,18 +275,19 @@ let groupEl = group => {
 
 		drag(draggable, { set_left, set_top, onstart, onend })
 		drag(resizer, { set_left: (v) => width.next(v), set_top: (v) => height.next(v) })
-		drag(resizerwidth, { set_left: (v) => width.next(v), set_top: () => null })
-		drag(resizerheight, { set_left: () => null, set_top: (v) => height.next(v) })
+		// drag(resizerwidth, { set_left: (v) => width.next(v), set_top: () => null })
+		// drag(resizerheight, { set_left: () => null, set_top: (v) => height.next(v) })
 		drag(resizerwidthmiddle, { set_left: (v) => width.next(v), set_top: () => null })
 		drag(resizerheightmiddle, { set_left: () => null, set_top: (v) => height.next(v) })
 	}, 100)
 	return draggable
-	
+
 }
 let blockEl = block => {
 	let position = data.data.nodes.find(e => e.id == block.id)
 	if (!position) data.data.nodes.push(constructBlockData(block, 0))
 	position = data.data.nodes.find(e => e.id == block.id)
+	if (!position.color) position.color = '2'
 
 	let updateFn = (data) => {
 		let p = (data.nodes.find(e => e.id == block.id))
@@ -251,7 +306,9 @@ let blockEl = block => {
 	let top = reactive(position.y)
 	let width = reactive(position.width)
 	let height = reactive(position.height)
+	let color = reactive(position.color)
 
+	color.subscribe(v => position.color = v)
 	left.subscribe(v => position.x = v)
 	left.subscribe(save_data)
 	top.subscribe(v => position.y = v)
@@ -273,11 +330,12 @@ let blockEl = block => {
 
 	let style = memo(() => `
 		position: absolute;
+		background-color: ${colors[parseInt(color.value())-1]};
 		left: ${left.value()}px;
 		top: ${top.value()}px;
 		width: ${width.value()}px;
 		height: ${height.value()}px
-	`, [left, top, width, height])
+	`, [left, top, width, height, color])
 
 	let resize = memo(() => `
 		left:${width.value() + 10}px;
@@ -291,12 +349,14 @@ let blockEl = block => {
 
 	let resizewidthmiddle = memo(() => `
 		left:${width.value() + 10}px;
-		top:${height.value() / 2}px;
+		top:${height.value() / 4}px;
+		height: ${height.value() / 2}px;
 `, [width, height])
 
 	let resizeheightmiddle = memo(() => `
 		top:${height.value() + 10}px;
-		left:${width.value() / 2}px;
+		left:${width.value() / 4}px;
+		width: ${width.value() / 2}px;
 `, [height, width])
 
 	let resizeheight = memo(() => `
@@ -311,7 +371,9 @@ let blockEl = block => {
 	let resizerwidthmiddle = dom(".absolute.flex-center.box.cur-e", { style: resizewidthmiddle }, svgx(30))
 	let resizerheightmiddle = dom(".absolute.flex-center.box.cur-s", { style: resizeheightmiddle }, svgx(30))
 
-	let draggable = dom('.draggable', { style: style }, resizer, resizerwidth, resizerheight, resizerheightmiddle, resizerwidthmiddle)
+	let setcolorfn = i => () => color.next(i + "")
+	let colorbuttons = ['.color-bar', ...[1, 2, 3, 4, 5, 6].map((i) => button('x', setcolorfn(i), { style: 'background-color: ' + colors[i-1] + ";" }))]
+	let draggable = dom('.draggable', { style: style }, colorbuttons, resizer, resizerheight, resizerheightmiddle, resizerwidthmiddle)
 	let el
 	let image = block => ['img', { src: block.image?.large?.src }]
 	let edit = false
@@ -380,7 +442,7 @@ let blockEl = block => {
 		let set_top = (v) => top.next(v)
 		drag(draggable, { set_left, set_top, pan_switch: () => !edit, bound: 'inner' })
 		drag(resizer, { set_left: (v) => width.next(v), set_top: (v) => height.next(v) })
-		drag(resizerwidth, { set_left: (v) => width.next(v), set_top: () => null })
+		// drag(resizerwidth, { set_left: (v) => width.next(v), set_top: () => null })
 		drag(resizerheight, { set_left: () => null, set_top: (v) => height.next(v) })
 		drag(resizerwidthmiddle, { set_left: (v) => width.next(v), set_top: () => null })
 		drag(resizerheightmiddle, { set_left: () => null, set_top: (v) => height.next(v) })
@@ -394,7 +456,7 @@ let processBlockForRendering = (blocks) => {
 	return blocks
 }
 let updateData = (blocks) => {
-	state.dotcanvas=(blocks.find(e => e.title == '.canvas'))  
+	state.dotcanvas = (blocks.find(e => e.title == '.canvas'))
 	if (state.dotcanvas) {
 		data.data = JSON.parse(state.dotcanvas.content.plain)
 	}
@@ -406,10 +468,10 @@ let updateData = (blocks) => {
 }
 
 function intersectRect(r1, r2) {
-  return !(r2.left > r1.right ||
-    r2.right < r1.left ||
-    r2.top > r1.bottom ||
-    r2.bottom < r1.top);
+	return !(r2.left > r1.right ||
+		r2.right < r1.left ||
+		r2.top > r1.bottom ||
+		r2.bottom < r1.top);
 }
 
 let pointStart = reactive([0, 0])
@@ -421,7 +483,7 @@ let renderBlocks = (blocks) => {
 	// connections = []
 	data.data = undefined
 	let c = document.querySelector(".container")
-	c? c.remove() : null
+	c ? c.remove() : null
 
 	// try find a .canvas block
 	updateData(blocks)
@@ -441,14 +503,15 @@ let renderBlocks = (blocks) => {
 	try_auth()
 	let blocksmapped = blocks.filter(e => e.type != 'group').map(blockEl)
 	let groupRender = reactive(0)
-	let groupmapped = memo(()=> data.data.nodes.filter(e => e.type == 'group').map(groupEl), [groupRender])
+	let groupmapped = memo(() => data.data.nodes.filter(e => e.type == 'group').map(groupEl), [groupRender])
 
 	let onpointerdown = e => {
 		let target = e.target
+		if (e.target != document.querySelector('.container')) return
 		console.log("Will start drag at: ", e.offsetX, e.offsetY,
-								"For element: ", e.target,
-								"ID: ", e.pointerId,
-							 )
+			"For element: ", e.target,
+			"ID: ", e.pointerId,
+		)
 		pointStart.next([e.offsetX, e.offsetY])
 		pointEnd.next([e.offsetX, e.offsetY])
 		target.setPointerCapture(e.pointerId);
@@ -465,29 +528,33 @@ let renderBlocks = (blocks) => {
 	let onpointerup = e => {
 		let target = e.target
 
-		let pointsToAt = (x1,y1,x2,y2) => ({
+		let pointsToAt = (x1, y1, x2, y2) => ({
 			x: Math.min(x1, x2), y: Math.min(y1, y2),
 			width: Math.abs(x2 - x1),
 			height: Math.abs(y2 - y1),
 		})
 
-		let {x, y, width, height} = pointsToAt(...pointStart.value(), ...pointEnd.value())
+		let { x, y, width, height } = pointsToAt(...pointStart.value(), ...pointEnd.value())
+		target.releasePointerCapture(e.pointerId);
+
+		pointStart.next([0, 0])
+		pointEnd.next([0, 0])
+
+		if (width < 250 || height < 250) return 
 		let d = groupData(x, y, width, height)
 		data.data.nodes.push(d)
-		groupRender.next(e => e+1)
+		groupRender.next(e => e + 1)
 
-		pointStart.next([0,0])
-		pointEnd.next([0,0])
-		target.releasePointerCapture(e.pointerId);
 	}
 
 	let bigline = memo(() => svgrect(...pointStart.value(), ...pointEnd.value(), "red", 8), [pointStart, pointEnd])
 	let stupidSVG = ['svg', { width: dimensions, height: dimensions }, bigline]
 
 	let root = [".container",
-							{ style: stylemmeo,
-								onpointerdown,onpointermove, onpointerup
-							}, stupidSVG, groupmapped, ...blocksmapped]
+		{
+			style: stylemmeo,
+			onpointerdown, onpointermove, onpointerup
+		}, stupidSVG, groupmapped, ...blocksmapped]
 
 	document.body.appendChild(dom(root))
 }
@@ -510,7 +577,7 @@ let mount = () => {
 		max: 2.5,
 		height: w,
 		width: 15,
-		value: 1,
+		value: canvasScale.value(),
 		axis: 'vertical',
 		input: canvasScale,
 		output: canvasScale,
@@ -560,15 +627,15 @@ let mount = () => {
 	// Fix the leaks here...
 	let svg = ['svg.line-canvas', { width: window.innerWidth, height: window.innerHeight }, lineEls]
 
-	let nodes = [svg, slcurse, sls,  sly, slx]
-	let pos = (x, y) =>  `position: fixed; left: ${x}em; top: ${y}em; z-index: 9999;`
+	let nodes = [svg, slcurse, sls, sly, slx]
+	let pos = (x, y) => `position: fixed; left: ${x}em; top: ${y}em; z-index: 9999;`
 
-	let openbtn = button(">", () => {sidebarOpen.next(e => e == 'true' ? 'false' : 'true')}, {style:pos(1,1)})
+	let openbtn = button(">", () => { sidebarOpen.next(e => e == 'true' ? 'false' : 'true') }, { style: pos(1, 1) })
 	let savebtn = button("save", () => {
-			let content = JSON.stringify(data.data)
-			if (state.dotcanvas.id) update_block(state.dotcanvas.id, { content, title: ".canvas" })
-			else add_block(currentslug, '.canvas', content)
-	}, {style:pos(3,1),})
+		let content = JSON.stringify(data.data)
+		if (state.dotcanvas.id) update_block(state.dotcanvas.id, { content, title: ".canvas" })
+		else add_block(currentslug, '.canvas', content)
+	}, { style: pos(3, 1), })
 
 	document.body.appendChild(dom(['.nodes', ...nodes]))
 	document.body.appendChild(dom(sidebar))

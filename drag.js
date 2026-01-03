@@ -67,11 +67,19 @@ export const drag = (elem, options = {}) => {
 		if (!pann) return;
 		// this is so hacky, fuck google chrome
 		if (target != e.target) {
-			let isChromium = !!window.chrome;
-			let isFirefox = navigator.userAgent.includes("Mozilla")
-			let version = parseFloat(navigator.userAgent.split("/").pop())
-			if (isChromium || (isFirefox && version > 138)){
-				if (e.target.click) e.target.click()
+
+			if (e.target instanceof HTMLInputElement) return
+			else if (e.target instanceof HTMLButtonElement) return
+			else {
+				let isChromium = !!window.chrome;
+				let isFirefox = navigator.userAgent.includes("Mozilla")
+				let version = parseFloat(navigator.userAgent.split("/").pop())
+				if (isChromium || (isFirefox && version > 138)) {
+					if (e.target.click) e.target.click()
+					else if (e.target.focus) {
+						e.target.focus()
+					}
+				}
 			}
 		}
 

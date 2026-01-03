@@ -1,61 +1,75 @@
 :root {
---background: #f3f3f3;
-  --background1: #eaeaea;
-  --background2: #d5d5d5;
-  --color: #161616;
-  --highlight: #161616;
+	--background: #f3f3f3;
+	--background1: #eaeaea;
+	--background2: #d5d5d5;
+	--color: #161616;
+	--highlight: #161616;
 }
 
-*{
+* {
 	color: var(--color);
 	font-family: monospace;
+}
+
+.image {
+	width: 100%;
+	height: 100%;
+	background-size: cover;
 }
 
 svg {
 	pointer-events: none;
 }
+
 body {
 	background: var(--background);
 	overflow-y: hidden;
 	overflow-x: hidden;
 	/* background-size: 50px 50px; */
-  /* background-image: linear-gradient(to right, var(--background2) 1px, transparent 1px),linear-gradient(to bottom, var(--background2) 1px, transparent 1px); */
+	/* background-image: linear-gradient(to right, var(--background2) 1px, transparent 1px),linear-gradient(to bottom, var(--background2) 1px, transparent 1px); */
 }
 
 .block {
 	overflow-y: scroll;
-  width: 100%;
-  height: 100%;
+	width: 100%;
+	height: 100%;
+	-ms-overflow-style: none;  
+  scrollbar-width: none;  
 }
 
+.color-bar {
+	position: absolute;
+	top: .1em;
+	right: .3em;
+}
 
 .container {
 	width: 10000px;
 	height: 10000px;
 	background: var(--background);
 	background-size: 20px 20px;
-  background-image: linear-gradient(to right, var(--background1) 1px, transparent 1px),linear-gradient(to bottom, var(--background1) 1px, transparent 1px);
+	background-image: linear-gradient(to right, var(--background1) 1px, transparent 1px), linear-gradient(to bottom, var(--background1) 1px, transparent 1px);
 }
 
 .draggable {
 	background: var(--background);
-  padding: 1em;
+	padding: 1em;
 	position: absolute;
 	border: 2px solid var(--color);
-  /* overflow: hidden; */
-  /* border-radius: 8px; */
-  font-family: monospace;
+	/* overflow: hidden; */
+	/* border-radius: 8px; */
+	font-family: monospace;
 	z-index: 92;
-  box-shadow: 6px 6px 0 rgba(0,0,0,.13);
+	box-shadow: 6px 6px 0 rgba(0, 0, 0, .13);
 }
 
-.draggable.group{
+.draggable.group {
 	z-index: 91;
 	background-color: #ff22;
 }
 
 .psuedo-container {
-  padding: 1em;
+	padding: 1em;
 	border: 1px solid var(--highlight);
 	background: var(--background);
 	position: fixed;
@@ -79,7 +93,7 @@ button {
 	font-family: monospace;
 }
 
-.connection:hover{
+.connection:hover {
 	background: var(--highlight);
 }
 
@@ -102,7 +116,8 @@ button {
 	border: 2px solid var(--highlight);
 	background: var(--background);
 }
-.line-canvas{
+
+.line-canvas {
 	position: fixed;
 	top: 0px;
 	left: 0px;
@@ -111,12 +126,13 @@ button {
 	z-index: 89;
 	pointer-events: none;
 }
+
 .psuedo-slider {
 	position: fixed;
 	background: var(--background);
 	z-index: 90;
 	border: 1px solid var(--highlight);
-  box-shadow: 5px 5px 0 rgba(0,0,0,.2);
+	box-shadow: 5px 5px 0 rgba(0, 0, 0, .2);
 }
 
 .absolute {
@@ -126,7 +142,7 @@ button {
 .flex-center {
 	display: flex;
 	justify-content: center;
-	align-items:center;
+	align-items: center;
 }
 
 .box {
@@ -135,9 +151,17 @@ button {
 	opacity: 0;
 }
 
-.cur-se {cursor: se-resize;}
-.cur-s {cursor: s-resize;}
-.cur-e {cursor: e-resize;}
+.cur-se {
+	cursor: se-resize;
+}
+
+.cur-s {
+	cursor: s-resize;
+}
+
+.cur-e {
+	cursor: e-resize;
+}
 
 .box:hover {
 	/* border: 1px solid black; */
@@ -152,6 +176,7 @@ button {
 	color: var(--background);
 	background: var(--highlight);
 }
+
 textarea {
 	background: var(--background);
 	width: 100%;
@@ -168,20 +193,26 @@ textarea {
 	z-index: 299;
 }
 
-.sidebar > *{
+.sidebar>* {
 	margin: 1rem;
-  padding: .5rem;
+	padding: .5rem;
 }
 
-.sidebar[open='true']{
+.sidebar[open='true'] {
 	left: 1vw;
 }
 
-.sidebar[open='false']{
+.sidebar[open='false'] {
 	left: -40vw;
 }
 
 .section {
-  border-top: 1px solid var(--color);
-  font-family: monospace;
+	border-top: 1px solid var(--color);
+	font-family: monospace;
+}
+
+.group .label {
+	border-bottom: 1px solid black;
+  max-width: 400px;
+  width: max-content;
 }
