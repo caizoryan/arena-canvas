@@ -9,6 +9,25 @@
 * {
 	color: var(--color);
 	font-family: monospace;
+	box-sizing: border-box;
+}
+.mr {
+margin-right: .5em;
+}
+
+.popup {
+	box-shadow: 6px 6px 0 rgba(0, 0, 0, .13);
+	position: fixed;
+  max-width: 60vw;
+  height: 60vh;
+  top: 15vh;
+  left: 15vh;
+  border: 1px solid var(--highlight);
+  background-color: var(--background1);
+  padding: 1em;
+  overflow-y: scroll;
+  z-index: 99999999;
+  min-width: 750px;
 }
 
 .image {
@@ -70,6 +89,7 @@ body {
 
 .psuedo-container {
 	padding: 1em;
+	cursor: move;
 	border: 1px solid var(--highlight);
 	background: var(--background);
 	position: fixed;
@@ -91,6 +111,16 @@ button {
 	border: 1px solid var(--highlight);
 	background: var(--background);
 	font-family: monospace;
+}
+
+button:hover {
+	box-shadow: 3px 3px 0 rgba(0,0,0,.3);
+}
+
+button:active {
+	transform: translate(2px, 2px);
+	background: var(--background2);
+	box-shadow: 3px 3px 0 rgba(0,0,0,.3);
 }
 
 .connection:hover {
@@ -128,6 +158,7 @@ button {
 }
 
 .psuedo-slider {
+	cursor: move;
 	position: fixed;
 	background: var(--background);
 	z-index: 90;
@@ -177,6 +208,15 @@ button {
 	background: var(--highlight);
 }
 
+.psuedo-cursor:hover {
+	box-shadow: 3px 3px 0 rgba(0,0,0,.3);
+	cursor: grab;
+}
+
+.connection:hover {
+	cursor: crosshair;
+}
+
 textarea {
 	background: var(--background);
 	width: 100%;
@@ -215,4 +255,43 @@ textarea {
 	border-bottom: 1px solid black;
   max-width: 400px;
   width: max-content;
+}
+
+.notification {
+	z-index: 9819945129;
+	width: 25vw;
+	max-width: 400px;
+	color: var(--color);
+	background-color: var(--background);
+	padding: 1em;
+	min-height: 4em;
+	border: 2px solid var(--highlight);
+	box-shadow: 6px 6px 0 rgba(0, 0, 0, .13);
+}
+
+
+.change-item{}
+.change-map{
+	width: 100%;
+	height: 350px;
+}
+
+.change-block {
+	height: 350px;
+	width: 350px;
+	border: 1px solid var(--highlight);
+  padding: 1em;
+  scrollbar-width: none;overflow-y: scroll;
+}
+
+.change-block.to {--color: green;}
+.change-block.from {--color: red;}
+
+.change-map[showing='false']{
+	display: none;
+}
+.change-map[showing='true']{
+	display: grid;
+	grid-template-columns: 350px 350px;
+	grid-gap: 15px;
 }

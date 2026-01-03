@@ -43,7 +43,10 @@ export const me = async () => {
 export const get_channel = async (slug) => {
 	return fetch(host3+ slug + "/contents?per=100&sort=position_desc", { headers:headers() })
 		.then(res => {
-			console.log(res.status)
+			if (res.status != 200) {
+				console.log(res.status)
+				return {}
+			}
 			return res.json()
 		})
 }
@@ -61,7 +64,9 @@ export let try_auth = () => {
 
 
 let a = localStorage.getItem("auth")
-let auth = ''
+export let auth = ''
+export let setAuth = au => auth = au
+
 if (a) {
 	auth = a
 	try_auth()

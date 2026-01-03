@@ -14,3 +14,23 @@ export let svgx = (width, height, fill = 'blue', weight = 4) => {
 		svgline(0, 0, width, height, fill, weight),
 		svgline(width, 0, 0, height, fill, weight),]
 }
+let value = (v) => typeof v == 'number' ? v : v.isReactive ? v.value() : v
+
+export let svgcurveline = (
+  x1, y1,
+  x2, y2,
+  stroke = "blue",
+  width = 4,
+  curve = 40,
+) => [
+  'path',
+  {
+    d: `M ${value(x1)} ${value(y1)}
+        C ${value(x1) + curve} ${value(y1)},
+          ${value(x2) - curve} ${value(y2)},
+          ${value(x2)} ${value(y2)}`,
+		fill: 'none',
+    stroke,
+    'stroke-width': width
+  }
+]

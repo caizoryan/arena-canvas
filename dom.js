@@ -130,27 +130,25 @@ export let dom = (tag, ...contents) => {
 			}
 			else if (Array.isArray(v)){
 				// TODO: if outer dom is reactive, this will run everytime....
-
 				if (typeof v[0] == 'string') {
 					let node = dom(v)
 					doc.appendChild(node)
 					e.subscribe((vv) => {
+						// TODO: check if vv is same...
 						let newnode = dom(vv)
 						node.replaceWith(newnode)
 						node = newnode
-						// TODO: check if vv is same...
 					})
 
 					return
 				}
+
 				// if its an array there make a list
 				let nodes = v.map((e) => dom(e))
 				nodes.forEach(n => doc.appendChild(n))
-				// doc.appendChild(...nodes)
-				console.log(nodes)
 
 				e.subscribe((vv) => {
-					let newnodes = vv.map((e)=>dom(e))
+					let newnodes = vv.map((e)=> dom(e))
 					let diff = newnodes.length - nodes.length
 					// if negative, have to delete
 

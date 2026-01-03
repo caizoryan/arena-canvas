@@ -3,7 +3,7 @@ import { svgx} from "./svg.js"
 import {dom} from "./dom.js"
 import { drag } from "./drag.js"
 import {state,
-				data, 
+				store, 
 				dataSubscriptions,
 				canvasScale, 
 				dimensions } from "./data.js"
@@ -68,7 +68,7 @@ export let slidercursor = ({
 	let ughw = memo(() => scaled * (window.innerWidth), [canvasScale])
 	let ughh = memo(() => (scaled * window.innerHeight), [canvasScale])
 
-	let dataplug = reactive(data.data)
+	let dataplug = reactive(store.data)
 	dataSubscriptions.push(f =>{dataplug.next(f)})
 
 	let mappednodes = memo(() => dataplug.value().nodes.map(e => {
@@ -118,8 +118,8 @@ background-color:#0002;
 	let style = memo(() => `
 		left: ${left.value()}px;
 		top: ${top.value()}px;
-		height: ${height}px;
-		width: ${width}px;
+		height: calc(${height}px + 2em);
+		width: calc(${width}px + 2em);
 	`, [left, top])
 
 	let stylememo = memo(() => `

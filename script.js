@@ -3,11 +3,11 @@ import { reactive, memo } from "./hok.js"
 import { drag } from "./drag.js"
 import { MD } from "./md.js"
 import { try_auth, update_block, add_block, get_channel } from "./arena.js"
-import { svgline, svgrect, svgx } from "./svg.js"
-import { sidebar, sidebarOpen } from "./sidebar.js"
+import { svgcurveline, svgline, svgrect, svgx } from "./svg.js"
+import { focusSearchBar, sidebar, sidebarOpen } from "./sidebar.js"
 import {
 	authslug,
-	data, state,
+	store, state,
 	save_data,
 	canvasScale, canvasX, canvasY, mouse,
 	dimensions,
@@ -15,6 +15,28 @@ import {
 } from "./data.js"
 import { sliderAxis, slidercursor, reactiveEl, keyPresser } from "./node.js"
 
+let notificationpopup = (msg) => {
+	let d = dom('.notification', {
+		style: `
+		position: fixed;
+		right: -50vw;
+		opactiy: 0;
+		bottom: 1em;
+		transition: 200ms;
+	`}, msg)
+
+	document.querySelectorAll('.notification')
+		.forEach((e) => {
+			let b = parseFloat(e.style.bottom)
+			e.style.bottom = (b + 5) + 'em'
+		})
+
+	document.body.appendChild(d)
+
+	setTimeout(() => { d.style.right = '1em'; d.style.opacity = 1 }, 5)
+	setTimeout(() => { d.style.opacity = 0 }, 5000)
+	setTimeout(() => { d.remove() }, 3500)
+}
 const uuid = () => Math.random().toString(36).slice(-6);
 const button = (t, fn, attr = {}) => ["button", { onclick: fn, ...attr }, t]
 
@@ -23,11 +45,11 @@ let colors = [
 	'#E4D4A0',
 	'#F5F5DC',
 	'#DCF5DF',
-  "#CFF0F5", // 5 - pastel cyan
-  "#E3CFF5",  // 6 - pastel purple
-  "#F5D1B8", // 2 - pastel orange
-  "#F5E8B8", // 3 - pastel yellow
-  "#CFF5D1", // 4 - pastel green
+	"#CFF0F5", // 5 - pastel cyan
+	"#E3CFF5",  // 6 - pastel purple
+	"#F5D1B8", // 2 - pastel orange
+	"#F5E8B8", // 3 - pastel yellow
+	"#CFF5D1", // 4 - pastel green
 ];
 
 // [
@@ -47,11 +69,30 @@ if (local_currentslug) currentslug = local_currentslug
 // -------------------
 // Initialization FN
 // -------------------
+export let try_set_channel = slugOrURL => {
+	// check if it is url
+	let isUrl = slugOrURL.includes("are.na/");
+	if (isUrl) {
+		let slug = slugOrURL.split('/').filter(e => e != '').pop()
+		set_channel(slug)
+	}
+	else {
+		set_channel(slugOrURL.trim())
+	}
+}
 export let set_channel = slug => get_channel(slug)
 	.then((res) => {
-		currentslug = slug
-		localStorage.setItem('slug', slug)
-		renderBlocks(res.data)
+		if (!res.data) {
+			console.log("Failed to get channel", slug)
+			notificationpopup('Failed to get channel ' + slug)
+		}
+		else {
+			notificationpopup('Loaded Channel: ' + slug)
+			notificationpopup('Total Blocks: ' + res.data.length)
+			currentslug = slug
+			localStorage.setItem('slug', slug)
+			renderBlocks(res.data)
+		}
 	})
 
 let constructBlockData = (e, i) => {
@@ -122,10 +163,10 @@ let groupEl = group => {
 	}
 	let anchored = []
 	console.log("GOT", group)
-	let position = data.data.nodes.find(e => e.id == group.id)
+	let position = store.data.nodes.find(e => e.id == group.id)
 	if (!position) console.error("BRUH HOW")
-	position = data.data.nodes.find(e => e.id == group.id)
-	if (!position.color) position.color = '2'
+	position = store.data.nodes.find(e => e.id == group.id)
+	if (!position.color) position.color = '5'
 	if (!position.label) position.label = 'Group'
 	console.log("Position = group", position == group)
 
@@ -159,16 +200,16 @@ let groupEl = group => {
 		let click = reactive(0)
 		let words = ['delete', 'DELETE', "DELETE!", "DELETEEEEE", "DELEETEEEE!!!!"]
 		let onclick = () => {
-			click.next(e => e+1)
+			click.next(e => e + 1)
 			if (click.value() == 5) remove()
 		}
 		return button(memo(() => words[click.value()], [click]), onclick)
 	}
-	let colorbuttons = ['.color-bar', ...[1, 2, 3, 4, 5, 6].map((i) => button('x', setcolorfn(i), { style: 'background-color: ' + colors[i-1] + ";" })), removeButton()] 
+	let colorbuttons = ['.color-bar', ...[1, 2, 3, 4, 5, 6].map((i) => button('x', setcolorfn(i), { style: 'background-color: ' + colors[i - 1] + ";" })), removeButton()]
 	let remove = () => {
-		let i = data.data.nodes.findIndex(e => e == position)
+		let i = store.data.nodes.findIndex(e => e == position)
 		console.log('found', position, "at", i)
-		data.data.nodes.splice(i, 1)
+		store.data.nodes.splice(i, 1)
 		draggable.remove()
 	}
 
@@ -177,42 +218,31 @@ let groupEl = group => {
 		position: absolute;
 		left: ${left.value()}px;
 		top: ${top.value()}px;
-		background-color: ${colors[parseInt(color.value())-1]};
+		background-color: ${colors[parseInt(color.value()) - 1]};
 		width: ${width.value()}px;
 		height: ${height.value()}px
 	`, [left, top, width, height, color])
 
 	let resize = memo(() => `
-		left:${width.value() + 10}px;
-		top:${height.value() + 10}px;
+		left:${width.value() - 15}px;
+		top:${height.value() - 15}px;
 `, [width, height])
 
-	let resizewidth = memo(() => `
-		left:${width.value() + 10}px;
-		top:-10px;
-`, [width])
-
 	let resizewidthmiddle = memo(() => `
-		left:${width.value() + 10}px;
+		left:${width.value() - 15}px;
 		top:${height.value() / 4}px;
 		height: ${height.value() / 2}px;
 `, [width, height])
 
 	let resizeheightmiddle = memo(() => `
-		top:${height.value() + 10}px;
+		top:${height.value() - 15}px;
 		left:${width.value() / 4}px;
 		width: ${width.value() / 2}px;
 `, [height, width])
 
-	let resizeheight = memo(() => `
-		top:${height.value() + 10}px;
-		left:-10px;
-`, [height])
 
 
 	let resizer = dom(".absolute.flex-center.box.cur-se", { style: resize }, svgx(30))
-	let resizerwidth = dom(".absolute.flex-center.box.cur-e", { style: resizewidth }, svgx(30))
-	let resizerheight = dom(".absolute.flex-center.box.cur-s", { style: resizeheight }, svgx(30))
 	let resizerwidthmiddle = dom(".absolute.flex-center.box.cur-e", { style: resizewidthmiddle }, svgx(30))
 	let resizerheightmiddle = dom(".absolute.flex-center.box.cur-s", { style: resizeheightmiddle }, svgx(30))
 
@@ -237,7 +267,7 @@ let groupEl = group => {
 	draggable.appendChild(el)
 
 	let onstart = () => {
-		data.data.nodes.forEach((e) => {
+		store.data.nodes.forEach((e) => {
 			if (e.type != 'group' && isRectContained(
 				{ x: left.value(), y: top.value(), width: width.value(), height: height.value() },
 				{ x: e.x, y: e.y, width: e.width, height: e.height },
@@ -284,10 +314,10 @@ let groupEl = group => {
 
 }
 let blockEl = block => {
-	let position = data.data.nodes.find(e => e.id == block.id)
-	if (!position) data.data.nodes.push(constructBlockData(block, 0))
-	position = data.data.nodes.find(e => e.id == block.id)
-	if (!position.color) position.color = '2'
+	let position = store.data.nodes.find(e => e.id == block.id)
+	if (!position) store.data.nodes.push(constructBlockData(block, 0))
+	position = store.data.nodes.find(e => e.id == block.id)
+	if (!position.color) position.color = '1'
 
 	let updateFn = (data) => {
 		let p = (data.nodes.find(e => e.id == block.id))
@@ -330,7 +360,7 @@ let blockEl = block => {
 
 	let style = memo(() => `
 		position: absolute;
-		background-color: ${colors[parseInt(color.value())-1]};
+		background-color: ${colors[parseInt(color.value()) - 1]};
 		left: ${left.value()}px;
 		top: ${top.value()}px;
 		width: ${width.value()}px;
@@ -338,42 +368,33 @@ let blockEl = block => {
 	`, [left, top, width, height, color])
 
 	let resize = memo(() => `
-		left:${width.value() + 10}px;
-		top:${height.value() + 10}px;
+		left:${width.value() - 15}px;
+		top:${height.value() - 15}px;
 `, [width, height])
 
-	let resizewidth = memo(() => `
-		left:${width.value() + 10}px;
-		top:-10px;
-`, [width])
-
 	let resizewidthmiddle = memo(() => `
-		left:${width.value() + 10}px;
+		left:${width.value() - 15}px;
 		top:${height.value() / 4}px;
 		height: ${height.value() / 2}px;
 `, [width, height])
 
 	let resizeheightmiddle = memo(() => `
-		top:${height.value() + 10}px;
+		top:${height.value() - 15}px;
 		left:${width.value() / 4}px;
 		width: ${width.value() / 2}px;
 `, [height, width])
 
-	let resizeheight = memo(() => `
-		top:${height.value() + 10}px;
-		left:-10px;
-`, [height])
 
 
-	let resizer = dom(".absolute.flex-center.box.cur-se", { style: resize }, svgx(30))
-	let resizerwidth = dom(".absolute.flex-center.box.cur-e", { style: resizewidth }, svgx(30))
-	let resizerheight = dom(".absolute.flex-center.box.cur-s", { style: resizeheight }, svgx(30))
+	let resizer = dom(".absolute.flex-center.box.cur-se",
+										{ style: resize },
+										svgx(30))
 	let resizerwidthmiddle = dom(".absolute.flex-center.box.cur-e", { style: resizewidthmiddle }, svgx(30))
 	let resizerheightmiddle = dom(".absolute.flex-center.box.cur-s", { style: resizeheightmiddle }, svgx(30))
 
 	let setcolorfn = i => () => color.next(i + "")
-	let colorbuttons = ['.color-bar', ...[1, 2, 3, 4, 5, 6].map((i) => button('x', setcolorfn(i), { style: 'background-color: ' + colors[i-1] + ";" }))]
-	let draggable = dom('.draggable', { style: style }, colorbuttons, resizer, resizerheight, resizerheightmiddle, resizerwidthmiddle)
+	let colorbuttons = ['.color-bar', ...[1, 2, 3, 4, 5, 6].map((i) => button('x', setcolorfn(i), { style: 'background-color: ' + colors[i - 1] + ";" }))]
+	let draggable = dom('.draggable', { style: style }, colorbuttons, resizer, resizerheightmiddle, resizerwidthmiddle)
 	let el
 	let image = block => ['img', { src: block.image?.large?.src }]
 	let edit = false
@@ -393,8 +414,6 @@ let blockEl = block => {
 		}
 		let mountResizers = () => {
 			draggable.appendChild(resizer)
-			draggable.appendChild(resizerwidth)
-			draggable.appendChild(resizerheight)
 			draggable.appendChild(resizerwidthmiddle)
 			draggable.appendChild(resizerheightmiddle)
 		}
@@ -407,16 +426,20 @@ let blockEl = block => {
 		}
 		let saveBlock = () => {
 			edit = false
-			update_block(block.id, { content: value }).then(res => console.log(res))
+			update_block(block.id, { content: value })
+				.then(res => {
+					if (res.status == 204) notificationpopup("Updated 👍")
+					else notificationpopup("Failed? status: " + res.status)
+				})
 			draggable.innerHTML = ``;
-			draggable.appendChild(dom([".block.text", editOrTag, ...MD(value)])) // 
+			draggable.appendChild(dom([".block.text", editOrTag, ...MD(value)]))  
 			mountResizers()
 		}
 		let cancelEdit = () => {
 			value = old
 			edit = false
 			draggable.innerHTML = ``;
-			draggable.appendChild(dom([".block.text", editOrTag, ...MD(value)])) // 
+			draggable.appendChild(dom([".block.text", editOrTag, ...MD(value)]))  
 			mountResizers()
 		}
 
@@ -441,9 +464,10 @@ let blockEl = block => {
 		let set_left = (v) => left.next(v)
 		let set_top = (v) => top.next(v)
 		drag(draggable, { set_left, set_top, pan_switch: () => !edit, bound: 'inner' })
-		drag(resizer, { set_left: (v) => width.next(v), set_top: (v) => height.next(v) })
-		// drag(resizerwidth, { set_left: (v) => width.next(v), set_top: () => null })
-		drag(resizerheight, { set_left: () => null, set_top: (v) => height.next(v) })
+		drag(resizer,
+				 { set_left: (v) => width.next(v),
+					 set_top: (v) => height.next(v)
+				 })
 		drag(resizerwidthmiddle, { set_left: (v) => width.next(v), set_top: () => null })
 		drag(resizerheightmiddle, { set_left: () => null, set_top: (v) => height.next(v) })
 	}, 100)
@@ -458,13 +482,29 @@ let processBlockForRendering = (blocks) => {
 let updateData = (blocks) => {
 	state.dotcanvas = (blocks.find(e => e.title == '.canvas'))
 	if (state.dotcanvas) {
-		data.data = JSON.parse(state.dotcanvas.content.plain)
+		// put in a try block
+		store.data = JSON.parse(state.dotcanvas.content.plain)
+
+		store.data.nodes.forEach(node => {
+			if (node.type == 'text'){
+				// find the block
+				let f = blocks.find(e => e.id == node.id)
+				if (f.id == 42109711) {
+					console.log(f.content.markdown)
+					console.log(JSON.stringify({'json': f.content.markdown}))}
+				if (f && f.type == 'Text') node.text = f.content.markdown
+			}
+		})
+
+		console.log(store.data.nodes)
+		console.log(JSON.stringify(store.data.nodes))
 	}
 
-	if (!data.data) {
+	if (!store.data) {
 		let nodes = blocks.filter(e => e.title != ".canvas").map(constructBlockData)
-		data.data = { nodes, edges: [] }
+		store.data = { nodes, edges: [] }
 	}
+
 }
 
 function intersectRect(r1, r2) {
@@ -475,13 +515,13 @@ function intersectRect(r1, r2) {
 }
 
 let pointStart = reactive([0, 0])
-let pointEnd = reactive([100, 100])
+let pointEnd = reactive([0, 0])
 
 let renderBlocks = (blocks) => {
 	// reset stuff
 	// I think itll be a good idea to just do a page refresh
 	// connections = []
-	data.data = undefined
+	store.data = undefined
 	let c = document.querySelector(".container")
 	c ? c.remove() : null
 
@@ -494,16 +534,27 @@ let renderBlocks = (blocks) => {
 	let timer = reactive(0)
 	setInterval(() => timer.next(e => e + 1), 500)
 
+	// ALternate Zoom
+	let funkystylememo = memo(() => `
+	transform-origin:
+		${canvasX.value() + (mouse.value().x / canvasScale.value())/2}px
+		${canvasY.value() + (mouse.value().y / canvasScale.value())/2}px;
+
+		transform: translate(${canvasX.value() * -1}px, ${canvasY.value() * -1}px) scale(${canvasScale.value()}) ;`,
+														[canvasX, canvasY, canvasScale, mouse])
 	let stylemmeo = memo(() => `
-		transform-origin: ${canvasX.value() + window.innerWidth / 2}px ${canvasY.value() + window.innerHeight / 2}px;
+		transform-origin:
+			${canvasX.value() + window.innerWidth / 2}px
+			${canvasY.value() + window.innerHeight / 2}px;
+
 		transform: translate(${canvasX.value() * -1}px, ${canvasY.value() * -1}px) scale(${canvasScale.value()}) ;
-`, [canvasX, canvasY, canvasScale])
+`, [canvasX, canvasY, canvasScale ])
 
 
 	try_auth()
 	let blocksmapped = blocks.filter(e => e.type != 'group').map(blockEl)
 	let groupRender = reactive(0)
-	let groupmapped = memo(() => data.data.nodes.filter(e => e.type == 'group').map(groupEl), [groupRender])
+	let groupmapped = memo(() => store.data.nodes.filter(e => e.type == 'group').map(groupEl), [groupRender])
 
 	let onpointerdown = e => {
 		let target = e.target
@@ -540,15 +591,68 @@ let renderBlocks = (blocks) => {
 		pointStart.next([0, 0])
 		pointEnd.next([0, 0])
 
-		if (width < 250 || height < 250) return 
+		if (width < 250 || height < 250) return
 		let d = groupData(x, y, width, height)
-		data.data.nodes.push(d)
+		store.data.nodes.push(d)
 		groupRender.next(e => e + 1)
 
 	}
 
-	let bigline = memo(() => svgrect(...pointStart.value(), ...pointEnd.value(), "red", 8), [pointStart, pointEnd])
-	let stupidSVG = ['svg', { width: dimensions, height: dimensions }, bigline]
+	let bigline = memo(() => svgrect(...pointStart.value(),
+																	 ...pointEnd.value(),
+																	 "black", 3),
+										 [pointStart, pointEnd])
+
+	let edgesRender = reactive(0)
+
+	let edges = memo(() => {
+		if (!store.data.edges) return []
+		return store.data.edges.map(e => {
+			let boundingToSide = (b, side) => {
+				if (side == 'top') {
+
+					return ({
+						x: b.x + b.width / 2,
+						y: b.y
+					})
+				}
+
+				if (side == 'bottom') {
+					return ({
+						x: b.x + b.width / 2,
+						y: b.y + b.height
+					})
+				}
+
+				if (side == 'right') {
+					return ({
+						x: b.x + b.width,
+						y: b.y + b.height / 2
+					})
+				}
+
+				if (side == 'left') {
+					return ({
+						x: b.x,
+						y: b.y + b.height / 2
+					})
+				}
+			}
+
+
+			let from = store.data.nodes.find(b => b.id == e.fromNode)
+			let to = store.data.nodes.find(b => b.id == e.toNode)
+
+			let fromT = boundingToSide(from, e.fromSide)
+			let toT = boundingToSide(to, e.toSide)
+
+			return svgline(fromT.x, fromT.y, toT.x, toT.y)
+		})
+	}, [edgesRender])
+
+	dataSubscriptions.push(f => edgesRender.next(e => e + 1))
+
+	let stupidSVG = ['svg', { width: dimensions, height: dimensions }, bigline, edges]
 
 	let root = [".container",
 		{
@@ -623,17 +727,22 @@ let mount = () => {
 		state.connections.forEach(e => l.push(e.line()))
 		return l
 	}, [mouse])
-	let lineEls = memo(() => lines.value().map(f => svgline(...f, "white")), [lines])
+	let lineEls = memo(() => lines.value().map(f => svgline(...f, "black")), [lines])
 	// Fix the leaks here...
 	let svg = ['svg.line-canvas', { width: window.innerWidth, height: window.innerHeight }, lineEls]
 
 	let nodes = [svg, slcurse, sls, sly, slx]
 	let pos = (x, y) => `position: fixed; left: ${x}em; top: ${y}em; z-index: 9999;`
 
-	let openbtn = button(">", () => { sidebarOpen.next(e => e == 'true' ? 'false' : 'true') }, { style: pos(1, 1) })
+	let openbtn = button(">", () => { sidebarOpen.next(e => e == true ? false : true) }, { style: pos(1, 1) })
 	let savebtn = button("save", () => {
-		let content = JSON.stringify(data.data)
-		if (state.dotcanvas.id) update_block(state.dotcanvas.id, { content, title: ".canvas" })
+		let content = JSON.stringify(store.data)
+		if (state.dotcanvas?.id)
+			update_block(state.dotcanvas.id, { content, title: ".canvas" }).then(res => {
+					if (res.status == 204) notificationpopup("Updated 👍")
+					else notificationpopup("Failed? status: " + res.status)
+				
+			})
 		else add_block(currentslug, '.canvas', content)
 	}, { style: pos(3, 1), })
 
@@ -651,26 +760,40 @@ document.onkeydown = (e) => {
 		if (e.key == key.key) { key.fn() }
 	})
 
-	if (e.key == 'W') {
-		addnode(keyPresser({ left: 150, top: 250, key: 'w' }))
+	// if (e.key == 'W') {
+	// 	addnode(keyPresser({ left: 150, top: 250, key: 'w' }))
+	// }
+
+	// if (e.key == 'A') {
+	// 	addnode(keyPresser({ left: 150, top: 250, key: 'a' }))
+	// }
+
+	// if (e.key == 'N') {
+	// 	let value = reactive(Math.random() * 55)
+	// 	addnode(reactiveEl({
+	// 		left: 150, top: 250, value
+	// 	}))
+	// }
+
+	if (e.key == 'e' && e.metaKey) {
+		e.preventDefault()
+		sidebarOpen.next(e => !e)
 	}
 
-	if (e.key == 'A') {
-		addnode(keyPresser({ left: 150, top: 250, key: 'a' }))
-	}
-
-	if (e.key == 'N') {
-		let value = reactive(Math.random() * 55)
-		addnode(reactiveEl({
-			left: 150, top: 250, value
-		}))
+	if (e.key == '/' && sidebarOpen.value()) {
+		focusSearchBar()
 	}
 
 	if (e.key == 'd' && e.metaKey) {
 		e.preventDefault()
 		let download_json = (json, file = 'data') => {
 			let a = document.createElement("a");
-			var json = JSON.stringify(json), blob = new Blob([json], { type: "octet/stream" }), url = window.URL.createObjectURL(blob);
+
+			json = JSON.stringify(json)
+			console.log(json)
+			let blob = new Blob([json], { type: "octet/stream" })
+			let url = window.URL.createObjectURL(blob);
+
 			a.href = url;
 			a.download = file + ".canvas";
 			a.click();
@@ -680,23 +803,20 @@ document.onkeydown = (e) => {
 		// 	nodes: data,
 		// 	edged: []
 		// }
-		download_json(data.data, currentslug)
+		download_json(store.data, currentslug)
 	}
 }
 document.onmousemove = (e) => {
 	mouse.next({ x: parseFloat(e.clientX), y: parseFloat(e.clientY) })
 }
-document.ondragover = (e) => {
-	e.preventDefault();
-	console.log("BEING DRAGGED", e)
-}
+document.ondragover = (e) => { e.preventDefault(); }
 
 document.ondrop = e => {
 	e.preventDefault();
 	const fileItems = [...e.dataTransfer.files]
 	fileItems.forEach((file) => {
 		let reader = new FileReader();
-		reader.onload = function(event) {
+		reader.onload = function (event) {
 			processNewCanvas(event.target.result)
 		};
 		reader.readAsText(file);
@@ -707,31 +827,95 @@ let processNewCanvas = str => {
 	let d
 	try {
 		d = JSON.parse(str)
-	} catch (e){
+	} catch (e) {
 		console.log('failes', e)
 	}
 
 	let updateList = []
 	if (d) {
-		console.log("PARSED", d)
-		// check each block and see if text updated
 		d.nodes.forEach(b => {
-			let f = data.data.nodes.find(e => e.id == b.id)
-			if (b.type == 'text'){
-				if (f &&f.text != b.text) {
-					console.log('UPDATED: ', b.id,'\n', b.text, "\nOLD: ", f.text)
+			let f = store.data.nodes.find(e => e.id == b.id)
+			if (b.type == 'text') {
+				if (f && f.text != b.text) {
+					updateList.push({ id: b.id, from: f.text, to: b.text })
 				}
 			}
 		})
+
+		if (updateList.length > 0 || d) {
+			updateListPopup(d, updateList)
+		}
 	}
 }
 
+let updateListPopup = (updateData, updateBlockList) => {
+	let change = ({id, from, to}) => {
+		let showing = reactive(false)
+		let elem = dom(['.change-item',
+										button('show', () => showing.next(e => !e), {class: 'mr'}),
+						button('Update Block', () => {
+								update_block(id, { content: to })
+									.then(res => {
+										if (res.status == 204){
+											notificationpopup("Updated 👍")
+											elem.remove()
+											elem = null
+										}
+										else notificationpopup("Failed? status: " + res.status)
+									})
+						}),
+						['p', id + ": changed"],
+						['.change-map', {showing},
+						 ['.change-block.from',from],
+						 ['.change-block.to', to],
+						]])
+
+		return elem
+	}
+	let layoutUpdated = false
+	let root = dom(['.popup',
+									button('close', () => root.remove()),
+									['h4', 'Layout'],
+									button("Update Layout",  () => {
+										if (layoutUpdated) return
+										updateData.nodes.forEach(node => {
+											let f = store.data.nodes.find(block => node.id == block.id)
+											if (f) {
+												f.x = node.x
+												f.y = node.y
+												f.width = node.width
+												f.height = node.height
+											}
+										})
+
+										store.data.edges = updateData.edges
+										save_data()
+										layoutUpdated = true
+									}, ),
+									['h4', "Block Changes"], ...updateBlockList.map((e) => change(e)),
+	])
+
+	document.body.appendChild(root)
+	drag(root)
+
+}
+
+// function isVerticallyScrollable(element) {
+//   if (!element) return false;
+// 	console.log("scroll", element.scrollHeight, element, element.clientHeight)
+//   return element.scrollHeight > element.clientHeight;
+// }
+
 document.addEventListener("wheel", e => {
+	// if (isVerticallyScrollable(e.target)) return
+	if (e.ctrlKey) return
 	if (e.metaKey) {
+		canvasScale.next(f => f - (e.deltaY / 2500))
+	}
+	else {
 		canvasY.next(f => f + e.deltaY)
 		canvasX.next(f => f + e.deltaX)
 	}
-	else { canvasScale.next(f => f - (e.deltaY / 2500)) }
 })
 
 // make this nodeable

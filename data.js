@@ -21,16 +21,16 @@ memo(() => {
 
 }, [canvasX, canvasY, canvasScale])
 
-export let data = {data: undefined}
+export let store = {data: undefined}
 
 export let state = {
 	connectionBuffer: undefined,
 	dotcanvas: undefined,
-	connections: []
+	connections: [],
 }
 
 export let dataSubscriptions = []
 export let save_data = () => {
-	localStorage.setItem("canvas", JSON.stringify(data.data))
-	dataSubscriptions.forEach(fn => fn(data.data))
+	localStorage.setItem("canvas", JSON.stringify(store.data))
+	dataSubscriptions.forEach(fn => fn((() => store.data)()))
 }
