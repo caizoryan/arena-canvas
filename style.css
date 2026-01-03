@@ -266,6 +266,8 @@ textarea {
 	min-height: 4em;
 	border: 2px solid var(--highlight);
 	box-shadow: 6px 6px 0 rgba(0, 0, 0, .13);
+	opacity: 1;
+	transition: all 2500ms ease;
 }
 
 

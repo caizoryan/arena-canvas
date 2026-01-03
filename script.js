@@ -4,7 +4,7 @@ import { drag } from "./drag.js"
 import { MD } from "./md.js"
 import { try_auth, update_block, add_block, get_channel } from "./arena.js"
 import { svgcurveline, svgline, svgrect, svgx } from "./svg.js"
-import { focusSearchBar, sidebar, sidebarOpen } from "./sidebar.js"
+import { addToRecents, focusSearchBar, sidebar, sidebarOpen } from "./sidebar.js"
 import {
 	authslug,
 	store, state,
@@ -34,8 +34,8 @@ let notificationpopup = (msg) => {
 	document.body.appendChild(d)
 
 	setTimeout(() => { d.style.right = '1em'; d.style.opacity = 1 }, 5)
-	setTimeout(() => { d.style.opacity = 0 }, 5000)
-	setTimeout(() => { d.remove() }, 3500)
+	setTimeout(() => { d.style.opacity = 0 }, 4500)
+	setTimeout(() => { d.remove() }, 8000)
 }
 const uuid = () => Math.random().toString(36).slice(-6);
 const button = (t, fn, attr = {}) => ["button", { onclick: fn, ...attr }, t]
@@ -80,7 +80,9 @@ export let try_set_channel = slugOrURL => {
 		set_channel(slugOrURL.trim())
 	}
 }
-export let set_channel = slug => get_channel(slug)
+export let set_channel = slug => {
+	notificationpopup("Loading "+slug+"...")
+get_channel(slug)
 	.then((res) => {
 		if (!res.data) {
 			console.log("Failed to get channel", slug)
@@ -89,11 +91,15 @@ export let set_channel = slug => get_channel(slug)
 		else {
 			notificationpopup('Loaded Channel: ' + slug)
 			notificationpopup('Total Blocks: ' + res.data.length)
+
 			currentslug = slug
+			addToRecents(slug)
 			localStorage.setItem('slug', slug)
 			renderBlocks(res.data)
+
 		}
 	})
+}
 
 let constructBlockData = (e, i) => {
 	let r1 = Math.random() * 850
@@ -107,13 +113,11 @@ let constructBlockData = (e, i) => {
 		color: '1'
 	}
 	if (e.type == "Text") {
-		console.log("Text Block")
 		d.type = 'text'
 		d.text = e.content.markdown
 	}
 
 	else if (e.type == "Image") {
-		console.log("Image block")
 		d.type = 'link'
 		d.url = e.image.large.src
 	}
@@ -134,7 +138,6 @@ let constructBlockData = (e, i) => {
 	}
 
 	else {
-		console.log(e)
 		d.type = 'text'
 		d.text = ''
 	}
@@ -162,13 +165,11 @@ let groupEl = group => {
 		);
 	}
 	let anchored = []
-	console.log("GOT", group)
 	let position = store.data.nodes.find(e => e.id == group.id)
 	if (!position) console.error("BRUH HOW")
 	position = store.data.nodes.find(e => e.id == group.id)
 	if (!position.color) position.color = '5'
 	if (!position.label) position.label = 'Group'
-	console.log("Position = group", position == group)
 
 	let left = reactive(position.x)
 	let top = reactive(position.y)
@@ -255,6 +256,7 @@ let groupEl = group => {
 		{
 			onclick: (e) => { e.stopImmediatePropagation(); e.stopPropagation(); console.log("TYUF") },
 			oninput: (e) => { position.label = e.target.value },
+			onkeydown: (e) => {if (e.key == 'Enter') editingLabel.next(false)},
 			value: position.label
 		}],
 
@@ -321,7 +323,12 @@ let blockEl = block => {
 
 	let updateFn = (data) => {
 		let p = (data.nodes.find(e => e.id == block.id))
-		if (!p) console.log("GONNNNE")
+		if (!p) {
+			console.log("GONNNNE")
+			// should probably delete self
+			let i = dataSubscriptions.findIndex(e => e == updateFn)
+			if (i != -1) dataSubscriptions.splice(i, 1)
+		}
 		if (!p) return
 
 		if (p.x != left.value()) left.next(p.x)
@@ -489,15 +496,9 @@ let updateData = (blocks) => {
 			if (node.type == 'text'){
 				// find the block
 				let f = blocks.find(e => e.id == node.id)
-				if (f.id == 42109711) {
-					console.log(f.content.markdown)
-					console.log(JSON.stringify({'json': f.content.markdown}))}
 				if (f && f.type == 'Text') node.text = f.content.markdown
 			}
 		})
-
-		console.log(store.data.nodes)
-		console.log(JSON.stringify(store.data.nodes))
 	}
 
 	if (!store.data) {
