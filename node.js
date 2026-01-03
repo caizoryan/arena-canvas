@@ -7,6 +7,7 @@ import {state,
 				dataSubscriptions,
 				canvasScale, 
 				dimensions } from "./data.js"
+import {colors } from './script.js'
 
 // -------------------
 // utils
@@ -17,7 +18,6 @@ const round = (value, precision)=> {
 }
 const mapRange = (value, inMin, inMax, outMin, outMax) => 
 	 (value - inMin) * (outMax - outMin) / (inMax - inMin) + outMin;
-
 
 // --------------
 // NODE: UI Elements
@@ -79,6 +79,7 @@ export let slidercursor = ({
 		n.y = e.y * scaled
 		n.width = e.width*scaled
 		n.height = e.height*scaled
+		n.color = colors[parseInt(e.color) - 1]
 		return n
 	}).map(e => {
 
@@ -88,7 +89,8 @@ left: ${e.x}px;
 top: ${e.y}px;
 width: ${e.width}px;
 height: ${e.height}px;
-background-color:#0002; 
+background-color:${e.color}ee; 
+border: 2px solid ${e.color}; 
 `
 		return [".mini", {style}]
 	}), [dataplug])

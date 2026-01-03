@@ -40,7 +40,7 @@ let notificationpopup = (msg) => {
 const uuid = () => Math.random().toString(36).slice(-6);
 const button = (t, fn, attr = {}) => ["button", { onclick: fn, ...attr }, t]
 
-let colors = [
+export let colors = [
 	'#F5DCE9',
 	'#E4D4A0',
 	'#F5F5DC',
@@ -82,7 +82,7 @@ export let try_set_channel = slugOrURL => {
 }
 export let set_channel = slug => {
 	notificationpopup("Loading "+slug+"...")
-get_channel(slug)
+	get_channel(slug)
 	.then((res) => {
 		if (!res.data) {
 			console.log("Failed to get channel", slug)
@@ -94,11 +94,16 @@ get_channel(slug)
 
 			currentslug = slug
 			addToRecents(slug)
+			setSlug(slug)
 			localStorage.setItem('slug', slug)
 			renderBlocks(res.data)
 
 		}
 	})
+}
+
+let setSlug = (slug) =>  {
+	history.pushState('', '', '#'+slug)
 }
 
 let constructBlockData = (e, i) => {
@@ -920,5 +925,19 @@ document.addEventListener("wheel", e => {
 })
 
 // make this nodeable
-set_channel(currentslug)
 
+
+let checkSlugUrl = (url) => {
+	if (!url.includes("#")) return 
+	else return url.split('#').filter(e => e!='').pop()
+}
+
+window.onhashchange = (event) => {
+	let slug = checkSlugUrl(event.newURL)
+	if (slug) try_set_channel(slug)
+}
+
+let url = location.href
+let slug = checkSlugUrl(url)
+if (slug) try_set_channel(slug)
+else set_channel(currentslug)
