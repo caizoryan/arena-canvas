@@ -19,10 +19,10 @@ const uuid = () => Math.random().toString(36).slice(-6);
 const button = (t, fn, attr = {}) => ["button", { onclick: fn, ...attr }, t]
 
 let colors = [
-	'#F5F5DC',
 	'#F5DCE9',
-	'#DCF5DF',
 	'#E4D4A0',
+	'#F5F5DC',
+	'#DCF5DF',
   "#CFF0F5", // 5 - pastel cyan
   "#E3CFF5",  // 6 - pastel purple
   "#F5D1B8", // 2 - pastel orange
@@ -463,7 +463,7 @@ let updateData = (blocks) => {
 
 	if (!data.data) {
 		let nodes = blocks.filter(e => e.title != ".canvas").map(constructBlockData)
-		data.data = { nodes }
+		data.data = { nodes, edges: [] }
 	}
 }
 
@@ -680,12 +680,52 @@ document.onkeydown = (e) => {
 		// 	nodes: data,
 		// 	edged: []
 		// }
-		download_json(data.data)
+		download_json(data.data, currentslug)
 	}
 }
 document.onmousemove = (e) => {
 	mouse.next({ x: parseFloat(e.clientX), y: parseFloat(e.clientY) })
 }
+document.ondragover = (e) => {
+	e.preventDefault();
+	console.log("BEING DRAGGED", e)
+}
+
+document.ondrop = e => {
+	e.preventDefault();
+	const fileItems = [...e.dataTransfer.files]
+	fileItems.forEach((file) => {
+		let reader = new FileReader();
+		reader.onload = function(event) {
+			processNewCanvas(event.target.result)
+		};
+		reader.readAsText(file);
+	})
+}
+
+let processNewCanvas = str => {
+	let d
+	try {
+		d = JSON.parse(str)
+	} catch (e){
+		console.log('failes', e)
+	}
+
+	let updateList = []
+	if (d) {
+		console.log("PARSED", d)
+		// check each block and see if text updated
+		d.nodes.forEach(b => {
+			let f = data.data.nodes.find(e => e.id == b.id)
+			if (b.type == 'text'){
+				if (f &&f.text != b.text) {
+					console.log('UPDATED: ', b.id,'\n', b.text, "\nOLD: ", f.text)
+				}
+			}
+		})
+	}
+}
+
 document.addEventListener("wheel", e => {
 	if (e.metaKey) {
 		canvasY.next(f => f + e.deltaY)
