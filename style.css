@@ -1,4 +1,6 @@
 :root {
+	--error: #f88;
+	--error-highlight: #f00;
 	--background: #f3f3f3;
 	--background1: #eaeaea;
 	--background2: #d5d5d5;
@@ -322,6 +324,24 @@ textarea {
 	opacity: 1;
 	transition: all 2500ms ease;
 }
+.notification.error {
+	color: red;
+	border: 2px solid var(--error);
+	box-shadow: 6px 6px 0 rgba(255, 0, 0, .13);
+	opacity: 1;
+	transition: all 2500ms ease;
+}
+
+.notification.error span{
+	color: inherit;
+}
+
+.notification.error a{
+	background-color: red;
+	color: white;
+}
+
+
 
 
 .change-item{}

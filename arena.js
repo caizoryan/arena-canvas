@@ -29,7 +29,8 @@ export const add_block = async (slug, title, content) => {
 		.then((response) =>{
 			console.log(response)
 			console.log(response.status)
-			if (!response.ok) notificationpopup("Couldn't Make Block")
+			let msg = response.status == '401' ? "Unauthorized" : response.status
+			if (!response.ok) notificationpopup("Couldn't Make Block: " + msg, true)
 			return response.json()
 	})
 		.then((data) => {
@@ -48,6 +49,7 @@ export const get_channel = async (slug) => {
 			if (res.status != 200) {
 				console.log(res.status)
 				console.log(res)
+				// notificationpopup("Failed to Get Channel: " + slug + " Status: "+res.status, true)
 				return {error: "STATUS: " + res.status}
 			}
 			return res.json()
@@ -61,6 +63,7 @@ export let try_auth = () => {
 			}
 			else {
 				console.log("Auth failed: ", res.status, res)
+				notificationpopup("Auth failed: " + res.status, true)
 			}
 		})
 }

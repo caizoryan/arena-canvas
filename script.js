@@ -15,15 +15,15 @@ import {
 } from "./data.js"
 import { sliderAxis, slidercursor, reactiveEl, keyPresser } from "./node.js"
 
-export let notificationpopup = (msg) => {
-	let d = dom('.notification', {
+export let notificationpopup = (msg, error = false) => {
+	let d = dom('.notification'+ (error?'.error':''), {
 		style: `
 		position: fixed;
 		right: -50vw;
 		opactiy: 0;
 		bottom: 1em;
 		transition: 200ms;
-	`}, msg)
+	`}, error ? '🚫 ' : '', msg)
 
 	document.querySelectorAll('.notification')
 		.forEach((e) => {
@@ -34,8 +34,8 @@ export let notificationpopup = (msg) => {
 	document.body.appendChild(d)
 
 	setTimeout(() => { d.style.right = '1em'; d.style.opacity = 1 }, 5)
-	setTimeout(() => { d.style.opacity = 0 }, 4500)
-	setTimeout(() => { d.remove() }, 8000)
+	setTimeout(() => { d.style.opacity = 0 }, error ? 6000 : 4500)
+	setTimeout(() => { d.remove() }, error ? 9500 : 8000)
 }
 const uuid = () => Math.random().toString(36).slice(-6);
 const button = (t, fn, attr = {}) => ["button", { onclick: fn, ...attr }, t]
@@ -62,7 +62,7 @@ export let colors = [
 let keys = []
 let mountDone = false
 let w = 300
-
+''
 export let currentslug = "list-are-na-api-possibilities"
 let local_currentslug = localStorage.getItem("slug")
 if (local_currentslug) currentslug = local_currentslug
@@ -87,7 +87,7 @@ export let set_channel = slug => {
 		.then((res) => {
 			if (!res.data) {
 				console.log("Failed to get channel", res.error)
-				notificationpopup('Failed to get channel ' + slug)
+				notificationpopup(['span', 'Failed to get channel ' + slug, ' try opening ',  ['a', {href: '#are-na-canvas'}, 'this']], true)
 			}
 			else {
 				notificationpopup('Loaded Channel: ' + slug)
