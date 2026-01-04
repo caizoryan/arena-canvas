@@ -87,7 +87,7 @@ export let set_channel = slug => {
 		.then((res) => {
 			if (!res.data) {
 				console.log("Failed to get channel", res.error)
-				notificationpopup(['span', 'Failed to get channel ' + slug, ' try opening ',  ['a', {href: '#are-na-canvas'}, 'this']], true)
+				notificationpopup(['span', 'Failed to get channel ' + slug, ' try opening ',  ['a', {href: '#list-are-na-api-possibilities'}, 'this']], true)
 			}
 			else {
 				notificationpopup('Loaded Channel: ' + slug)
