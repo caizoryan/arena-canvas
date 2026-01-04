@@ -39,6 +39,7 @@ let notificationpopup = (msg) => {
 }
 const uuid = () => Math.random().toString(36).slice(-6);
 const button = (t, fn, attr = {}) => ["button", { onclick: fn, ...attr }, t]
+let nodesActive = reactive(true)
 
 export let colors = [
 	'#F5DCE9',
@@ -81,29 +82,29 @@ export let try_set_channel = slugOrURL => {
 	}
 }
 export let set_channel = slug => {
-	notificationpopup("Loading "+slug+"...")
+	notificationpopup("Loading " + slug + "...")
 	get_channel(slug)
-	.then((res) => {
-		if (!res.data) {
-			console.log("Failed to get channel", slug)
-			notificationpopup('Failed to get channel ' + slug)
-		}
-		else {
-			notificationpopup('Loaded Channel: ' + slug)
-			notificationpopup('Total Blocks: ' + res.data.length)
+		.then((res) => {
+			if (!res.data) {
+				console.log("Failed to get channel", slug)
+				notificationpopup('Failed to get channel ' + slug)
+			}
+			else {
+				notificationpopup('Loaded Channel: ' + slug)
+				notificationpopup('Total Blocks: ' + res.data.length)
 
-			currentslug = slug
-			addToRecents(slug)
-			setSlug(slug)
-			localStorage.setItem('slug', slug)
-			renderBlocks(res.data)
+				currentslug = slug
+				addToRecents(slug)
+				setSlug(slug)
+				localStorage.setItem('slug', slug)
+				renderBlocks(res.data)
 
-		}
-	})
+			}
+		})
 }
 
-let setSlug = (slug) =>  {
-	history.pushState('', '', '#'+slug)
+let setSlug = (slug) => {
+	history.pushState('', '', '#' + slug)
 }
 
 let constructBlockData = (e, i) => {
@@ -211,14 +212,14 @@ let groupEl = group => {
 		}
 		return button(memo(() => words[click.value()], [click]), onclick)
 	}
-	let colorbuttons = ['.color-bar', ...[1, 2, 3, 4, 5, 6].map((i) => button('x', setcolorfn(i), { style: 'background-color: ' + colors[i - 1] + ";" })), removeButton()]
+	let colorbuttons =
+		['.color-bar', ...[1, 2, 3, 4, 5, 6].map((i) => button('x', setcolorfn(i), { style: 'background-color: ' + colors[i - 1] + ";" })), removeButton()]
 	let remove = () => {
 		let i = store.data.nodes.findIndex(e => e == position)
 		console.log('found', position, "at", i)
 		store.data.nodes.splice(i, 1)
 		draggable.remove()
 	}
-
 
 	let style = memo(() => `
 		position: absolute;
@@ -261,7 +262,7 @@ let groupEl = group => {
 		{
 			onclick: (e) => { e.stopImmediatePropagation(); e.stopPropagation(); console.log("TYUF") },
 			oninput: (e) => { position.label = e.target.value },
-			onkeydown: (e) => {if (e.key == 'Enter') editingLabel.next(false)},
+			onkeydown: (e) => { if (e.key == 'Enter') editingLabel.next(false) },
 			value: position.label
 		}],
 
@@ -273,7 +274,9 @@ let groupEl = group => {
 	el = dom(el)
 	draggable.appendChild(el)
 
-	let onstart = () => {
+	let onstart = (e) => {
+		console.log('e', e)
+		if (e.metaKey) return
 		store.data.nodes.forEach((e) => {
 			if (e.type != 'group' && isRectContained(
 				{ x: left.value(), y: top.value(), width: width.value(), height: height.value() },
@@ -399,71 +402,85 @@ let blockEl = block => {
 
 
 	let resizer = dom(".absolute.flex-center.box.cur-se",
-										{ style: resize },
-										svgx(30))
+		{ style: resize },
+		svgx(30))
 	let resizerwidthmiddle = dom(".absolute.flex-center.box.cur-e", { style: resizewidthmiddle }, svgx(30))
 	let resizerheightmiddle = dom(".absolute.flex-center.box.cur-s", { style: resizeheightmiddle }, svgx(30))
 
 	let setcolorfn = i => () => color.next(i + "")
 	let colorbuttons = ['.color-bar', ...[1, 2, 3, 4, 5, 6].map((i) => button('x', setcolorfn(i), { style: 'background-color: ' + colors[i - 1] + ";" }))]
-	let draggable = dom('.draggable', { style: style }, colorbuttons, resizer, resizerheightmiddle, resizerwidthmiddle)
+	let blockUserTag = ["p.tag", block.user.slug]
+	let blockTitleTag = ["p.tag", block.title]
+	let editBlock = () => {
+		edit = true
+		mountResizers()
+		draggable.appendChild(textarea(value))
+	}
+	let editButton = button('edit', editBlock)
+	let editOrTag = memo(() =>
+		block.user.slug == authslug.value() && block.type == 'Text'
+			? editButton
+			// : block.title ?
+			// 	blockTitleTag
+				: blockUserTag, [authslug])
+	let topBar = [['.top-bar'], editOrTag, colorbuttons]
+	let draggable = dom('.draggable.node', { style: style }, topBar, resizer, resizerheightmiddle, resizerwidthmiddle)
 	let el
 	let image = block => ['img', { src: block.image?.large?.src }]
 	let edit = false
-	if (block.type == "Text") {
-		let value = block.content.markdown
-		let old = ''
-		let textarea = md => {
-			// on creation keep old value to reset
-			old = value
-			return dom([".block.text", saveButton, cancelButton, ["textarea", {
-				onclick: (e) => {
-					e.stopPropagation();
-					e.stopImmediatePropagation()
-				},
-				oninput: e => value = e.target.value
-			}, md]])
-		}
-		let mountResizers = () => {
-			draggable.appendChild(resizer)
-			draggable.appendChild(resizerwidthmiddle)
-			draggable.appendChild(resizerheightmiddle)
-		}
-
-		let editBlock = () => {
-			edit = true
-			draggable.innerHTML = ``;
-			draggable.appendChild(textarea(value))
-			mountResizers()
-		}
-		let saveBlock = () => {
-			edit = false
-			update_block(block.id, { content: value })
-				.then(res => {
-					if (res.status == 204) notificationpopup("Updated 👍")
-					else notificationpopup("Failed? status: " + res.status)
-				})
-			draggable.innerHTML = ``;
-			draggable.appendChild(dom([".block.text", editOrTag, ...MD(value)]))  
-			mountResizers()
-		}
-		let cancelEdit = () => {
-			value = old
-			edit = false
-			draggable.innerHTML = ``;
-			draggable.appendChild(dom([".block.text", editOrTag, ...MD(value)]))  
-			mountResizers()
-		}
-
-		let saveButton = button("save", saveBlock)
-		let editButton = button('edit', editBlock)
-		let cancelButton = button('cancel', cancelEdit)
-		let blockUserTag = ["p.tag", block.user.slug]
-		let editOrTag = memo(() => block.user.slug == authslug.value() ? editButton : blockUserTag, [authslug])
-
-		el = [".block.text", editOrTag, ...MD(value)]
+	let textarea = md => {
+		// on creation keep old value to reset
+		old = value
+		return dom([".block.text", ["textarea", {
+			onclick: (e) => {
+				e.stopPropagation();
+				e.stopImmediatePropagation()
+			},
+			oninput: e => value = e.target.value
+		}, md]])
 	}
 
+	let value = block.content?.markdown
+	let old = ''
+	let saveBlock = () => {
+		edit = false
+		update_block(block.id, { content: value })
+			.then(res => {
+				if (res.status == 204) notificationpopup("Updated 👍")
+				else notificationpopup("Failed? status: " + res.status)
+			})
+		mountResizers()
+		draggable.appendChild(dom([".block.text", ...MD(value)]))
+
+	}
+	let cancelEdit = () => {
+		value = old
+		edit = false
+		mountResizers()
+		draggable.appendChild(dom([".block.text", ...MD(value)]))
+	}
+
+	let saveButton = dom(button("save", saveBlock))
+	let cancelButton = dom(button('cancel', cancelEdit))
+	let mountResizers = () => {
+		draggable.innerHTML = ``;
+		draggable.appendChild(resizer)
+		draggable.appendChild(resizerwidthmiddle)
+		draggable.appendChild(resizerheightmiddle)
+
+		topBar = edit
+			? ['.top-bar', saveButton, cancelButton, colorbuttons]
+			: ['.top-bar', editOrTag, colorbuttons]
+
+		let el = dom(topBar)
+		console.log(el)
+
+		draggable.appendChild(el)
+	}
+
+	if (block.type == "Text") {
+		el = [".block.text", ...MD(value)]
+	}
 	else if (block.type == "Image") el = [".block.image", image(block)]
 	else if (block.type == "Attachment") el = [".block.image", image(block)]
 	else if (block.type == "Link") el = [".block.image", image(block)]
@@ -477,9 +494,10 @@ let blockEl = block => {
 		let set_top = (v) => top.next(v)
 		drag(draggable, { set_left, set_top, pan_switch: () => !edit, bound: 'inner' })
 		drag(resizer,
-				 { set_left: (v) => width.next(v),
-					 set_top: (v) => height.next(v)
-				 })
+			{
+				set_left: (v) => width.next(v),
+				set_top: (v) => height.next(v)
+			})
 		drag(resizerwidthmiddle, { set_left: (v) => width.next(v), set_top: () => null })
 		drag(resizerheightmiddle, { set_left: () => null, set_top: (v) => height.next(v) })
 	}, 100)
@@ -498,7 +516,7 @@ let updateData = (blocks) => {
 		store.data = JSON.parse(state.dotcanvas.content.plain)
 
 		store.data.nodes.forEach(node => {
-			if (node.type == 'text'){
+			if (node.type == 'text') {
 				// find the block
 				let f = blocks.find(e => e.id == node.id)
 				if (f && f.type == 'Text') node.text = f.content.markdown
@@ -543,18 +561,18 @@ let renderBlocks = (blocks) => {
 	// ALternate Zoom
 	let funkystylememo = memo(() => `
 	transform-origin:
-		${canvasX.value() + (mouse.value().x / canvasScale.value())/2}px
-		${canvasY.value() + (mouse.value().y / canvasScale.value())/2}px;
+		${canvasX.value() + (mouse.value().x / canvasScale.value()) / 2}px
+		${canvasY.value() + (mouse.value().y / canvasScale.value()) / 2}px;
 
 		transform: translate(${canvasX.value() * -1}px, ${canvasY.value() * -1}px) scale(${canvasScale.value()}) ;`,
-														[canvasX, canvasY, canvasScale, mouse])
+		[canvasX, canvasY, canvasScale, mouse])
 	let stylemmeo = memo(() => `
 		transform-origin:
 			${canvasX.value() + window.innerWidth / 2}px
 			${canvasY.value() + window.innerHeight / 2}px;
 
 		transform: translate(${canvasX.value() * -1}px, ${canvasY.value() * -1}px) scale(${canvasScale.value()}) ;
-`, [canvasX, canvasY, canvasScale ])
+`, [canvasX, canvasY, canvasScale])
 
 
 	try_auth()
@@ -605,9 +623,9 @@ let renderBlocks = (blocks) => {
 	}
 
 	let bigline = memo(() => svgrect(...pointStart.value(),
-																	 ...pointEnd.value(),
-																	 "black", 3),
-										 [pointStart, pointEnd])
+		...pointEnd.value(),
+		"black", 3),
+		[pointStart, pointEnd])
 
 	let edgesRender = reactive(0)
 
@@ -733,7 +751,7 @@ let mount = () => {
 		state.connections.forEach(e => l.push(e.line()))
 		return l
 	}, [mouse])
-	let lineEls = memo(() => lines.value().map(f => svgline(...f, "black")), [lines])
+	let lineEls = memo(() => lines.value().map(f => svgline(...f, '#00f8', 2, 4)), [lines])
 	// Fix the leaks here...
 	let svg = ['svg.line-canvas', { width: window.innerWidth, height: window.innerHeight }, lineEls]
 
@@ -745,14 +763,14 @@ let mount = () => {
 		let content = JSON.stringify(store.data)
 		if (state.dotcanvas?.id)
 			update_block(state.dotcanvas.id, { content, title: ".canvas" }).then(res => {
-					if (res.status == 204) notificationpopup("Updated 👍")
-					else notificationpopup("Failed? status: " + res.status)
-				
+				if (res.status == 204) notificationpopup("Updated 👍")
+				else notificationpopup("Failed? status: " + res.status)
+
 			})
 		else add_block(currentslug, '.canvas', content)
 	}, { style: pos(3, 1), })
 
-	document.body.appendChild(dom(['.nodes', ...nodes]))
+	document.body.appendChild(dom(['.nodes',{active: nodesActive} ,...nodes]))
 	document.body.appendChild(dom(sidebar))
 	document.body.appendChild(dom(openbtn))
 	document.body.appendChild(dom(savebtn))
@@ -780,6 +798,52 @@ document.onkeydown = (e) => {
 	// 		left: 150, top: 250, value
 	// 	}))
 	// }
+
+	let inc = e => e.shiftKey ? 250 : 50
+	if (e.key == 'H') {
+		nodesActive.next(e => !e)
+	}
+	if (e.key == '=' && e.metaKey) {
+		e.preventDefault()
+		canvasScale.next(e => e+(inc(e)/500))
+	}
+
+	if (e.key == '-' && e.metaKey) {
+		e.preventDefault()
+		canvasScale.next(e => e-(inc(e)/500))
+	}
+
+	let inEdit = (e) => {
+		if (e.target instanceof HTMLInputElement) return true
+		else if (e.target instanceof HTMLTextAreaElement) return true
+		else if (e.target instanceof HTMLButtonElement) return true
+		return false
+	}
+
+	if (e.key == 'ArrowUp' || e.key.toLowerCase() == 'w') {
+		if (inEdit(e)) return
+		e.preventDefault()
+		canvasY.next(v => v - inc(e))
+	}
+
+
+	if (e.key == 'ArrowDown' || e.key.toLowerCase() == 's') {
+		if (inEdit(e)) return
+		e.preventDefault()
+		canvasY.next(v => v + inc(e))
+	}
+
+	if (e.key == 'ArrowRight'|| e.key.toLowerCase() == 'd') {
+		if (inEdit(e)) return
+		e.preventDefault()
+		canvasX.next(v => v + inc(e))
+	}
+
+	if (e.key == 'ArrowLeft'|| e.key.toLowerCase() == 'a') {
+		if (inEdit(e)) return
+		e.preventDefault()
+		canvasX.next(v => v - inc(e))
+	}
 
 	if (e.key == 'e' && e.metaKey) {
 		e.preventDefault()
@@ -855,50 +919,50 @@ let processNewCanvas = str => {
 }
 
 let updateListPopup = (updateData, updateBlockList) => {
-	let change = ({id, from, to}) => {
+	let change = ({ id, from, to }) => {
 		let showing = reactive(false)
 		let elem = dom(['.change-item',
-										button('show', () => showing.next(e => !e), {class: 'mr'}),
-						button('Update Block', () => {
-								update_block(id, { content: to })
-									.then(res => {
-										if (res.status == 204){
-											notificationpopup("Updated 👍")
-											elem.remove()
-											elem = null
-										}
-										else notificationpopup("Failed? status: " + res.status)
-									})
-						}),
-						['p', id + ": changed"],
-						['.change-map', {showing},
-						 ['.change-block.from',from],
-						 ['.change-block.to', to],
-						]])
+			button('show', () => showing.next(e => !e), { class: 'mr' }),
+			button('Update Block', () => {
+				update_block(id, { content: to })
+					.then(res => {
+						if (res.status == 204) {
+							notificationpopup("Updated 👍")
+							elem.remove()
+							elem = null
+						}
+						else notificationpopup("Failed? status: " + res.status)
+					})
+			}),
+			['p', id + ": changed"],
+			['.change-map', { showing },
+				['.change-block.from', from],
+				['.change-block.to', to],
+			]])
 
 		return elem
 	}
 	let layoutUpdated = false
 	let root = dom(['.popup',
-									button('close', () => root.remove()),
-									['h4', 'Layout'],
-									button("Update Layout",  () => {
-										if (layoutUpdated) return
-										updateData.nodes.forEach(node => {
-											let f = store.data.nodes.find(block => node.id == block.id)
-											if (f) {
-												f.x = node.x
-												f.y = node.y
-												f.width = node.width
-												f.height = node.height
-											}
-										})
+		button('close', () => root.remove()),
+		['h4', 'Layout'],
+		button("Update Layout", () => {
+			if (layoutUpdated) return
+			updateData.nodes.forEach(node => {
+				let f = store.data.nodes.find(block => node.id == block.id)
+				if (f) {
+					f.x = node.x
+					f.y = node.y
+					f.width = node.width
+					f.height = node.height
+				}
+			})
 
-										store.data.edges = updateData.edges
-										save_data()
-										layoutUpdated = true
-									}, ),
-									['h4', "Block Changes"], ...updateBlockList.map((e) => change(e)),
+			store.data.edges = updateData.edges
+			save_data()
+			layoutUpdated = true
+		},),
+		['h4', "Block Changes"], ...updateBlockList.map((e) => change(e)),
 	])
 
 	document.body.appendChild(root)
@@ -915,6 +979,10 @@ let updateListPopup = (updateData, updateBlockList) => {
 document.addEventListener("wheel", e => {
 	// if (isVerticallyScrollable(e.target)) return
 	if (e.ctrlKey) return
+
+	e.preventDefault()
+	e.stopImmediatePropagation();
+
 	if (e.metaKey) {
 		canvasScale.next(f => f - (e.deltaY / 2500))
 	}
@@ -924,12 +992,24 @@ document.addEventListener("wheel", e => {
 	}
 })
 
-// make this nodeable
+document.addEventListener("gesturestart", function (e) {
+  e.preventDefault();
+});
+
+document.addEventListener("gesturechange", function (e) {
+  e.preventDefault();
+	console.log(e.scale)
+})
+
+document.addEventListener("gestureend", function (e) {
+  e.preventDefault();
+});
+
 
 
 let checkSlugUrl = (url) => {
-	if (!url.includes("#")) return 
-	else return url.split('#').filter(e => e!='').pop()
+	if (!url.includes("#")) return
+	else return url.split('#').filter(e => e != '').pop()
 }
 
 window.onhashchange = (event) => {

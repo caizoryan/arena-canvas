@@ -7,8 +7,9 @@ export let svgrect = (x1, y1, x2, y2, stroke = "blue", width = 4) =>
 		fill: '#fff1',
 		"stroke-width": width
 	}]
-export let svgline = (x1, y1, x2, y2, stroke = "blue", width = 4) => ['line', { x1, y1, x2, y2, stroke, "stroke-width": width }]
-export let svgx = (width, height, fill = 'blue', weight = 4) => {
+export let svgline = (x1, y1, x2, y2, stroke = "blue", width = 2, dash = 0) =>
+['line', { x1, y1, x2, y2, stroke, "stroke-width": width, 'stroke-dasharray':dash}]
+export let svgx = (width, height, fill = 'blue', weight = 2) => {
 	if (!height) height = width
 	return ['svg', { width, height },
 		svgline(0, 0, width, height, fill, weight),
@@ -35,9 +36,11 @@ export let svgcurveline = (
   }
 ]
 
-export let svgArrow = (side, width, height, stroke = 'blue', weight = 3) => {
-	if (!height) height = width
+export let svgArrow = (side, svgWidth, svgHeight, stroke = 'blue', weight = 1.5) => {
+	if (!svgHeight) svgHeight = svgWidth
 
+	let width = svgWidth - weight
+	let height = svgHeight - weight
 	let midX = width / 2
 	let midY = height / 2
 
@@ -45,30 +48,30 @@ export let svgArrow = (side, width, height, stroke = 'blue', weight = 3) => {
 		case 'e': // →
 			return ['svg', { width, height },
 				// shaft
-				svgline(0, midY, width, midY, stroke, weight),
+				svgline(weight, midY, width, midY, stroke, weight),
 				// head
-				svgline(width - midY, 0, width, midY, stroke, weight),
+				svgline(width - midY, weight, width, midY, stroke, weight),
 				svgline(width - midY, height, width, midY, stroke, weight),
 			]
 
 		case 'w': // ←
 			return ['svg', { width, height },
-				svgline(width, midY, 0, midY, stroke, weight),
-				svgline(midY, 0, 0, midY, stroke, weight),
-				svgline(midY, height, 0, midY, stroke, weight),
+				svgline(width, midY, weight, midY, stroke, weight),
+				svgline(midY, weight, weight, midY, stroke, weight),
+				svgline(midY, height, weight, midY, stroke, weight),
 			]
 
 		case 'n': // ↑
 			return ['svg', { width, height },
-				svgline(midX, height, midX, 0, stroke, weight),
-				svgline(0, midX, midX, 0, stroke, weight),
-				svgline(width, midX, midX, 0, stroke, weight),
+				svgline(midX, height, midX, weight, stroke, weight),
+				svgline(weight, midX, midX, weight, stroke, weight),
+				svgline(width, midX, midX, weight, stroke, weight),
 			]
 
 		case 's': // ↓
 			return ['svg', { width, height },
-				svgline(midX, 0, midX, height, stroke, weight),
-				svgline(0, height - midX, midX, height, stroke, weight),
+				svgline(midX, weight, midX, height, stroke, weight),
+				svgline(weight, height - midX, midX, height, stroke, weight),
 				svgline(width, height - midX, midX, height, stroke, weight),
 			]
 	}

@@ -85,7 +85,7 @@ export const drag = (elem, options = {}) => {
 
 		e.preventDefault(); e.stopPropagation();
 
-		onstart(target)
+		onstart(e)
 		target.style.cursor = 'none'
 
 		// Set Last Element Position. Needed because event offset doesn't have decimals. And decimals will be needed when dragging
@@ -158,7 +158,7 @@ export const drag = (elem, options = {}) => {
 		if (!target) return;
 		e.preventDefault();
 		e.stopPropagation();
-		onend(target)
+		onend(e)
 		target.style.cursor = ''
 		target.releasePointerCapture(e.pointerId);
 	}

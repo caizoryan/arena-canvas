@@ -9,6 +9,9 @@ import {state,
 				dimensions } from "./data.js"
 import {colors } from './script.js'
 
+let blue = "#68A0D4"
+let red = "#D46883"
+
 // -------------------
 // utils
 // -------------------
@@ -22,11 +25,11 @@ const mapRange = (value, inMin, inMax, outMin, outMax) =>
 // --------------
 // NODE: UI Elements
 // --------------
-let inputConnector = (left, top, signal, position, label, side='s') => {
+let inputConnector = (left, top, signal, position, label, side= 's', cssside = 'left') => {
 	let bufferkill = reactive("false")
-	let colorx = memo(() => bufferkill.value() == 'false' ? '#fff2' : "red", [bufferkill])
+	let colorx = memo(() => bufferkill.value() == 'false' ? '#0002' : red, [bufferkill])
 
-	let style = `left: ${left}px; top: ${top}px;`
+	let style = `${cssside}: ${left}px; top: ${top}px;`
 	let element_x = dom(['.connection.input', {
 		title: '('+label + '): Input',
 		style,
@@ -41,14 +44,14 @@ let inputConnector = (left, top, signal, position, label, side='s') => {
 				state.connectionBuffer.connectAsOutput(signal, position)
 			}
 		}
-	}, svgArrow(side, 25, 25, colorx)])
+	}, svgArrow(side, 20, 20, colorx)])
 
 	return element_x
 }
-let outputConnector = (left, top, signal, position, label, side = 's') => {
+let outputConnector = (left, top, signal, position, label, side = 's', cssside = 'right') => {
 	return dom(['.connection.output', {
 		title: '('+label + '): Output',
-		style: `top: ${top}px; right: ${left}px;`,
+		style: `top: ${top}px; ${cssside}: ${left}px;`,
 		onclick: () => {
 			if (state.connectionBuffer) { state.connectionBuffer = undefined }
 			else {
@@ -56,7 +59,7 @@ let outputConnector = (left, top, signal, position, label, side = 's') => {
 				state.connectionBuffer.connectAsInput(signal, position)
 			}
 		}
-	}, svgArrow(side, 25)])
+	}, svgArrow(side, 20, 20, blue)])
 }
 
 export let slidercursor = ({
@@ -101,23 +104,24 @@ border: 2px solid ${e.color};
 	left = reactive(left)
 	top = reactive(top)
 
-	let inx_left = memo(() => left.value() + 15, [left])
-	let inx_top = memo(() => top.value(), [top])
-
-	let iny_left = memo(() => left.value() + 80, [left])
-	let iny_top = memo(() => top.value(), [top])
-
-	let outx_left = memo(() => left.value() + width + 40, [left])
-	let outx_top = memo(() => top.value() + 40, [top])
+	let iny_left = memo(() => left.value() + width + 40, [left])
+	let iny_top = memo(() =>   top.value() + height - 40,[top])
 
 	let outy_left = memo(() => left.value() + width + 40, [left])
-	let outy_top = memo(() => top.value() + 70, [top])
+	let outy_top = memo(() => top.value() + 65, [top])
 
-	let connectinput_x = inputConnector(0, -30, x, [inx_left, inx_top], "X")
-	let connectinput_y = inputConnector(55, -30, y, [iny_left, iny_top], "Y")
+	let inx_left = memo(() => left.value() + width - 55, [left])
+	let inx_top = memo(() => top.value(), [top])
 
-	let connectoutput_x = outputConnector(-30, 10, x, [outx_left, outx_top], "X", 'e')
-	let connectoutput_y = outputConnector(-30, 40, y, [outy_left, outy_top], "Y", 'e')
+	let outx_left = memo(() => left.value()+30, [left])
+	let outx_top = memo(() => top.value(), [top])
+
+
+	let connectinput_x = inputConnector(width-80, -30, x, [inx_left, inx_top], "X")
+	let connectoutput_x = outputConnector(5, -30, x, [outx_left, outx_top], "X", 'n', 'left')
+
+	let connectinput_y = inputConnector(width, height - 80, y, [iny_left, iny_top], "Y", 'w')
+	let connectoutput_y = outputConnector(width, 40, y, [outy_left, outy_top], "Y", 'e', 'left')
 
 	let style = memo(() => `
 		left: ${left.value()}px;
