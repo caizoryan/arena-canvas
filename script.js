@@ -63,7 +63,7 @@ let keys = []
 let mountDone = false
 let w = 300
 
-let currentslug = "list-are-na-api-possibilities"
+export let currentslug = "list-are-na-api-possibilities"
 let local_currentslug = localStorage.getItem("slug")
 if (local_currentslug) currentslug = local_currentslug
 
@@ -442,7 +442,7 @@ let blockEl = block => {
 	let topBar = [['.top-bar'], editOrTag, colorbuttons]
 	let draggable = dom('.draggable.node', {
 		style: style,
-		ondblclick: () => {block.type == 'Text' ? editBlock():null}
+		ondblclick: () => {block.type == 'Text' && !edit ? editBlock():null}
 	}, topBar, resizer, resizerheightmiddle, resizerwidthmiddle)
 	let el
 	let image = block => ['img', { src: block.image?.large?.src }]
@@ -1047,16 +1047,19 @@ let updateListPopup = (updateData, updateBlockList) => {
 
 document.addEventListener("wheel", e => {
 	// if (isVerticallyScrollable(e.target)) return
-	e.preventDefault()
 
 	if (e.ctrlKey){
+		e.preventDefault()
 		canvasScale.next(f => f - (e.deltaY/200))
 		return
 	}
 
+	if (e.shiftKey) {return}
+
 	if (e.metaKey) {
 		canvasScale.next(f => f - (e.deltaY / 2500))
 	}
+
 	else {
 		canvasY.next(f => f + e.deltaY)
 		canvasX.next(f => f + e.deltaX)

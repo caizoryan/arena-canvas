@@ -16,7 +16,8 @@ export let addToRecents = (slug) => {
 	let recents = localStorage.getItem('recent-slugs')
 	console.log("recents", recents)
 	if (!recents) {
-		localStorage.setItem('recent-slugs', JSON.stringify([slug]))
+		recents = [slug]
+		localStorage.setItem('recent-slugs', JSON.stringify(recents))
 		recentSlugs.next(recents)
 	}
 
@@ -40,7 +41,7 @@ export let focusSearchBar = () => searchBar.focus()
 let search = [".section.search", ["h4", "Channel"], searchBar,
 							["button", {onclick: (e) => try_set_channel(query.trim())}, "set"],
 							['h5', 'Recently Visited'],
-							memo(() => recentSlugs.value().map(e => ['button.mr', {onclick: () => try_set_channel(e)}, e]), [recentSlugs]) 
+								memo(() => recentSlugs.value().map(e => ['button.mr', {onclick: () => try_set_channel(e)}, e]), [recentSlugs]) 
 						 ]
 
 let logout = ['p', ['button', {onclick: () => {
