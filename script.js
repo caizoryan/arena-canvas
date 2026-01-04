@@ -86,7 +86,7 @@ export let set_channel = slug => {
 	get_channel(slug)
 		.then((res) => {
 			if (!res.data) {
-				console.log("Failed to get channel", slug)
+				console.log("Failed to get channel", res.error)
 				notificationpopup('Failed to get channel ' + slug)
 			}
 			else {
@@ -821,12 +821,14 @@ let mount = () => {
 	let openbtn = button(">", () => { sidebarOpen.next(e => e == true ? false : true) }, { style: pos(1, 1) })
 	let savebtn = button("save", () => {
 		let content = JSON.stringify(store.data)
-		if (state.dotcanvas?.id)
-			update_block(state.dotcanvas.id, { content, title: ".canvas" }).then(res => {
+		if (state.dotcanvas?.id){
+			let description = `This block was made using [Are.na Canvas](http://canvas.a-p.space). You can view this channel as a canvas [here](http://canvas.a-p.space/#${currentslug})`
+		update_block(state.dotcanvas.id, { content, title: ".canvas", description })
+			.then(res => {
 				if (res.status == 204) notificationpopup("Updated 👍")
 				else notificationpopup("Failed? status: " + res.status)
-
 			})
+		}
 		else add_block(currentslug, '.canvas', content)
 	}, { style: pos(3, 1), })
 
@@ -860,7 +862,15 @@ document.onkeydown = (e) => {
 	// }
 
 	let inc = e => e.shiftKey ? 250 : 50
+	let inEdit = (e) => {
+		if (e.target instanceof HTMLInputElement) return true
+		else if (e.target instanceof HTMLTextAreaElement) return true
+		else if (e.target instanceof HTMLButtonElement) return true
+		return false
+	}
+
 	if (e.key == 'H') {
+		if (inEdit(e)) return
 		nodesActive.next(e => !e)
 	}
 	if (e.key == '=' && e.metaKey) {
@@ -873,12 +883,6 @@ document.onkeydown = (e) => {
 		canvasScale.next(e => e-(inc(e)/500))
 	}
 
-	let inEdit = (e) => {
-		if (e.target instanceof HTMLInputElement) return true
-		else if (e.target instanceof HTMLTextAreaElement) return true
-		else if (e.target instanceof HTMLButtonElement) return true
-		return false
-	}
 
 	if (e.key == 'ArrowUp' || e.key.toLowerCase() == 'w') {
 		if (inEdit(e)) return
@@ -906,15 +910,20 @@ document.onkeydown = (e) => {
 	}
 
 	if (e.key == 'e' && e.metaKey) {
+		if (inEdit(e)) return
 		e.preventDefault()
 		sidebarOpen.next(e => !e)
 	}
 
 	if (e.key == '/' && sidebarOpen.value()) {
+		if (inEdit(e)) return
 		focusSearchBar()
 	}
 
 	if (e.key == 'd' && e.metaKey) {
+
+		if (inEdit(e)) return
+
 		e.preventDefault()
 		let download_json = (json, file = 'data') => {
 			let a = document.createElement("a");

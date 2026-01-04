@@ -47,7 +47,8 @@ export const get_channel = async (slug) => {
 		.then(res => {
 			if (res.status != 200) {
 				console.log(res.status)
-				return {}
+				console.log(res)
+				return {error: "STATUS: " + res.status}
 			}
 			return res.json()
 		})
