@@ -164,5 +164,7 @@ export const drag = (elem, options = {}) => {
 	}
 
 
-	return { do_move };
+	let kill = () => {}
+
+	return { do_move, kill };
 };

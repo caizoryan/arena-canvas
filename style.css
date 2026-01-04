@@ -105,6 +105,10 @@ body {
 	background-image: linear-gradient(to right, var(--background1) 1px, transparent 1px), linear-gradient(to bottom, var(--background1) 1px, transparent 1px);
 }
 
+.container[holding='true']{
+	cursor: grabbing;
+}
+
 .draggable {
 	background: var(--background);
 	padding: 1em;
@@ -257,9 +261,12 @@ button:active {
 }
 
 textarea {
-	background: var(--background);
-	width: 100%;
-	height: 100%;
+  width: 100%;
+  height: 100%;
+  background-color: inherit;
+  outline: none;
+  border: none;
+  padding: .5em;
 }
 
 .sidebar {

@@ -1,4 +1,5 @@
 import {authslug} from './data.js'
+import { notificationpopup } from './script.js';
 
 let host = "https://api.are.na/v2/"
 let host3="https://api.are.na/v3/channels/" 
@@ -18,9 +19,9 @@ export const update_block = async (block_id, body, slug, fuck = false) => {
 		return res
 	});
 };
-export const add_block = (slug, title, content) => {
+export const add_block = async (slug, title, content) => {
 	console.log("adding", title, "to", slug, content)
-	fetch(host + "channels/" + slug + "/blocks", {
+	return fetch(host + "channels/" + slug + "/blocks", {
 		headers: headers(),
 		method: "POST",
 		body: JSON.stringify({content: content}),
@@ -28,6 +29,7 @@ export const add_block = (slug, title, content) => {
 		.then((response) =>{
 			console.log(response)
 			console.log(response.status)
+			if (!response.ok) notificationpopup("Couldn't Make Block")
 			return response.json()
 	})
 		.then((data) => {
