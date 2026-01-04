@@ -1,4 +1,5 @@
 import { memo, reactive } from "./hok.js"
+import { updated } from "./script.js"
 export let authslug = reactive('')
 export const dimensions = 10000
 
@@ -31,6 +32,7 @@ export let state = {
 
 export let dataSubscriptions = []
 export let save_data = () => {
+	updated.next(false)
 	localStorage.setItem("canvas", JSON.stringify(store.data))
 	dataSubscriptions.forEach(fn => fn((() => store.data)()))
 }

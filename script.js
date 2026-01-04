@@ -15,8 +15,10 @@ import {
 } from "./data.js"
 import { sliderAxis, slidercursor, reactiveEl, keyPresser } from "./node.js"
 
+
+export let updated = reactive(true)
 export let notificationpopup = (msg, error = false) => {
-	let d = dom('.notification'+ (error?'.error':''), {
+	let d = dom('.notification' + (error ? '.error' : ''), {
 		style: `
 		position: fixed;
 		right: -50vw;
@@ -87,7 +89,7 @@ export let set_channel = slug => {
 		.then((res) => {
 			if (!res.data) {
 				console.log("Failed to get channel", res.error)
-				notificationpopup(['span', 'Failed to get channel ' + slug, ' try opening ',  ['a', {href: '#list-are-na-api-possibilities'}, 'this']], true)
+				notificationpopup(['span', 'Failed to get channel ' + slug, ' try opening ', ['a', { href: '#list-are-na-api-possibilities' }, 'this']], true)
 			}
 			else {
 				notificationpopup('Loaded Channel: ' + slug)
@@ -118,7 +120,7 @@ let constructBlockData = (e, i) => {
 		color: '1'
 	}
 	if (typeof i == 'number') {
-		
+
 		d.x = (i % 8) * 400 + r1
 		d.y = (Math.floor(i / 8)) * 450 + r2
 	}
@@ -186,6 +188,22 @@ let groupEl = group => {
 	position = store.data.nodes.find(e => e.id == group.id)
 	if (!position.color) position.color = '5'
 	if (!position.label) position.label = 'Group'
+
+	let updateFn = (data) => {
+		let p = (data.nodes.find(e => e.id == group.id))
+		if (!p) {
+			let i = dataSubscriptions.findIndex(e => e == updateFn)
+			if (i != -1) dataSubscriptions.splice(i, 1)
+		}
+		if (!p) return
+
+		if (p.x != left.value()) left.next(p.x)
+		if (p.y != top.value()) top.next(p.y)
+		if (p.width != width.value()) width.next(p.width)
+		if (p.height != height.value()) height.next(p.height)
+	}
+
+	dataSubscriptions.push(updateFn)
 
 	let left = reactive(position.x)
 	let top = reactive(position.y)
@@ -288,10 +306,12 @@ let groupEl = group => {
 	let onstart = (e) => {
 		if (e.metaKey) return
 		store.data.nodes.forEach((e) => {
-			if (e.type != 'group' && isRectContained(
-				{ x: left.value(), y: top.value(), width: width.value(), height: height.value() },
-				{ x: e.x, y: e.y, width: e.width, height: e.height },
-			)) {
+			if (
+				// e.type != 'group' &&
+				isRectContained(
+					{ x: left.value(), y: top.value(), width: width.value(), height: height.value() },
+					{ x: e.x, y: e.y, width: e.width, height: e.height },
+				)) {
 				let item = {
 					block: e,
 					offset: {
@@ -334,12 +354,13 @@ let groupEl = group => {
 let blockEl = block => {
 	if (block.class) {
 		block.type = block.class
-		if (block.type == 'Text'){
+		if (block.type == 'Text') {
 			block.content = {
 				markdown: block.content,
 			}
 		}
 	}
+
 	let position = store.data.nodes.find(e => e.id == block.id)
 	if (!position) store.data.nodes.push(constructBlockData(block, 0))
 	position = store.data.nodes.find(e => e.id == block.id)
@@ -438,15 +459,20 @@ let blockEl = block => {
 			? editButton
 			// : block.title ?
 			// 	blockTitleTag
-				: blockUserTag, [authslug])
+			: blockUserTag, [authslug])
 	let topBar = [['.top-bar'], editOrTag, colorbuttons]
 	let draggable = dom('.draggable.node', {
 		style: style,
-		ondblclick: () => {block.type == 'Text' && !edit ? editBlock():null}
+		ondblclick: () => { block.type == 'Text' && !edit ? editBlock() : null }
 	}, topBar, resizer, resizerheightmiddle, resizerwidthmiddle)
 	let el
 	let image = block => ['img', { src: block.image?.large?.src }]
 	let edit = false
+	let setValue = (t) =>{
+		wc.next(t.split(' ').length)
+		console.log(wc.value())
+		value = t
+}
 	let textarea = md => {
 		// on creation keep old value to reset
 		old = value
@@ -455,11 +481,13 @@ let blockEl = block => {
 				e.stopPropagation();
 				e.stopImmediatePropagation()
 			},
-			oninput: e => value = e.target.value
-		}, md]])
+			oninput: e => setValue(e.target.value)
+		}, md], ['p', "wc: ",  wc]])
 	}
 
 	let value = block.content?.markdown
+	let wc = reactive(value?.split(" ").length)
+
 	let old = ''
 	let saveBlock = () => {
 		edit = false
@@ -473,7 +501,7 @@ let blockEl = block => {
 
 	}
 	let cancelEdit = () => {
-		value = old
+		setValue( old)
 		edit = false
 		mountResizers()
 		draggable.appendChild(dom([".block.text", ...MD(value)]))
@@ -622,7 +650,7 @@ let renderBlocks = (blocks) => {
 			holding.next(true)
 		}
 
-		if (e.shiftKey) {makingBlock = true}
+		if (e.shiftKey) { makingBlock = true }
 		target.setPointerCapture(e.pointerId);
 	}
 	let onpointermove = e => {
@@ -637,7 +665,7 @@ let renderBlocks = (blocks) => {
 			canvasX.next(anchor.x + (pointStart.value()[0] - pointEnd.value()[0]))
 			canvasY.next(anchor.y + (pointStart.value()[1] - pointEnd.value()[1]))
 		}
-		
+
 	}
 	let onpointerup = e => {
 		let target = e.target
@@ -654,7 +682,7 @@ let renderBlocks = (blocks) => {
 		pointEnd.next([0, 0])
 
 
-		if (anchor){
+		if (anchor) {
 			anchor = undefined
 			return
 		}
@@ -665,13 +693,13 @@ let renderBlocks = (blocks) => {
 				.then((res) => {
 
 					console.log(res)
-					let newBlock = constructBlockData(res, {x, y, width, height})
+					let newBlock = constructBlockData(res, { x, y, width, height })
 					store.data.nodes.push(newBlock)
 					document.querySelector('.container').appendChild(blockEl(res))
 
 					save_data()
 				})
-			
+
 		}
 
 		else {
@@ -819,20 +847,9 @@ let mount = () => {
 	let pos = (x, y) => `position: fixed; left: ${x}em; top: ${y}em; z-index: 9999;`
 
 	let openbtn = button(">", () => { sidebarOpen.next(e => e == true ? false : true) }, { style: pos(1, 1) })
-	let savebtn = button("save", () => {
-		let content = JSON.stringify(store.data)
-		if (state.dotcanvas?.id){
-			let description = `This block was made using [Are.na Canvas](http://canvas.a-p.space). You can view this channel as a canvas [here](http://canvas.a-p.space/#${currentslug})`
-		update_block(state.dotcanvas.id, { content, title: ".canvas", description })
-			.then(res => {
-				if (res.status == 204) notificationpopup("Updated 👍")
-				else notificationpopup("Failed? status: " + res.status)
-			})
-		}
-		else add_block(currentslug, '.canvas', content)
-	}, { style: pos(3, 1), })
+	let savebtn = button("save", saveCanvasToArena, { style: pos(3, 1), updated })
 
-	document.body.appendChild(dom(['.nodes',{active: nodesActive} ,...nodes]))
+	document.body.appendChild(dom(['.nodes', { active: nodesActive }, ...nodes]))
 	document.body.appendChild(dom(sidebar))
 	document.body.appendChild(dom(openbtn))
 	document.body.appendChild(dom(savebtn))
@@ -875,12 +892,12 @@ document.onkeydown = (e) => {
 	}
 	if (e.key == '=' && e.metaKey) {
 		e.preventDefault()
-		canvasScale.next(e => e+(inc(e)/500))
+		canvasScale.next(e => e + (inc(e) / 500))
 	}
 
 	if (e.key == '-' && e.metaKey) {
 		e.preventDefault()
-		canvasScale.next(e => e-(inc(e)/500))
+		canvasScale.next(e => e - (inc(e) / 500))
 	}
 
 
@@ -897,16 +914,22 @@ document.onkeydown = (e) => {
 		canvasY.next(v => v + inc(e))
 	}
 
-	if (e.key == 'ArrowRight'|| e.key.toLowerCase() == 'd') {
+	if (e.key == 'ArrowRight' || e.key.toLowerCase() == 'd') {
 		if (inEdit(e)) return
 		e.preventDefault()
 		canvasX.next(v => v + inc(e))
 	}
 
-	if (e.key == 'ArrowLeft'|| e.key.toLowerCase() == 'a') {
+	if (e.key == 'ArrowLeft' || e.key.toLowerCase() == 'a') {
 		if (inEdit(e)) return
 		e.preventDefault()
 		canvasX.next(v => v - inc(e))
+	}
+
+	if (e.key == 's' && e.metaKey) {
+		if (inEdit(e)) return
+		e.preventDefault()
+		saveCanvasToArena()
 	}
 
 	if (e.key == 'e' && e.metaKey) {
@@ -1048,13 +1071,15 @@ let updateListPopup = (updateData, updateBlockList) => {
 document.addEventListener("wheel", e => {
 	// if (isVerticallyScrollable(e.target)) return
 
-	if (e.ctrlKey){
-		e.preventDefault()
-		canvasScale.next(f => f - (e.deltaY/200))
+	if (e.shiftKey) { return }
+
+	e.preventDefault()
+
+	if (e.ctrlKey) {
+		canvasScale.next(f => f - (e.deltaY / 200))
 		return
 	}
 
-	if (e.shiftKey) {return}
 
 	if (e.metaKey) {
 		canvasScale.next(f => f - (e.deltaY / 2500))
@@ -1064,20 +1089,20 @@ document.addEventListener("wheel", e => {
 		canvasY.next(f => f + e.deltaY)
 		canvasX.next(f => f + e.deltaX)
 	}
-},{passive: false})
+}, { passive: false })
 
 window.addEventListener("gesturestart", function (e) {
-  e.preventDefault();
+	e.preventDefault();
 	console.log(e)
 });
 
 window.addEventListener("gesturechange", function (e) {
-  e.preventDefault();
+	e.preventDefault();
 	console.log(e)
 })
 
 window.addEventListener("gestureend", function (e) {
-  e.preventDefault();
+	e.preventDefault();
 	console.log(e)
 });
 
@@ -1086,6 +1111,22 @@ window.addEventListener("gestureend", function (e) {
 let checkSlugUrl = (url) => {
 	if (!url.includes("#")) return
 	else return url.split('#').filter(e => e != '').pop()
+}
+
+let saveCanvasToArena = () => {
+	let content = JSON.stringify(store.data)
+	if (state.dotcanvas?.id) {
+		let description = `This block was made using [Are.na Canvas](http://canvas.a-p.space). You can view this channel as a canvas [here](http://canvas.a-p.space/#${currentslug})`
+		update_block(state.dotcanvas.id, { content, title: ".canvas", description })
+			.then(res => {
+				if (res.status == 204) {
+					notificationpopup("Updated 👍")
+					updated.next(true)
+				}
+				else notificationpopup("Failed? status: " + res.status)
+			})
+	}
+	else add_block(currentslug, '.canvas', content)
 }
 
 window.onhashchange = (event) => {

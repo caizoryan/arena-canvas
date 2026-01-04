@@ -52,7 +52,16 @@ let outputConnector = (left, top, signal, position, label, side = 's', cssside =
 	return dom(['.connection.output', {
 		title: '('+label + '): Output',
 		style: `top: ${top}px; ${cssside}: ${left}px;`,
-		onclick: () => {
+		onpointerdown: e => {
+			e.preventDefault()
+			e.stopImmediatePropagation();
+			e.stopPropagation();
+		},
+		onclick: (e) => {
+			e.preventDefault()
+			e.stopImmediatePropagation();
+			e.stopPropagation();
+
 			if (state.connectionBuffer) { state.connectionBuffer = undefined }
 			else {
 				state.connectionBuffer = createConnection()
