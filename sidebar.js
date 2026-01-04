@@ -39,10 +39,23 @@ let searchBar = dom(["input", {
 }])
 
 export let focusSearchBar = () => searchBar.focus()
+// slice from middle and put ... in there
+let slicer = (str, size) => {
+	let length = str.length
+	if (length <= size) return str
+	else {
+		let toRemove = length - size
+
+	}
+
+}
 let search = [".section.search", ["h4", "Channel"], searchBar,
 	["button", { onclick: (e) => try_set_channel(query.trim()) }, "set"],
 	['h5', 'Recently Visited'],
-	memo(() => recentSlugs.value().map(e => ['button.mr', { onclick: () => try_set_channel(e) }, e]), [recentSlugs])
+	memo(() => recentSlugs.value()
+		.map(e => ['button.mr',
+			{ onclick: () => try_set_channel(e) },
+			e.slice(0, 18), e.length > 18 ? "..." : '']), [recentSlugs])
 ]
 
 let logout = ['p', ['button', {
