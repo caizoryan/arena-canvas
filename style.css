@@ -8,11 +8,21 @@
 	--highlight: #161616;
 }
 
+@font-face{
+	font-family: Areal;
+	src: url('./fonts/areal.woff2') format("woff");
+}
+
 * {
 	color: var(--color);
-	font-family: monospace;
+	font-family: Areal;
+	font-variation-settings: "MONO" 65;
 	box-sizing: border-box;
 }
+
+/* *:hover { */
+/* 	font-variation-settings: "MONO" 100; */
+/* } */
 .mr {
 margin-right: .5em;
 }
@@ -112,6 +122,7 @@ body {
 }
 
 .draggable {
+	transition: background-color 500ms;
 	background: var(--background);
 	padding: 1em;
 	position: absolute;

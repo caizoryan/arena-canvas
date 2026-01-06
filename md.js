@@ -1,4 +1,5 @@
 import markdownIt from "./markdown-it/markdown-it.js"
+import { moveToBlock } from "./script.js";
 
 // ********************************
 // SECTION : MARKDOWN RENDERING
@@ -29,11 +30,25 @@ function eat(tree) {
 		let item = tree.shift();
 		if (item.nesting === 1) {
 			let at = attrs(item);
-			let children = eat(tree);
-			let libreak = c => c.toLowerCase().includes("break") ? { "data-break": 'true' } : {}
-			if (item.tag == 'ul') ret.push(['.scroll', [item.tag, at, ...children]])
-			else if (item.tag == 'li') ret.push([item.tag, at, libreak(children.join(" ")), ...children])
-			else ret.push([item.tag, at, ...children])
+			let ignore = false;
+
+			if (at.href && link_is_block(at.href)) {
+				console.log("OK?")
+				let id = extract_block_id(at.href);
+				// at.href = undefined
+				at.class = 'jump'
+				item.tag = 'button'
+				at.onclick = e => {
+					e.preventDefault()
+					console.log("clicked", e, id)
+					moveToBlock(id)
+				}
+			}
+
+			if(!ignore){
+				let children = eat(tree);
+				ret.push([item.tag, at, ...children])
+			}
 		}
 		if (item.nesting === 0) {
 			if (!item.children || item.children.length === 0) {

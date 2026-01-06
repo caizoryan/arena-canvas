@@ -3,18 +3,67 @@ import { reactive, memo } from "./hok.js"
 import { drag } from "./drag.js"
 import { MD } from "./md.js"
 import { try_auth, update_block, add_block, get_channel } from "./arena.js"
-import { svgcurveline, svgline, svgrect, svgx } from "./svg.js"
+import { svgline, svgrect, svgx } from "./svg.js"
 import { addToRecents, focusSearchBar, sidebar, sidebarOpen } from "./sidebar.js"
 import {
 	authslug,
-	store, state,
+	store,
+	state,
 	save_data,
 	canvasScale, canvasX, canvasY, mouse,
 	dimensions,
 	dataSubscriptions
 } from "./data.js"
-import { sliderAxis, slidercursor, reactiveEl, keyPresser } from "./node.js"
+import { sliderAxis, slidercursor } from "./node.js"
 
+const round = (n, r) => Math.ceil(n / r) * r;
+
+export function moveToBlock(id) {
+	let found = document.querySelector("*[block-id='" + id + "']")
+	if (found) {
+		let { x, y, width, height } = found.getBoundingClientRect()
+		let xDist = x - 150
+		let yDist = y - 150
+
+		if (width < window.innerWidth) {
+			let left = (window.innerWidth - width) / 2
+			console.log(left)
+			xDist = x - left
+		}
+
+		if (height < window.innerHeight) {
+			let top = (window.innerHeight - height) / 2
+			yDist = y - top
+		}
+
+		if (!(x + width < window.innerWidth && x > 0)){
+			canvasX.next(e => (xDist / canvasScale.value()) + e)
+		}
+
+		if (!(y + height < window.innerHeight && y > 0)){
+			canvasY.next(e => (yDist / canvasScale.value()) + e)
+		}
+
+		let c = found.style.backgroundColor
+		let z = found.style.zindex
+		found.style.backgroundColor = 'yellow'
+		found.style.zIndex = 99
+		setTimeout(() => {
+			found.style.backgroundColor = c
+			found.style.zIndex = z
+		}, 800)
+	}
+
+	else {
+		notificationpopup(
+			['span', "Block not found, ",
+				['a', {
+					href: 'https://are.na/block/' + id,
+					target: '_blank'
+				},
+					'jump to link'], "?"])
+	}
+}
 
 export let updated = reactive(true)
 export let notificationpopup = (msg, error = false) => {
@@ -462,17 +511,18 @@ let blockEl = block => {
 			: blockUserTag, [authslug])
 	let topBar = [['.top-bar'], editOrTag, colorbuttons]
 	let draggable = dom('.draggable.node', {
+		'block-id': block.id,
 		style: style,
 		ondblclick: () => { block.type == 'Text' && !edit ? editBlock() : null }
 	}, topBar, resizer, resizerheightmiddle, resizerwidthmiddle)
 	let el
 	let image = block => ['img', { src: block.image?.large?.src }]
 	let edit = false
-	let setValue = (t) =>{
+	let setValue = (t) => {
 		wc.next(t.split(' ').length)
 		console.log(wc.value())
 		value = t
-}
+	}
 	let textarea = md => {
 		// on creation keep old value to reset
 		old = value
@@ -482,7 +532,7 @@ let blockEl = block => {
 				e.stopImmediatePropagation()
 			},
 			oninput: e => setValue(e.target.value)
-		}, md], ['p', "wc: ",  wc]])
+		}, md], ['p', "wc: ", wc]])
 	}
 
 	let value = block.content?.markdown
@@ -501,7 +551,7 @@ let blockEl = block => {
 
 	}
 	let cancelEdit = () => {
-		setValue( old)
+		setValue(old)
 		edit = false
 		mountResizers()
 		draggable.appendChild(dom([".block.text", ...MD(value)]))
@@ -537,8 +587,8 @@ let blockEl = block => {
 	draggable.appendChild(el)
 
 	setTimeout(() => {
-		let set_left = (v) => left.next(v)
-		let set_top = (v) => top.next(v)
+		let set_left = (v) => left.next(round(v, 5))
+		let set_top = (v) => top.next(round(v, 5))
 		drag(draggable, { set_left, set_top, pan_switch: () => !edit, bound: 'inner' })
 		drag(resizer,
 			{
@@ -562,7 +612,6 @@ let updateData = (blocks) => {
 	if (state.dotcanvas) {
 		// put in a try block
 		store.data = JSON.parse(state.dotcanvas.content.plain)
-
 		store.data.nodes.forEach(node => {
 			if (node.type == 'text') {
 				// find the block
@@ -570,6 +619,18 @@ let updateData = (blocks) => {
 				if (f && f.type == 'Text') node.text = f.content.markdown
 			}
 		})
+
+		// if data has blocks that aren't in blocks... remove them
+		store.data.nodes.forEach(node => {
+			if (node.type == 'group') return
+			let f = blocks.find(e => e.id == node.id)
+			if (!f){
+				console.log('removing', node)
+				let i = store.data.nodes.findIndex(n => n == node)
+				store.data.nodes.splice(i, 1)
+			}
+		})
+
 	}
 
 	if (!store.data) {
@@ -631,6 +692,7 @@ let renderBlocks = (blocks) => {
 	let anchor = undefined
 
 	let makingBlock = false
+	let makingGroup = false
 	let holding = reactive(false)
 	let onpointerdown = e => {
 		let target = e.target
@@ -642,16 +704,18 @@ let renderBlocks = (blocks) => {
 
 		pointStart.next([e.offsetX, e.offsetY])
 		pointEnd.next([e.offsetX, e.offsetY])
-		if (e.metaKey) {
+
+		target.setPointerCapture(e.pointerId);
+
+		if (e.metaKey) { makingBlock = true }
+		else if (e.shiftKey) { makingGroup = true }
+		else {
 			anchor = {
 				x: canvasX.value(),
 				y: canvasY.value(),
 			}
 			holding.next(true)
 		}
-
-		if (e.shiftKey) { makingBlock = true }
-		target.setPointerCapture(e.pointerId);
 	}
 	let onpointermove = e => {
 		let target = e.target
@@ -702,7 +766,7 @@ let renderBlocks = (blocks) => {
 
 		}
 
-		else {
+		else if (makingGroup) {
 			if (width < 250 || height < 250) return
 			let d = groupData(x, y, width, height)
 			store.data.nodes.push(d)
@@ -855,9 +919,6 @@ let mount = () => {
 	document.body.appendChild(dom(savebtn))
 }
 
-let addnode = node =>
-	document.querySelector(".nodes").appendChild(node)
-
 document.onkeydown = (e) => {
 	keys.forEach((key) => {
 		if (e.key == key.key) { key.fn() }
@@ -877,6 +938,7 @@ document.onkeydown = (e) => {
 	// 		left: 150, top: 250, value
 	// 	}))
 	// }
+
 
 	let inc = e => e.shiftKey ? 250 : 50
 	let inEdit = (e) => {
@@ -972,7 +1034,6 @@ document.onmousemove = (e) => {
 	mouse.next({ x: parseFloat(e.clientX), y: parseFloat(e.clientY) })
 }
 document.ondragover = (e) => { e.preventDefault(); }
-
 document.ondrop = e => {
 	e.preventDefault();
 	const fileItems = [...e.dataTransfer.files]
@@ -1009,7 +1070,6 @@ let processNewCanvas = str => {
 		}
 	}
 }
-
 let updateListPopup = (updateData, updateBlockList) => {
 	let change = ({ id, from, to }) => {
 		let showing = reactive(false)
@@ -1062,57 +1122,37 @@ let updateListPopup = (updateData, updateBlockList) => {
 
 }
 
-// function isVerticallyScrollable(element) {
-//   if (!element) return false;
-// 	console.log("scroll", element.scrollHeight, element, element.clientHeight)
-//   return element.scrollHeight > element.clientHeight;
-// }
-
 document.addEventListener("wheel", e => {
-	// if (isVerticallyScrollable(e.target)) return
-
-	if (e.shiftKey) { return }
-
 	e.preventDefault()
-
 	if (e.ctrlKey) {
+		// trackpad...
 		canvasScale.next(f => f - (e.deltaY / 200))
-		return
 	}
 
-
-	if (e.metaKey) {
-		canvasScale.next(f => f - (e.deltaY / 2500))
-	}
-
-	else {
+	else if (e.metaKey) {
 		canvasY.next(f => f + e.deltaY)
 		canvasX.next(f => f + e.deltaX)
 	}
-}, { passive: false })
 
+	else {
+		canvasScale.next(f => f - (e.deltaY / 2500))
+	}
+
+}, { passive: false })
 window.addEventListener("gesturestart", function (e) {
 	e.preventDefault();
-	console.log(e)
 });
-
 window.addEventListener("gesturechange", function (e) {
 	e.preventDefault();
-	console.log(e)
 })
-
 window.addEventListener("gestureend", function (e) {
 	e.preventDefault();
-	console.log(e)
 });
-
-
 
 let checkSlugUrl = (url) => {
 	if (!url.includes("#")) return
 	else return url.split('#').filter(e => e != '').pop()
 }
-
 let saveCanvasToArena = () => {
 	let content = JSON.stringify(store.data)
 	if (state.dotcanvas?.id) {
@@ -1126,7 +1166,17 @@ let saveCanvasToArena = () => {
 				else notificationpopup("Failed? status: " + res.status)
 			})
 	}
-	else add_block(currentslug, '.canvas', content)
+	else {
+		add_block(currentslug, '.canvas', content).then((res) => {
+			console.log(res)
+			if (res.id) {
+				window.location.reload()
+				// for now jsut refresh, butt todo later: 
+				// fetch from v3 api so get the content.plain and then make that dotcanvas.
+				// make this the dotcanvas
+			}
+		})
+	}
 }
 
 window.onhashchange = (event) => {
