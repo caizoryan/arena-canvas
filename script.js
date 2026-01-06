@@ -1,5 +1,5 @@
 import { dom } from "./dom.js"
-import { reactive, memo } from "./hok.js"
+import { reactive, memo } from "./chowk.js"
 import { drag } from "./drag.js"
 import { MD } from "./md.js"
 import { try_auth, update_block, add_block, get_channel } from "./arena.js"
@@ -14,13 +14,41 @@ import {
 	dimensions,
 	dataSubscriptions
 } from "./data.js"
-import { sliderAxis, slidercursor } from "./node.js"
+import { keyVisualiser, sliderAxis, slidercursor } from "./node.js"
 
+let canceled = false
 const round = (n, r) => Math.ceil(n / r) * r;
+
+let lastHistory = []
+
+let movingTimeout
+
+const lerp = (start, stop, amt) => amt * (stop - start) + start
+const InOutQuad = (t) => (t < 0.5 ? 2 * t * t : -1 + (4 - 2 * t) * t)
+
+let animateMove = (destX, destY) => {
+		let last = {}
+		last.x = canvasX.value()
+		last.y = canvasY.value()
+
+		let t = 0
+		let v = 0
+		let progress = () => {
+			t+=.03
+			v = InOutQuad(t)
+			canvasX.next(lerp(last.x, destX, v))
+			canvasY.next(lerp(last.y, destY, v))
+			if (t > .99) return
+			movingTimeout = setTimeout(progress, 1000/60)
+		}
+		progress()
+	
+}
 
 export function moveToBlock(id) {
 	let found = document.querySelector("*[block-id='" + id + "']")
 	if (found) {
+		if (movingTimeout) clearTimeout(movingTimeout)
 		let { x, y, width, height } = found.getBoundingClientRect()
 		let xDist = x - 150
 		let yDist = y - 150
@@ -31,26 +59,36 @@ export function moveToBlock(id) {
 			xDist = x - left
 		}
 
-		if (height < window.innerHeight) {
-			let top = (window.innerHeight - height) / 2
-			yDist = y - top
+		// if (height < window.innerHeight) {
+		// 	let top = (window.innerHeight - height) / 2
+		// 	yDist = y - top
+		// }
+
+		// if visible don't move
+		// console.log(y, window.innerHeight, !())
+		if (!(x > 0 && x + width < window.innerWidth)
+				|| !(y > 0 && y + 150 < window.innerHeight)
+			 ) {
+			let last = {}
+			last.x = canvasX.value()
+			last.y = canvasY.value()
+
+			lastHistory.push(last)
+
+			let destX = (xDist / canvasScale.value()) + last.x
+			let destY = (yDist / canvasScale.value()) + last.y
+
+			animateMove(destX, destY)
 		}
 
-		if (!(x + width < window.innerWidth && x > 0)){
-			canvasX.next(e => (xDist / canvasScale.value()) + e)
-		}
-
-		if (!(y + height < window.innerHeight && y > 0)){
-			canvasY.next(e => (yDist / canvasScale.value()) + e)
-		}
 
 		let c = found.style.backgroundColor
-		let z = found.style.zindex
+		// let z = found.style.zindex
 		found.style.backgroundColor = 'yellow'
-		found.style.zIndex = 99
+		// found.style.zIndex = 99
 		setTimeout(() => {
 			found.style.backgroundColor = c
-			found.style.zIndex = z
+			// found.style.zIndex = z
 		}, 800)
 	}
 
@@ -93,15 +131,21 @@ const button = (t, fn, attr = {}) => ["button", { onclick: fn, ...attr }, t]
 let nodesActive = reactive(true)
 
 export let colors = [
-	'#F5DCE9',
-	'#E4D4A0',
-	'#F5F5DC',
-	'#DCF5DF',
-	"#CFF0F5", // 5 - pastel cyan
-	"#E3CFF5",  // 6 - pastel purple
-	"#F5D1B8", // 2 - pastel orange
-	"#F5E8B8", // 3 - pastel yellow
-	"#CFF5D1", // 4 - pastel green
+	'var(--b1)',
+	'var(--b2)',
+	'var(--b3)',
+	'var(--b4)',
+	'var(--b5)',
+	'var(--b6)',
+];
+
+export let tcolors = [
+	'var(--c1)',
+	'var(--c2)',
+	'var(--c3)',
+	'var(--c4)',
+	'var(--c5)',
+	'var(--c6)',
 ];
 
 // [
@@ -110,7 +154,7 @@ export let colors = [
 // DATA
 // -------------------
 // USE keymanager instead
-let keys = []
+export let keys = []
 let mountDone = false
 let w = 300
 ''
@@ -290,7 +334,8 @@ let groupEl = group => {
 		return button(memo(() => words[click.value()], [click]), onclick)
 	}
 	let colorbuttons =
-		['.color-bar', ...[1, 2, 3, 4, 5, 6].map((i) => button('x', setcolorfn(i), { style: 'background-color: ' + colors[i - 1] + ";" })), removeButton()]
+			['.color-bar', ...[1, 2, 3, 4, 5, 6]
+			 .map((i) => button('x', setcolorfn(i), { style: `background-color: ${colors[i - 1]}; color: ${tcolors[i - 1]};`})), removeButton()]
 
 	let remove = () => {
 		let i = store.data.nodes.findIndex(e => e == position)
@@ -304,6 +349,7 @@ let groupEl = group => {
 		left: ${left.value()}px;
 		top: ${top.value()}px;
 		background-color: ${colors[parseInt(color.value()) - 1]};
+		color: ${tcolors[parseInt(color.value()) - 1]};
 		width: ${width.value()}px;
 		height: ${height.value()}px
 	`, [left, top, width, height, color])
@@ -392,7 +438,7 @@ let groupEl = group => {
 			})
 		}
 
-		drag(draggable, { set_left, set_top, onstart, onend })
+		drag(draggable, { set_left, set_top, onstart, onend, bound : 'inner' })
 		drag(resizer, { set_left: (v) => width.next(v), set_top: (v) => height.next(v) })
 		drag(resizerwidthmiddle, { set_left: (v) => width.next(v), set_top: () => null })
 		drag(resizerheightmiddle, { set_left: () => null, set_top: (v) => height.next(v) })
@@ -401,6 +447,7 @@ let groupEl = group => {
 
 }
 let blockEl = block => {
+	// Convert From  v3 to v2 
 	if (block.class) {
 		block.type = block.class
 		if (block.type == 'Text') {
@@ -418,7 +465,6 @@ let blockEl = block => {
 	let updateFn = (data) => {
 		let p = (data.nodes.find(e => e.id == block.id))
 		if (!p) {
-			console.log("GONNNNE")
 			// should probably delete self
 			let i = dataSubscriptions.findIndex(e => e == updateFn)
 			if (i != -1) dataSubscriptions.splice(i, 1)
@@ -430,7 +476,6 @@ let blockEl = block => {
 		if (p.width != width.value()) width.next(p.width)
 		if (p.height != height.value()) height.next(p.height)
 	}
-
 	dataSubscriptions.push(updateFn)
 
 	let left = reactive(position.x)
@@ -440,6 +485,7 @@ let blockEl = block => {
 	let color = reactive(position.color)
 
 	color.subscribe(v => position.color = v)
+	color.subscribe(save_data)
 	left.subscribe(v => position.x = v)
 	left.subscribe(save_data)
 	top.subscribe(v => position.y = v)
@@ -462,6 +508,7 @@ let blockEl = block => {
 	let style = memo(() => `
 		position: absolute;
 		background-color: ${colors[parseInt(color.value()) - 1]};
+		color: ${tcolors[parseInt(color.value()) - 1]};
 		left: ${left.value()}px;
 		top: ${top.value()}px;
 		width: ${width.value()}px;
@@ -503,18 +550,32 @@ let blockEl = block => {
 		draggable.appendChild(textarea(value))
 	}
 	let editButton = button('edit', editBlock)
+	let owned = memo(() => block.user.slug == authslug.value(), [authslug])
 	let editOrTag = memo(() =>
-		block.user.slug == authslug.value() && block.type == 'Text'
+		owned.value() && block.type == 'Text'
 			? editButton
 			// : block.title ?
 			// 	blockTitleTag
-			: blockUserTag, [authslug])
+			: blockUserTag, [owned])
+
+	let copyLink = button("copy", (e) => {
+		let link = "https://are.na/block/"+block.id
+		if (e.metaKey) link = `[title](${link})`
+		navigator.clipboard.writeText(link)
+	})
+
+	let jumpToArena = button("", (e) => {
+		let link = "https://are.na/block/"+block.id
+		window.open(link, '_blank').focus();
+	})
+
 	let topBar = [['.top-bar'], editOrTag, colorbuttons]
+	let bottomBar = dom(['.bottom-bar', copyLink, jumpToArena])
 	let draggable = dom('.draggable.node', {
 		'block-id': block.id,
 		style: style,
 		ondblclick: () => { block.type == 'Text' && !edit ? editBlock() : null }
-	}, topBar, resizer, resizerheightmiddle, resizerwidthmiddle)
+	}, topBar,bottomBar, resizer, resizerheightmiddle, resizerwidthmiddle)
 	let el
 	let image = block => ['img', { src: block.image?.large?.src }]
 	let edit = false
@@ -531,7 +592,12 @@ let blockEl = block => {
 				e.stopPropagation();
 				e.stopImmediatePropagation()
 			},
-			oninput: e => setValue(e.target.value)
+			oninput: e => setValue(e.target.value),
+			onkeydown: e => {
+				if (e.key == 's' && (e.metaKey || e.ctrlKey)) {
+					saveBlock()
+				}
+			}
 		}, md], ['p', "wc: ", wc]])
 	}
 
@@ -565,14 +631,21 @@ let blockEl = block => {
 		draggable.appendChild(resizerwidthmiddle)
 		draggable.appendChild(resizerheightmiddle)
 
-		topBar = edit
-			? ['.top-bar', saveButton, cancelButton, colorbuttons]
-			: ['.top-bar', editOrTag, colorbuttons]
+		topBar = ['.top-bar']
+
+		if (edit) {
+			if (owned.value()) topBar.push(saveButton)
+			topBar.push(cancelButton)
+			topBar.push(colorbuttons)
+		} else {
+			topBar.push(editOrTag)
+			topBar.push(colorbuttons)
+		}
 
 		let el = dom(topBar)
-		console.log(el)
 
 		draggable.appendChild(el)
+		draggable.appendChild(bottomBar)
 	}
 
 	if (block.type == "Text") {
@@ -702,6 +775,7 @@ let renderBlocks = (blocks) => {
 			"ID: ", e.pointerId,
 		)
 
+		canceled = false
 		pointStart.next([e.offsetX, e.offsetY])
 		pointEnd.next([e.offsetX, e.offsetY])
 
@@ -713,6 +787,7 @@ let renderBlocks = (blocks) => {
 			anchor = {
 				x: canvasX.value(),
 				y: canvasY.value(),
+				scale: canvasScale.value(),
 			}
 			holding.next(true)
 		}
@@ -726,10 +801,9 @@ let renderBlocks = (blocks) => {
 		const deltaY = e.movementY / canvasScale.value();
 		pointEnd.next(v => [v[0] + deltaX, v[1] + deltaY])
 		if (anchor) {
-			canvasX.next(anchor.x + (pointStart.value()[0] - pointEnd.value()[0]))
-			canvasY.next(anchor.y + (pointStart.value()[1] - pointEnd.value()[1]))
+				canvasX.next(anchor.x + (pointStart.value()[0] - pointEnd.value()[0]))
+				canvasY.next(anchor.y + (pointStart.value()[1] - pointEnd.value()[1]))
 		}
-
 	}
 	let onpointerup = e => {
 		let target = e.target
@@ -751,6 +825,10 @@ let renderBlocks = (blocks) => {
 			return
 		}
 
+		if (canceled) {
+			canceled = false
+			return
+		}
 		if (makingBlock) {
 			makingBlock = false
 			add_block(currentslug, '', "# New Block")
@@ -765,7 +843,6 @@ let renderBlocks = (blocks) => {
 				})
 
 		}
-
 		else if (makingGroup) {
 			if (width < 250 || height < 250) return
 			let d = groupData(x, y, width, height)
@@ -776,7 +853,7 @@ let renderBlocks = (blocks) => {
 	}
 
 	let bigline = memo(() => svgrect(...pointStart.value(),
-		...pointEnd.value(), "black", anchor ? 0 : 3),
+																	 ...pointEnd.value(), "black", (anchor || canceled) ? 0 : 3),
 		[pointStart, pointEnd])
 
 	let edgesRender = reactive(0)
@@ -863,6 +940,10 @@ let mount = () => {
 		output: canvasScale,
 		label: "+",
 	})
+	let k = keyVisualiser({
+		left: window.innerWidth - 70,
+		top: window.innerHeight / 2 - w,
+	})
 	let slx = sliderAxis({
 		min: 0,
 		left: 40,
@@ -907,11 +988,11 @@ let mount = () => {
 	// Fix the leaks here...
 	let svg = ['svg.line-canvas', { width: window.innerWidth, height: window.innerHeight }, lineEls]
 
-	let nodes = [svg, slcurse, sls, sly, slx]
+	let nodes = [svg, slcurse, sls, sly, slx, k]
 	let pos = (x, y) => `position: fixed; left: ${x}em; top: ${y}em; z-index: 9999;`
 
-	let openbtn = button(">", () => { sidebarOpen.next(e => e == true ? false : true) }, { style: pos(1, 1) })
-	let savebtn = button("save", saveCanvasToArena, { style: pos(3, 1), updated })
+	let openbtn = button(['span', 'SIDEBAR ', ['code', "⌘E"]], () => { sidebarOpen.next(e => e == true ? false : true) }, { style: pos(1, 1) })
+	let savebtn = button(['span', 'SAVE ', ['code', "⌘S"]], saveCanvasToArena, { style: pos(9, 1), updated })
 
 	document.body.appendChild(dom(['.nodes', { active: nodesActive }, ...nodes]))
 	document.body.appendChild(dom(sidebar))
@@ -920,9 +1001,7 @@ let mount = () => {
 }
 
 document.onkeydown = (e) => {
-	keys.forEach((key) => {
-		if (e.key == key.key) { key.fn() }
-	})
+	keys.forEach((key) => key.fn(e))
 
 	// if (e.key == 'W') {
 	// 	addnode(keyPresser({ left: 150, top: 250, key: 'w' }))
@@ -944,14 +1023,32 @@ document.onkeydown = (e) => {
 	let inEdit = (e) => {
 		if (e.target instanceof HTMLInputElement) return true
 		else if (e.target instanceof HTMLTextAreaElement) return true
-		else if (e.target instanceof HTMLButtonElement) return true
 		return false
+	}
+
+	if (e.key == 'Escape'){
+		if (e.target.blur) e.target.blur()
+		canceled = true
 	}
 
 	if (e.key == 'H') {
 		if (inEdit(e)) return
 		nodesActive.next(e => !e)
 	}
+
+	if (e.key == 'b') {
+		if (inEdit(e)) return
+		let last = lastHistory.pop()
+		if (!last) return
+
+		animateMove(last.x, last.y)
+	}
+
+	if (e.key.toLowerCase() == 't') {
+		if (inEdit(e)) return
+		trackpadMovement = !trackpadMovement
+	}
+
 	if (e.key == '=' && e.metaKey) {
 		e.preventDefault()
 		canvasScale.next(e => e + (inc(e) / 500))
@@ -1121,21 +1218,24 @@ let updateListPopup = (updateData, updateBlockList) => {
 	drag(root)
 
 }
+let trackpadMovement = false
 
 document.addEventListener("wheel", e => {
-	e.preventDefault()
 	if (e.ctrlKey) {
 		// trackpad...
-		canvasScale.next(f => f - (e.deltaY / 200))
+		e.preventDefault()
+		canvasScale.next(f => f - (e.deltaY / 800))
 	}
 
 	else if (e.metaKey) {
-		canvasY.next(f => f + e.deltaY)
-		canvasX.next(f => f + e.deltaX)
+		e.preventDefault()
+		canvasScale.next(f => f - (e.deltaY / 2500))
 	}
 
-	else {
-		canvasScale.next(f => f - (e.deltaY / 2500))
+	else if (trackpadMovement){
+		e.preventDefault()
+		canvasY.next(f => f + e.deltaY)
+		canvasX.next(f => f + e.deltaX)
 	}
 
 }, { passive: false })
@@ -1188,3 +1288,4 @@ let url = location.href
 let slug = checkSlugUrl(url)
 if (slug) try_set_channel(slug)
 else set_channel(currentslug)
+

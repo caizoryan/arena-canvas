@@ -1,6 +1,6 @@
-import { reactive, memo } from "./hok.js"
+import { reactive, memo } from "./chowk.js"
 import { dom } from "./dom.js"
-import { authslug } from "./data.js"
+import { authslug, meData } from "./data.js"
 import { try_set_channel } from "./script.js"
 import { setAuth, auth, try_auth } from "./arena.js"
 
@@ -68,6 +68,7 @@ let logout = ['p', ['button', {
 let authbar = memo(() =>
 	authslug.value() == "" ?
 		["div", ["input", {
+			placeholder: 'Enter Token',
 			oninput: (e) => setAuth(e.target.value.trim()),
 			onkeydown: e => {
 				if (e.key == "Enter") {
@@ -83,9 +84,14 @@ let authbar = memo(() =>
 					try_auth()
 				}
 
-			}, "try"]] :
-		["p", "Authenticated as: ", ["span.auth", authslug], logout]
-	, [authslug])
+			}, "try"],
+			['a', {href: 'https://arena-token-gen.vercel.app/'}, ['p', 'Get your token here']],
+		] :
+	['p', 
+	 ['img.icon', {src: meData.avatar_image.thumb}],
+	 ["p", authslug], logout]
+
+	,[authslug])
 
 let authenticate = [".section.auth", ["h4", "Authenticate"], authbar]
 

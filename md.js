@@ -1,10 +1,12 @@
 import markdownIt from "./markdown-it/markdown-it.js"
+import markdownItMark from "./markdown-it/markdown-it-mark.js"
 import { moveToBlock } from "./script.js";
 
 // ********************************
 // SECTION : MARKDOWN RENDERING
 // ********************************
-let md = new markdownIt('commonmark')//.use(makrdownItMark);
+// let md = new markdownIt('commonmark').use(markdownItMark);
+let md = new markdownIt().use(markdownItMark);
 
 let attrs = (item) => {
 	let attrs = item.attrs;
@@ -31,6 +33,7 @@ function eat(tree) {
 		if (item.nesting === 1) {
 			let at = attrs(item);
 			let ignore = false;
+			if (at.href) at.target = '_blank'
 
 			if (at.href && link_is_block(at.href)) {
 				console.log("OK?")
@@ -55,8 +58,10 @@ function eat(tree) {
 				let p = item.type === "softbreak"
 					? ["br"]
 					: item.type === "fence"
-						? ["xmp", item.content]
-						: item.content;
+						? ["pre", item.content]
+						: item.type === 'code_inline'
+						? [item.tag, item.content] :
+						item.content;
 				ret.push(p);
 			} else {
 				let children = eat(item.children);
@@ -86,3 +91,5 @@ export const MD = (content) => {
 	else body = content;
 	return body;
 };
+
+console.log(md.parse('Use ```T``` to toggle', {html: true}))

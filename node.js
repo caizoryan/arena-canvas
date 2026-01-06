@@ -1,4 +1,4 @@
-import { reactive, memo } from "./hok.js"
+import { reactive, memo } from "./chowk.js"
 import { svgArrow, svgx} from "./svg.js"
 import {dom} from "./dom.js"
 import { drag } from "./drag.js"
@@ -7,7 +7,7 @@ import {state,
 				dataSubscriptions,
 				canvasScale, 
 				dimensions } from "./data.js"
-import {colors } from './script.js'
+import {colors, keys } from './script.js'
 
 let blue = "#68A0D4"
 let red = "#D46883"
@@ -91,9 +91,10 @@ export let slidercursor = ({
 		n.y = e.y * scaled
 		n.width = e.width*scaled
 		n.height = e.height*scaled
+		n.type = e.type
 		n.color = colors[parseInt(e.color) - 1]
 		return n
-	}).map(e => {
+	}).sort((a, b) => a.type == 'group' ? -1 : 1).map(e => {
 
 		let style = `
 position: absolute;
@@ -101,7 +102,7 @@ left: ${e.x}px;
 top: ${e.y}px;
 width: ${e.width}px;
 height: ${e.height}px;
-background-color:${e.color}ee; 
+background-color:${e.color}88; 
 border: 2px solid ${e.color}; 
 `
 		return [".mini", {style}]
@@ -285,6 +286,61 @@ export let keyPresser = ({ left, top, key }) => {
 			{ style: `left: 5px; top:0px; width: 50` }, key], input, output])
 	setTimeout(() => {
 		drag(el, { set_left: (v) => left.next(v), set_top: (v) => top.next(v) })
+	}, 100)
+	return el
+
+}
+export let keyVisualiser = ({ left, top }) => {
+	let width = 80
+	let metaKey = reactive(false)
+	let shiftKey = reactive(false)
+	let key = reactive('')
+	let timeout
+
+	left = reactive(left)
+	top =  reactive(top)
+
+	let reset = () => {
+		key.next('')
+		shiftKey.next(false)
+		metaKey.next(false)
+	}
+
+	keys.push({
+		key,
+		fn: (e) => {
+			reset()
+			if (timeout) clearTimeout(timeout)
+			if (e.key){
+				if (e.key.length == 1) key.next(e.key.toUpperCase())
+				else if (e.key == 'Escape') key.next('␛')
+			}
+			if (e.shiftKey) shiftKey.next(true)
+			if (e.metaKey) metaKey.next(true)
+			// timeout = setTimeout(reset, 4000)
+		}
+	})
+
+	let style = memo(() => `
+		left:${left.value()}px;
+		top:${top.value()}px;
+		width: ${width}px;
+		padding: 1em;
+`, [left, top])
+
+	let keyPress = memo(() => {
+		let k = ''
+		if (metaKey.value()) k += '⌘'
+		if (shiftKey.value()) k += '⇧'
+		k += key.value()
+
+		return k
+	}, [metaKey, shiftKey, key])
+
+	let el = dom(['button.psuedo-slider', { style }, keyPress])
+
+	setTimeout(() => {
+		drag(el, { set_left: (v) => left.next(v), set_top: (v) => top.next(v) }, )
 	}, 100)
 	return el
 

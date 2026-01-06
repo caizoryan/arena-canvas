@@ -1,4 +1,4 @@
-import {authslug} from './data.js'
+import {authslug, meData} from './data.js'
 import { notificationpopup } from './script.js';
 
 let host = "https://api.are.na/v2/"
@@ -43,23 +43,36 @@ export const add_block = async (slug, title, content) => {
 export const me = async () => {
 	return fetch(host + `me`, {headers: headers()}).then((res) => res);
 };
-export const get_channel = async (slug) => {
-	return fetch(host3+ slug + "/contents?per=100&sort=position_desc", { headers:headers() })
-		.then(res => {
+export const get_channel = async (slug, page = 1) => {
+	return fetch(host3+ slug + `/contents?per=100&page=${page}&sort=position_desc`, { headers:headers() })
+		.then(async (res) => {
 			if (res.status != 200) {
 				console.log(res.status)
 				console.log(res)
 				// notificationpopup("Failed to Get Channel: " + slug + " Status: "+res.status, true)
 				return {error: "STATUS: " + res.status}
 			}
-			return res.json()
+			notificationpopup('Recieved Page ' + page + ' of ' + slug)
+			let json = await res.json()
+			if (json.meta.has_more_pages) {
+				let nextPage = json.meta.next_page
+				if (nextPage <= 5) await get_channel(slug, nextPage).then(res => json.data = json.data.concat(res.data))
+			}
+
+			notificationpopup('Loaded '+json.data.length+ ' blocks' )
+
+			return json
 		})
 }
 export let try_auth = () => {
 	me()
 		.then(res=>{
 			if (res.status == 200) {
-				res.json().then(me => authslug.next(me.slug))
+				res.json().then(m => {
+					Object.assign(meData, m)
+					authslug.next(m.slug)
+					console.log(meData)
+				})
 			}
 			else {
 				console.log("Auth failed: ", res.status, res)

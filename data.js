@@ -1,5 +1,6 @@
-import { memo, reactive } from "./hok.js"
+import { memo, reactive } from "./chowk.js"
 import { updated } from "./script.js"
+export let meData = {}
 export let authslug = reactive('')
 export const dimensions = 10000
 
