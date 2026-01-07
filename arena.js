@@ -40,6 +40,14 @@ export const add_block = async (slug, title, content) => {
 			else return data
 		});
 };
+export const connect_block = async (slug, id, connectable_type = 'Block') => {
+	return fetch(host+"channels/"+slug+"/connections", {
+		headers: headers(),
+		method: "POST",
+		body: JSON.stringify({connectable_type, connectable_id : id})
+	})
+	.then((res) => res.json())
+}
 export const me = async () => {
 	return fetch(host + `me`, {headers: headers()}).then((res) => res);
 };

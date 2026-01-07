@@ -14,11 +14,10 @@ let attrs = (item) => {
 	return Object.fromEntries(attrs);
 };
 
-const link_is_block = (link) => {
+export const link_is_block = (link) => {
 	return link.includes("are.na/block");
 };
-
-const extract_block_id = (link) => {
+export const extract_block_id = (link) => {
 	return link.split("/").pop();
 };
 

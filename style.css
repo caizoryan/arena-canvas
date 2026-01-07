@@ -81,12 +81,16 @@ body {
 }
 
 .block {
-	padding-top: .5em;
 	overflow-y: scroll;
 	width: 100%;
 	height: 100%;
 	-ms-overflow-style: none;  
   scrollbar-width: none;  
+}
+
+.block.text {
+	padding: 1em;
+	padding-top: .5em;
 }
 
 .top-bar {
@@ -151,7 +155,6 @@ body {
 .draggable {
 	transition: background-color 500ms;
 	background: var(--background);
-	padding: 1em;
 	position: absolute;
 	border: 2px solid var(--color);
 	/* overflow: hidden; */

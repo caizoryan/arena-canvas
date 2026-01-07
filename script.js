@@ -1,8 +1,8 @@
 import { dom } from "./dom.js"
 import { reactive, memo } from "./chowk.js"
 import { drag } from "./drag.js"
-import { MD } from "./md.js"
-import { try_auth, update_block, add_block, get_channel } from "./arena.js"
+import { extract_block_id, link_is_block, MD } from "./md.js"
+import { try_auth, update_block, connect_block, add_block, get_channel } from "./arena.js"
 import { svgline, svgrect, svgx } from "./svg.js"
 import { addToRecents, focusSearchBar, sidebar, sidebarOpen } from "./sidebar.js"
 import {
@@ -570,7 +570,10 @@ let blockEl = block => {
 		ondblclick: () => { block.type == 'Text' && !edit ? editBlock() : null }
 	}, topBar,bottomBar, resizer, resizerheightmiddle, resizerwidthmiddle)
 	let el
-	let image = block => ['img', { src: block.image?.large?.src }]
+	let image = block =>{
+		let link = block.image?.large?.src || block.image?.large?.url
+		return ['img', { src: link }]
+	}
 	let edit = false
 	let setValue = (t) => {
 		wc.next(t.split(' ').length)
@@ -1150,6 +1153,25 @@ document.onkeydown = (e) => {
 		sidebarOpen.next(e => !e)
 	}
 
+	if (e.key == 'v' && e.metaKey) {
+		if (inEdit(e)) return
+		e.preventDefault()
+		navigator.clipboard.readText().then(res => {
+			if (link_is_block(res)){
+				console.log('will connect block: ', extract_block_id(res), ' to slug')
+				connect_block(currentslug, extract_block_id(res))
+					.then(block => {
+						console.log("BLock?", block)
+						let newBlock = constructBlockData(block, {x: canvasX.value(), y: canvasY.value(), width: 350, height: 350})
+						store.data.nodes.push(newBlock)
+						document.querySelector('.container').appendChild(blockEl(block))
+
+						save_data()
+					})
+			}
+		})
+	}
+
 	if (e.key == '/' && sidebarOpen.value()) {
 		if (inEdit(e)) return
 		focusSearchBar()
@@ -1316,13 +1338,14 @@ let saveCanvasToArena = () => {
 					notificationpopup("Updated 👍")
 					updated.next(true)
 				}
-				else notificationpopup("Failed? status: " + res.status)
+ 				else if (res.status == 401) notificationpopup("Failed: Unauthorized :( " , true)
+ 				else notificationpopup("Failed :( status: " + res.status, true)
 			})
 	}
 	else {
 		add_block(currentslug, '.canvas', content).then((res) => {
 			console.log(res)
-			if (res.id) {
+			if (res.status == 204) {
 				window.location.reload()
 				// for now jsut refresh, butt todo later: 
 				// fetch from v3 api so get the content.plain and then make that dotcanvas.
