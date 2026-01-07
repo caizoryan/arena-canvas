@@ -1221,7 +1221,7 @@ let updateListPopup = (updateData, updateBlockList) => {
 	drag(root)
 
 }
-let trackpadMovement = false
+let trackpadMovement = true
 
 document.addEventListener("wheel", e => {
 	if (e.ctrlKey) {
