@@ -15,6 +15,9 @@ export let canvasScale = reactive(t.scale)
 
 
 memo(() => {
+	canvasScale.value() < 0.1 ? canvasScale.next(.1):null
+	canvasScale.value() > 2.3 ? canvasScale.next(2.3):null
+
 	localStorage.setItem("transform", JSON.stringify({
 		x: canvasX.value(),
 		y: canvasY.value(),
