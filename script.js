@@ -20,7 +20,6 @@ let canceled = false
 const round = (n, r) => Math.ceil(n / r) * r;
 
 let lastHistory = []
-
 let movingTimeout
 
 const lerp = (start, stop, amt) => amt * (stop - start) + start
@@ -158,7 +157,7 @@ export let keys = []
 let mountDone = false
 let w = 300
 ''
-export let currentslug = "list-are-na-api-possibilities"
+export let currentslug = "are-na-canvas"
 let local_currentslug = localStorage.getItem("slug")
 if (local_currentslug) currentslug = local_currentslug
 
@@ -182,7 +181,7 @@ export let set_channel = slug => {
 		.then((res) => {
 			if (!res.data) {
 				console.log("Failed to get channel", res.error)
-				notificationpopup(['span', 'Failed to get channel ' + slug, ' try opening ', ['a', { href: '#list-are-na-api-possibilities' }, 'this']], true)
+				notificationpopup(['span', 'Failed to get channel ' + slug, ' try opening ', ['a', { href: '#are-na-canvas' }, 'this']], true)
 			}
 			else {
 				notificationpopup('Loaded Channel: ' + slug)
@@ -298,6 +297,7 @@ let groupEl = group => {
 
 	dataSubscriptions.push(updateFn)
 
+	// repetitive...
 	let left = reactive(position.x)
 	let top = reactive(position.y)
 	let width = reactive(position.width)
@@ -344,6 +344,7 @@ let groupEl = group => {
 		draggable.remove()
 	}
 
+	// repetitive
 	let style = memo(() => `
 		position: absolute;
 		left: ${left.value()}px;
