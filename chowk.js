@@ -1,4 +1,4 @@
-// let scope = () => null
+let scope = () => null
 export function reactive(value) {
 	let subs = {}
 	let count = 0
