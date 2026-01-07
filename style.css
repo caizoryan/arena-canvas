@@ -19,6 +19,8 @@
 	--c5 : black;
 	--b6 : #E3CFF5 ;
 	--c6 : black;
+
+	--monospaceness: 65;
 }
 
 @font-face{
@@ -28,7 +30,7 @@
 
 * {
 	font-family: Areal;
-	font-variation-settings: "MONO" 65;
+	font-variation-settings: "MONO" var(--monospaceness);
 	box-sizing: border-box;
 }
 

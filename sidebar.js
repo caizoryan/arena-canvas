@@ -85,14 +85,25 @@ let authbar = memo(() =>
 				}
 
 			}, "try"],
-			['a', {href: 'https://arena-token-gen.vercel.app/'}, ['p', 'Get your token here']],
+			['a', { href: 'https://arena-token-gen.vercel.app/' }, ['p', 'Get your token here']],
 		] :
-	['p', 
-	 ['img.icon', {src: meData.avatar_image.thumb}],
-	 ["p", authslug], logout]
+		['p',
+			['img.icon', { src: meData.avatar_image.thumb }],
+			["p", authslug], logout]
 
-	,[authslug])
+	, [authslug])
 
 let authenticate = [".section.auth", ["h4", "Authenticate"], authbar]
 
-export let sidebar = [".sidebar", { open: sidebarOpen }, ["h2", "Canvas"], search, authenticate]
+let monospaceness = ['.section.monospaceness',
+	['h4', 'Monospaceness'],
+	['input', {
+		type: 'range', oninput: e => {
+			document.documentElement.style.setProperty("--monospaceness", e.target.value);
+		},
+		value: 65,
+		min: 0,
+		max: 100,
+	}]]
+
+export let sidebar = [".sidebar", { open: sidebarOpen }, ["h2", "Canvas"], search, authenticate, monospaceness]
