@@ -994,7 +994,7 @@ let mount = () => {
 	let openbtn = button(['span', 'SIDEBAR ', ['code', "⌘E"]], () => { sidebarOpen.next(e => e == true ? false : true) }, { style: pos(1, 1) })
 	let savebtn = button(['span', 'SAVE ', ['code', "⌘S"]], saveCanvasToArena, { style: pos(9, 1), updated })
 
-	let helpbtn = button(['span', 'HELP ', ['code', "?"]], () => helpactive.next(e => !e), { style: posbr(1, 1), updated })
+	let helpbtn = button(['span', 'HELP ', ['code', "?"]], () => helpactive.next(e => !e), { style: posbr(1, 1) })
 	let commandSections = {
 		drag : `
 
@@ -1074,6 +1074,7 @@ document.onkeydown = (e) => {
 	}
 
 	if (e.key == '?'){
+		if (inEdit(e)) return
 		helpactive.next(e => !e)
 	}
 

@@ -411,6 +411,7 @@ textarea {
 	box-shadow: 6px 6px 0 rgba(0, 0, 0, .13);
 	opacity: 1;
 	transition: all 2500ms ease;
+	pointer-events: none;
 }
 .notification.error {
 	color: red;
