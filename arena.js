@@ -1,4 +1,4 @@
-import {authslug, meData} from './data.js'
+import {authslug, meData} from './state.js'
 import { notificationpopup } from './script.js';
 
 let host = "https://api.are.na/v2/"

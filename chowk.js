@@ -1,36 +1,4 @@
-let scope = () => null
-
-export function history(reactive) {
-	let undo = []
-	let redo = []
-	return {
-		value: reactive.value,
-		subscribe: reactive.subscribe,
-		next: (v) => {
-			undo.push(reactive.value())
-			redo = []
-			reactive.next(v)
-		},
-		isReactive: true,
-		canUndo: () => (undo.length > 0),
-		canRedo: () => (redo.length > 0),
-		listUndo: () => undo,
-		listRedo: () => undo,
-		undo: () => {
-			if (undo.length == 0) return undefined
-			redo.push(reactive.value())
-			reactive.next(undo.pop())
-			return reactive.value()
-		},
-
-		redo: () => {
-			if (redo.length == 0) return undefined
-			undo.push(reactive.value())
-			reactive.next(redo.pop())
-			return reactive.value()
-		}
-	}
-}
+// let scope = () => null
 export function reactive(value) {
 	let subs = {}
 	let count = 0
@@ -102,3 +70,35 @@ export function memo (fn, subs /*,subs*/)  {
 
 	return t
 }
+
+// function history(reactive) {
+// 	let undo = []
+// 	let redo = []
+// 	return {
+// 		value: reactive.value,
+// 		subscribe: reactive.subscribe,
+// 		next: (v) => {
+// 			undo.push(reactive.value())
+// 			redo = []
+// 			reactive.next(v)
+// 		},
+// 		isReactive: true,
+// 		canUndo: () => (undo.length > 0),
+// 		canRedo: () => (redo.length > 0),
+// 		listUndo: () => undo,
+// 		listRedo: () => undo,
+// 		undo: () => {
+// 			if (undo.length == 0) return undefined
+// 			redo.push(reactive.value())
+// 			reactive.next(undo.pop())
+// 			return reactive.value()
+// 		},
+
+// 		redo: () => {
+// 			if (redo.length == 0) return undefined
+// 			undo.push(reactive.value())
+// 			reactive.next(redo.pop())
+// 			return reactive.value()
+// 		}
+// 	}
+// }

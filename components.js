@@ -6,7 +6,7 @@ import {state,
 				store, 
 				dataSubscriptions,
 				canvasScale, 
-				dimensions } from "./data.js"
+				dimensions } from "./state.js"
 import {colors, keys } from './script.js'
 
 let blue = "#68A0D4"

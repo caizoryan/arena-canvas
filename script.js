@@ -13,8 +13,8 @@ import {
 	canvasScale, canvasX, canvasY, mouse,
 	dimensions,
 	dataSubscriptions
-} from "./data.js"
-import { keyVisualiser, sliderAxis, slidercursor } from "./node.js"
+} from "./state.js"
+import { keyVisualiser, sliderAxis, slidercursor } from "./components.js"
 
 let canceled = false
 const round = (n, r) => Math.ceil(n / r) * r;
@@ -1028,6 +1028,7 @@ document.onkeydown = (e) => {
 
 	if (e.key == 'Escape'){
 		if (e.target.blur) e.target.blur()
+		e.preventDefault()
 		canceled = true
 	}
 

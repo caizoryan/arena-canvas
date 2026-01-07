@@ -1,6 +1,6 @@
 import { reactive, memo } from "./chowk.js"
 import { dom } from "./dom.js"
-import { authslug, meData } from "./data.js"
+import { authslug, meData } from "./state.js"
 import { try_set_channel } from "./script.js"
 import { setAuth, auth, try_auth } from "./arena.js"
 
