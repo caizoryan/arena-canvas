@@ -334,6 +334,31 @@ textarea {
   padding: .5em;
 }
 
+.help {
+	position: fixed;
+	width: 30vw;
+	height: 90vh;
+	bottom: 5vh;
+	height: max-content;
+	background: var(--b1);
+	border: 2px solid var(--highlight);
+	z-index: 299;
+	box-shadow: 6px 6px 0 rgba(0, 0, 0, .1);
+}
+
+.help>* {
+	margin: 1rem;
+	padding: .5rem;
+}
+
+.help[active='true'] {
+	right: 1vw;
+}
+
+.help[active='false'] {
+	right: -40vw;
+}
+
 .sidebar {
 	position: fixed;
 	width: 30vw;

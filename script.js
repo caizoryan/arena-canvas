@@ -912,6 +912,8 @@ let renderBlocks = (blocks) => {
 
 	document.body.appendChild(dom(root))
 }
+
+let helpactive = reactive(false)
 let mount = () => {
 	mountDone = true;
 	// Nodes
@@ -987,14 +989,62 @@ let mount = () => {
 
 	let nodes = [svg, slcurse, sls, sly, slx, k]
 	let pos = (x, y) => `position: fixed; left: ${x}em; top: ${y}em; z-index: 9999;`
+	let posbr = (x, y) => `position: fixed; right: ${x}em; bottom: ${y}em; z-index: 9999;`
 
 	let openbtn = button(['span', 'SIDEBAR ', ['code', "⌘E"]], () => { sidebarOpen.next(e => e == true ? false : true) }, { style: pos(1, 1) })
 	let savebtn = button(['span', 'SAVE ', ['code', "⌘S"]], saveCanvasToArena, { style: pos(9, 1), updated })
+
+	let helpbtn = button(['span', 'HELP ', ['code', "?"]], () => helpactive.next(e => !e), { style: posbr(1, 1), updated })
+	let commandSections = {
+		drag : `
+
+| CMD        | Action                  |  
+| ---------- | ---------------------- |  
+| __Drag__     | (on canvas) To Pan   |
+| __Drag__     | (on blocks) To move them   |
+| __⌘+Drag__  |  To make a new Block   |
+| __⇧+Drag__  |  To make a new Group   |
+| __⌘+Drag__  |  (on a group) To Move without children   |
+| __⌘+Scroll__  |  To zoom in and out   |
+
+`,
+
+		navigation: `
+| CMD             | Action                 |  
+| --------------- | ---------------------- |  
+| __⌘ + =__ | Zoom in |
+| __⌘ + -__ | Zoom out|
+| __B__ | Jump to location before previous jump when using block links |
+| __T__ | Toggle between trackpad mode and scroll mode  |
+| __WASD__      | Move around the canvas |  
+| __ArrowKeys__ | Move around the canvas |
+`,
+
+		misc: `
+| CMD        | Action                 |  
+| ---------- | ---------------------- |  
+| __⌘+E__ | Open sidebar |
+| __⇧+H__ | Hide Nodes |
+| __⌘S__        |  Save                   |
+| __⌘D__        |  Download .canvas to open in Obsidian or kinopio                   |
+`
+
+
+	}
+	let current = reactive(commandSections.drag) 
+	let helpbar = ['.help', {active: helpactive},
+								 memo(() => MD(current.value()), [current]),
+								 button('Drag',() => current.next(commandSections.drag)),
+								 button('Navigation', () =>current.next(commandSections.navigation)),
+								 button('Misc', () =>current.next(commandSections.misc)),
+								]
 
 	document.body.appendChild(dom(['.nodes', { active: nodesActive }, ...nodes]))
 	document.body.appendChild(dom(sidebar))
 	document.body.appendChild(dom(openbtn))
 	document.body.appendChild(dom(savebtn))
+	document.body.appendChild(dom(helpbtn))
+	document.body.appendChild(dom(helpbar))
 }
 
 document.onkeydown = (e) => {
@@ -1021,6 +1071,10 @@ document.onkeydown = (e) => {
 		if (e.target instanceof HTMLInputElement) return true
 		else if (e.target instanceof HTMLTextAreaElement) return true
 		return false
+	}
+
+	if (e.key == '?'){
+		helpactive.next(e => !e)
 	}
 
 	if (e.key == 'Escape'){
