@@ -420,6 +420,9 @@ textarea {
 	opacity: 1;
 	transition: all 2500ms ease;
 }
+s {
+	text-decoration-thickness: 4px;
+}
 
 .notification.error span{
 	color: inherit;
