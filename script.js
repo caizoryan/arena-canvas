@@ -943,8 +943,8 @@ let mount = () => {
 		label: "+",
 	})
 	let k = keyVisualiser({
-		left: window.innerWidth - 70,
-		top: window.innerHeight / 2 - w,
+		left: window.innerWidth - 100,
+		top: 60,
 	})
 	let slx = sliderAxis({
 		min: 0,
