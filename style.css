@@ -167,6 +167,7 @@ body {
 .draggable.group {
 	z-index: 91;
 	background-color: #ff22;
+	padding: 1em;
 }
 
 .psuedo-container {
