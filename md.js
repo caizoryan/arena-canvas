@@ -91,5 +91,3 @@ export const MD = (content) => {
 	else body = content;
 	return body;
 };
-
-console.log(md.parse('Use ```T``` to toggle', {html: true}))
