@@ -611,7 +611,8 @@ let blockEl = block => {
 		update_block(block.id, { content: value })
 			.then(res => {
 				if (res.status == 204) notificationpopup("Updated 👍")
-				else notificationpopup("Failed? status: " + res.status)
+				else if (res.status == 401) notificationpopup("Failed: Unauthorized :( " , true)
+				else notificationpopup("Failed :( status: " + res.status, true)
 			})
 		mountResizers()
 		draggable.appendChild(dom([".block.text", ...MD(value)]))
