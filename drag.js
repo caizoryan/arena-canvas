@@ -5,6 +5,7 @@ export const drag = (elem, options = {}) => {
 	const bound = (['inner', 'outer', 'none'].includes(options.bound)) ? options.bound : 'none';
 	const set_left = options.set_left ? options.set_left : (left) => { elem.style.left = left + "px"; };
 	const set_top = options.set_top ? options.set_top : (top) => { elem.style.top = top + "px"; };
+	const set_position = options.set_position ? options.set_position : undefined
 	const onstart = options.onstart ? options.onstart : () => null;
 	const onend = options.onend ? options.onend : () => null;
 	const targetref = options.targetref
@@ -55,8 +56,15 @@ export const drag = (elem, options = {}) => {
 			lastPosY = Math.min(Math.max(posY_min, lastPosY), posY_max);	// Restrict Pos Y	
 		}
 
-		set_left(lastPosX);
-		set_top(lastPosY);
+		if (set_position) {
+			set_position(lastPosX, lastPosY)
+		}
+
+		else {
+			set_left(lastPosX);
+			set_top(lastPosY);
+		}
+
 	}
 
 

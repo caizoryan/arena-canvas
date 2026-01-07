@@ -482,6 +482,12 @@ let blockEl = block => {
 	let height = reactive(position.height)
 	let color = reactive(position.color)
 
+	// color.subscribe(v => position.color = v)
+	// left.subscribe(v => position.x = v)
+	// top.subscribe(v => position.y = v)
+	// width.subscribe(v => position.width = v)
+	// height.subscribe(v => position.height = v)
+
 	memo(() => {
 		position.color = color.value()
 		position.x = left.value()
