@@ -287,6 +287,7 @@ let groupEl = group => {
 			let i = dataSubscriptions.findIndex(e => e == updateFn)
 			if (i != -1) dataSubscriptions.splice(i, 1)
 		}
+
 		if (!p) return
 
 		if (p.x != left.value()) left.next(p.x)
@@ -306,22 +307,18 @@ let groupEl = group => {
 
 	color.subscribe(v => position.color = v)
 	left.subscribe(v => position.x = v)
-	left.subscribe(save_data)
 	top.subscribe(v => position.y = v)
-	top.subscribe(save_data)
-
 	width.subscribe(v => position.width = v)
 	height.subscribe(v => position.height = v)
-	height.subscribe(save_data)
-	width.subscribe(save_data)
 
 	memo(() => {
+		position.color = color.value()
 		position.x = left.value()
 		position.y = top.value()
 		position.width = width.value()
 		position.height = height.value()
 		save_data()
-	}, [left, top, width, height])
+	}, [left, top, width, height, color])
 
 	let setcolorfn = i => () => color.next(i + "")
 	let removeButton = () => {
@@ -485,25 +482,14 @@ let blockEl = block => {
 	let height = reactive(position.height)
 	let color = reactive(position.color)
 
-	color.subscribe(v => position.color = v)
-	color.subscribe(save_data)
-	left.subscribe(v => position.x = v)
-	left.subscribe(save_data)
-	top.subscribe(v => position.y = v)
-	top.subscribe(save_data)
-
-	width.subscribe(v => position.width = v)
-	height.subscribe(v => position.height = v)
-	height.subscribe(save_data)
-	width.subscribe(save_data)
-
 	memo(() => {
+		position.color = color.value()
 		position.x = left.value()
 		position.y = top.value()
 		position.width = width.value()
 		position.height = height.value()
 		save_data()
-	}, [left, top, width, height])
+	}, [left, top, width, height, color])
 
 
 	let style = memo(() => `
@@ -662,9 +648,12 @@ let blockEl = block => {
 	draggable.appendChild(el)
 
 	setTimeout(() => {
-		let set_left = (v) => left.next(round(v, 5))
-		let set_top = (v) => top.next(round(v, 5))
-		drag(draggable, { set_left, set_top, pan_switch: () => !edit, bound: 'inner' })
+		let set_position = (x, y) => {
+			left.next(round(x, 5))
+			top.next(round(y, 5))
+		}
+
+		drag(draggable, { set_position, pan_switch: () => !edit, bound: 'inner' })
 		drag(resizer,
 			{
 				set_left: (v) => width.next(v),
