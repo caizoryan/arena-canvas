@@ -53,9 +53,8 @@ let search = [".section.search", ["h4", "Channel"], searchBar,
 	["button", { onclick: (e) => try_set_channel(query.trim()) }, "set"],
 	['h5', 'Recently Visited'],
 	memo(() => recentSlugs.value()
-		.map(e => ['button.mr',
-			{ onclick: () => try_set_channel(e) },
-			e.slice(0, 18), e.length > 18 ? "..." : '']), [recentSlugs])
+			 .map(e => ['a', {href: "#" + e}, ['button.mr', { href: '#' + e },
+			e.slice(0, 18), e.length > 18 ? "..." : '']]), [recentSlugs])
 ]
 
 let logout = ['p', ['button', {

@@ -12,7 +12,8 @@ import {
 	save_data,
 	canvasScale, canvasX, canvasY, mouse,
 	dimensions,
-	dataSubscriptions
+	dataSubscriptions,
+	selected
 } from "./state.js"
 import { keyVisualiser, sliderAxis, slidercursor } from "./components.js"
 
@@ -26,22 +27,22 @@ const lerp = (start, stop, amt) => amt * (stop - start) + start
 const InOutQuad = (t) => (t < 0.5 ? 2 * t * t : -1 + (4 - 2 * t) * t)
 
 let animateMove = (destX, destY) => {
-		let last = {}
-		last.x = canvasX.value()
-		last.y = canvasY.value()
+	let last = {}
+	last.x = canvasX.value()
+	last.y = canvasY.value()
 
-		let t = 0
-		let v = 0
-		let progress = () => {
-			t+=.03
-			v = InOutQuad(t)
-			canvasX.next(lerp(last.x, destX, v))
-			canvasY.next(lerp(last.y, destY, v))
-			if (t > .99) return
-			movingTimeout = setTimeout(progress, 1000/60)
-		}
-		progress()
-	
+	let t = 0
+	let v = 0
+	let progress = () => {
+		t += .03
+		v = InOutQuad(t)
+		canvasX.next(lerp(last.x, destX, v))
+		canvasY.next(lerp(last.y, destY, v))
+		if (t > .99) return
+		movingTimeout = setTimeout(progress, 1000 / 60)
+	}
+	progress()
+
 }
 
 export function moveToBlock(id) {
@@ -66,8 +67,8 @@ export function moveToBlock(id) {
 		// if visible don't move
 		// console.log(y, window.innerHeight, !())
 		if (!(x > 0 && x + width < window.innerWidth)
-				|| !(y > 0 && y + 150 < window.innerHeight)
-			 ) {
+			|| !(y > 0 && y + 150 < window.innerHeight)
+		) {
 			let last = {}
 			last.x = canvasX.value()
 			last.y = canvasY.value()
@@ -331,8 +332,8 @@ let groupEl = group => {
 		return button(memo(() => words[click.value()], [click]), onclick)
 	}
 	let colorbuttons =
-			['.color-bar', ...[1, 2, 3, 4, 5, 6]
-			 .map((i) => button('x', setcolorfn(i), { style: `background-color: ${colors[i - 1]}; color: ${tcolors[i - 1]};`})), removeButton()]
+		['.color-bar', ...[1, 2, 3, 4, 5, 6]
+			.map((i) => button('x', setcolorfn(i), { style: `background-color: ${colors[i - 1]}; color: ${tcolors[i - 1]};` })), removeButton()]
 
 	let remove = () => {
 		let i = store.data.nodes.findIndex(e => e == position)
@@ -346,7 +347,9 @@ let groupEl = group => {
 		position: absolute;
 		left: ${left.value()}px;
 		top: ${top.value()}px;
-		background-color: ${colors[parseInt(color.value()) - 1]};
+		background-color: var(--g${color.value()});
+		border-color: var(--bor${color.value()});
+		border-width: 4px;
 		color: ${tcolors[parseInt(color.value()) - 1]};
 		width: ${width.value()}px;
 		height: ${height.value()}px
@@ -436,7 +439,7 @@ let groupEl = group => {
 			})
 		}
 
-		drag(draggable, { set_left, set_top, onstart, onend, bound : 'inner' })
+		drag(draggable, { set_left, set_top, onstart, onend, bound: 'inner' })
 		drag(resizer, { set_left: (v) => width.next(v), set_top: (v) => height.next(v) })
 		drag(resizerwidthmiddle, { set_left: (v) => width.next(v), set_top: () => null })
 		drag(resizerheightmiddle, { set_left: () => null, set_top: (v) => height.next(v) })
@@ -454,7 +457,6 @@ let blockEl = block => {
 			}
 		}
 	}
-
 	let position = store.data.nodes.find(e => e.id == block.id)
 	if (!position) store.data.nodes.push(constructBlockData(block, 0))
 	position = store.data.nodes.find(e => e.id == block.id)
@@ -476,6 +478,7 @@ let blockEl = block => {
 	}
 	dataSubscriptions.push(updateFn)
 
+	let isSelected = memo(() => selected.value().includes(block.id), [selected])
 	let left = reactive(position.x)
 	let top = reactive(position.y)
 	let width = reactive(position.width)
@@ -525,7 +528,30 @@ let blockEl = block => {
 		width: ${width.value() / 2}px;
 `, [height, width])
 
+	let connectionPointStyle = memo(() => `
+		top:${height.value() - 15}px;
+		left:${width.value() / 2}px;
+		background: yellow;
+		width: 20px;
+		z-index: 99999;
+`, [height, width])
 
+	let connectionPoint = dom('.absolute.flex-center.box', {
+		style: connectionPointStyle, onclick: e => {
+			console.log('clicked')
+			if (state.blockConnectionBuffer){
+				store.data.edges.push({
+					...state.blockConnectionBuffer,
+					toNode: block.id,
+					toSide: 'bottom'
+				})
+
+				state.blockConnectionBuffer = undefined
+				save_data()
+			}
+			else state.blockConnectionBuffer = {fromNode: block.id, fromSide: 'bottom'}
+		}
+	}, 'X')
 
 	let resizer = dom(".absolute.flex-center.box.cur-se",
 		{ style: resize },
@@ -535,7 +561,7 @@ let blockEl = block => {
 
 	let setcolorfn = i => () => color.next(i + "")
 	let colorbuttons = ['.color-bar', ...[1, 2, 3, 4, 5, 6].map((i) => button('x', setcolorfn(i), { style: 'background-color: ' + colors[i - 1] + ";" }))]
-	let blockUserTag = ["p.tag", block.user.slug]
+	let blockUserTag = ["p.tag", block.user?.slug]
 	let blockTitleTag = ["p.tag", block.title]
 	let editBlock = () => {
 		edit = true
@@ -543,7 +569,7 @@ let blockEl = block => {
 		draggable.appendChild(textarea(value))
 	}
 	let editButton = button('edit', editBlock)
-	let owned = memo(() => block.user.slug == authslug.value(), [authslug])
+	let owned = memo(() => block.user?.slug == authslug.value(), [authslug])
 	let editOrTag = memo(() =>
 		owned.value() && block.type == 'Text'
 			? editButton
@@ -552,25 +578,26 @@ let blockEl = block => {
 			: blockUserTag, [owned])
 
 	let copyLink = button("copy", (e) => {
-		let link = "https://are.na/block/"+block.id
+		let link = "https://are.na/block/" + block.id
 		if (e.metaKey) link = `[title](${link})`
 		navigator.clipboard.writeText(link)
 	})
 
 	let jumpToArena = button("", (e) => {
-		let link = "https://are.na/block/"+block.id
+		let link = "https://are.na/block/" + block.id
 		window.open(link, '_blank').focus();
 	})
 
 	let topBar = [['.top-bar'], editOrTag, colorbuttons]
 	let bottomBar = dom(['.bottom-bar', copyLink, jumpToArena])
 	let draggable = dom('.draggable.node', {
+		selected: isSelected,
 		'block-id': block.id,
 		style: style,
 		ondblclick: () => { block.type == 'Text' && !edit ? editBlock() : null }
-	}, topBar,bottomBar, resizer, resizerheightmiddle, resizerwidthmiddle)
+	}, topBar, bottomBar, connectionPoint, resizer, resizerheightmiddle, resizerwidthmiddle)
 	let el
-	let image = block =>{
+	let image = block => {
 		let link = block.image?.large?.src || block.image?.large?.url
 		return ['img', { src: link }]
 	}
@@ -606,7 +633,7 @@ let blockEl = block => {
 		update_block(block.id, { content: value })
 			.then(res => {
 				if (res.status == 204) notificationpopup("Updated 👍")
-				else if (res.status == 401) notificationpopup("Failed: Unauthorized :( " , true)
+				else if (res.status == 401) notificationpopup("Failed: Unauthorized :( ", true)
 				else notificationpopup("Failed :( status: " + res.status, true)
 			})
 		mountResizers()
@@ -648,6 +675,17 @@ let blockEl = block => {
 	if (block.type == "Text") {
 		el = [".block.text", ...MD(value)]
 	}
+
+	else if (block.type == "Channel"){
+		console.log("CHANNEL", block)
+		el = [".block.channel",
+					['h2', block.title],
+					['h4', ['strong', block.slug]],
+					['p', ['a', {href: "#"+block.slug}, button('Open in Canvas')]],
+					['p', ['a', {href: "https://are.na/channel/"+block.slug}, button('View on Are.na')]]
+				 ]
+}
+
 	else if (block.type == "Image") el = [".block.image", image(block)]
 	else if (block.type == "Attachment") el = [".block.image", image(block)]
 	else if (block.type == "Link") el = [".block.image", image(block)]
@@ -656,13 +694,21 @@ let blockEl = block => {
 	el = dom(el)
 	draggable.appendChild(el)
 
+	let onstart = (e) => {
+		console.log('started')
+		e.shiftKey ? 
+
+		selected.next(e => [...e, block.id]):
+		selected.next([block.id])
+	}
+
 	setTimeout(() => {
 		let set_position = (x, y) => {
 			left.next(round(x, 5))
 			top.next(round(y, 5))
 		}
 
-		drag(draggable, { set_position, pan_switch: () => !edit, bound: 'inner' })
+		drag(draggable, { set_position, pan_switch: () => !edit, bound: 'inner', onstart}, )
 		drag(resizer,
 			{
 				set_left: (v) => width.next(v),
@@ -676,7 +722,6 @@ let blockEl = block => {
 
 let processBlockForRendering = (blocks) => {
 	blocks = blocks.filter(e => e.title != ".canvas")
-	blocks = blocks.filter(e => e.type != "Channel")
 
 	return blocks
 }
@@ -697,7 +742,7 @@ let updateData = (blocks) => {
 		store.data.nodes.forEach(node => {
 			if (node.type == 'group') return
 			let f = blocks.find(e => e.id == node.id)
-			if (!f){
+			if (!f) {
 				console.log('removing', node)
 				let i = store.data.nodes.findIndex(n => n == node)
 				store.data.nodes.splice(i, 1)
@@ -724,6 +769,16 @@ let pointStart = reactive([0, 0])
 let pointEnd = reactive([0, 0])
 
 let renderBlocks = (blocks) => {
+	// channel uses a c prepended id
+	blocks = blocks.map(e => {
+		if (e.type == 'Channel'){
+			console.log("Channel?", e)
+			e.id = 'c' + e.id
+		}
+
+		return e
+	})
+
 	// reset stuff
 	// I think itll be a good idea to just do a page refresh
 	// connections = []
@@ -801,8 +856,8 @@ let renderBlocks = (blocks) => {
 		const deltaY = e.movementY / canvasScale.value();
 		pointEnd.next(v => [v[0] + deltaX, v[1] + deltaY])
 		if (anchor) {
-				canvasX.next(anchor.x + (pointStart.value()[0] - pointEnd.value()[0]))
-				canvasY.next(anchor.y + (pointStart.value()[1] - pointEnd.value()[1]))
+			canvasX.next(anchor.x + (pointStart.value()[0] - pointEnd.value()[0]))
+			canvasY.next(anchor.y + (pointStart.value()[1] - pointEnd.value()[1]))
 		}
 	}
 	let onpointerup = e => {
@@ -852,9 +907,21 @@ let renderBlocks = (blocks) => {
 
 	}
 
-	let bigline = memo(() => svgrect(...pointStart.value(),
-																	 ...pointEnd.value(), "black", (anchor || canceled) ? 0 : 3),
-		[pointStart, pointEnd])
+	// let lines = memo(() => {
+	// 	if (state.blockConnectionBuffer)
+	// 		return [
+	// 			state.blockConnectionBuffer.fromPoint.x,
+	// 			state.blockConnectionBuffer.fromPoint.y,
+	// 			mouse.value().x, 
+	// 			mouse.value().y
+	// 		]
+	// 	else return [0,0,0,0]
+	// }, [mouse])
+
+	let bigline = memo(() => [
+		// svgline(...lines.value()),
+		svgrect(...pointStart.value(), ...pointEnd.value(), "black", (anchor || canceled) ? 0 : 3)
+	], [pointStart, pointEnd])
 
 	let edgesRender = reactive(0)
 
@@ -977,10 +1044,10 @@ let mount = () => {
 	// Fix the leaks here...
 	let lines = memo(() => {
 		let l = []
-		if (state.connectionBuffer)
+		if (state.nodeConnectionBuffer)
 			l.push([
-				state.connectionBuffer.line()[0],
-				state.connectionBuffer.line()[1],
+				state.nodeConnectionBuffer.line()[0],
+				state.nodeConnectionBuffer.line()[1],
 				mouse.value().x,
 				mouse.value().y])
 		state.connections.forEach(e => l.push(e.line()))
@@ -999,7 +1066,7 @@ let mount = () => {
 
 	let helpbtn = button(['span', 'HELP ', ['code', "?"]], () => helpactive.next(e => !e), { style: posbr(1, 1) })
 	let commandSections = {
-		drag : `
+		drag: `
 
 | CMD        | Action                  |  
 | ---------- | ---------------------- |  
@@ -1034,13 +1101,16 @@ let mount = () => {
 
 
 	}
-	let current = reactive(commandSections.drag) 
-	let helpbar = ['.help', {active: helpactive},
-								 memo(() => MD(current.value()), [current]),
-								 button('Drag',() => current.next(commandSections.drag)),
-								 button('Navigation', () =>current.next(commandSections.navigation)),
-								 button('Misc', () =>current.next(commandSections.misc)),
-								]
+	let current = reactive(commandSections.drag)
+	let helpbar = ['.help', {
+		style: `background: var(--b${Math.floor(Math.random() * 6)});`,
+		active: helpactive
+	},
+		memo(() => MD(current.value()), [current]),
+		button('Drag', () => current.next(commandSections.drag)),
+		button('Navigation', () => current.next(commandSections.navigation)),
+		button('Misc', () => current.next(commandSections.misc)),
+	]
 
 	document.body.appendChild(dom(['.nodes', { active: nodesActive }, ...nodes]))
 	document.body.appendChild(dom(sidebar))
@@ -1076,12 +1146,12 @@ document.onkeydown = (e) => {
 		return false
 	}
 
-	if (e.key == '?'){
+	if (e.key == '?') {
 		if (inEdit(e)) return
 		helpactive.next(e => !e)
 	}
 
-	if (e.key == 'Escape'){
+	if (e.key == 'Escape') {
 		if (e.target.blur) e.target.blur()
 		e.preventDefault()
 		canceled = true
@@ -1156,13 +1226,14 @@ document.onkeydown = (e) => {
 	if (e.key == 'v' && e.metaKey) {
 		if (inEdit(e)) return
 		e.preventDefault()
+		console.log("V")
 		navigator.clipboard.readText().then(res => {
-			if (link_is_block(res)){
+			if (link_is_block(res)) {
 				console.log('will connect block: ', extract_block_id(res), ' to slug')
 				connect_block(currentslug, extract_block_id(res))
 					.then(block => {
 						console.log("BLock?", block)
-						let newBlock = constructBlockData(block, {x: canvasX.value(), y: canvasY.value(), width: 350, height: 350})
+						let newBlock = constructBlockData(block, { x: canvasX.value(), y: canvasY.value(), width: 350, height: 350 })
 						store.data.nodes.push(newBlock)
 						document.querySelector('.container').appendChild(blockEl(block))
 
@@ -1205,6 +1276,7 @@ document.onkeydown = (e) => {
 document.onmousemove = (e) => {
 	mouse.next({ x: parseFloat(e.clientX), y: parseFloat(e.clientY) })
 }
+
 document.ondragover = (e) => { e.preventDefault(); }
 document.ondrop = e => {
 	e.preventDefault();
@@ -1307,7 +1379,7 @@ document.addEventListener("wheel", e => {
 		canvasScale.next(f => f - (e.deltaY / 2500))
 	}
 
-	else if (trackpadMovement){
+	else if (trackpadMovement) {
 		e.preventDefault()
 		canvasY.next(f => f + e.deltaY)
 		canvasX.next(f => f + e.deltaX)
@@ -1338,8 +1410,8 @@ let saveCanvasToArena = () => {
 					notificationpopup("Updated 👍")
 					updated.next(true)
 				}
- 				else if (res.status == 401) notificationpopup("Failed: Unauthorized :( " , true)
- 				else notificationpopup("Failed :( status: " + res.status, true)
+				else if (res.status == 401) notificationpopup("Failed: Unauthorized :( ", true)
+				else notificationpopup("Failed :( status: " + res.status, true)
 			})
 	}
 	else {

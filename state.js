@@ -12,6 +12,7 @@ export let mouse = reactive({ x: 0, y: 0 })
 export let canvasX = reactive(t.x)
 export let canvasY = reactive(t.y)
 export let canvasScale = reactive(t.scale)
+export let selected = reactive([])
 
 
 memo(() => {
@@ -29,7 +30,8 @@ memo(() => {
 export let store = {data: undefined}
 
 export let state = {
-	connectionBuffer: undefined,
+	blockConnectionBuffer: undefined,
+	nodeConnectionBuffer: undefined,
 	dotcanvas: undefined,
 	connections: [],
 }

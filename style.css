@@ -7,19 +7,31 @@
 	--color: #161616;
 	--highlight: #161616;
 
-	--b1 : #F5DCE9;
-	--c1 : black;
-	--b2 : #E4D4A0;
-	--c2 : black;
-	--b3 : #F5F5DC;
-	--c3 : black;
-	--b4 : #DCF5DF;
-	--c4 : black;
-	--b5 : #CFF0F5; 
-	--c5 : black;
-	--b6 : #E3CFF5 ;
-	--c6 : black;
+--b1: rgb(245, 220, 233);
+--g1: rgba(245, 220, 233, 0.8);
+--bor1: rgb(196, 176, 186);
 
+--b2: rgb(228, 212, 160);
+--g2: rgba(228, 212, 160, 0.8);
+--bor2: rgb(182, 170, 128);
+
+--b3: rgb(245, 245, 220);
+--g3: rgba(245, 245, 220, 0.8);
+--bor3: rgb(196, 196, 176);
+
+--b4: rgb(220, 245, 223);
+--g4: rgba(220, 245, 223, 0.8);
+--bor4: rgb(176, 196, 178);
+
+--b5: rgb(207, 240, 245);
+--g5: rgba(207, 240, 245, 0.8);
+--bor5: rgb(166, 192, 196);
+
+--b6: rgb(227, 207, 245);
+--g6: rgba(227, 207, 245, 0.8);
+--bor6: rgb(182, 166, 196);
+
+	--border-thickness: 3px;
 	--monospaceness: 65;
 }
 
@@ -53,7 +65,7 @@ strong {
   height: 60vh;
   top: 15vh;
   left: 15vh;
-  border: 2px solid var(--highlight);
+  border: var(--border-thickness) solid var(--highlight);
   background-color: var(--background1);
   padding: 1em;
   overflow-y: scroll;
@@ -88,7 +100,7 @@ body {
   scrollbar-width: none;  
 }
 
-.block.text {
+.block.text, .block.channel{
 	padding: 1em;
 	padding-top: .5em;
 }
@@ -156,7 +168,7 @@ body {
 	transition: background-color 500ms;
 	background: var(--background);
 	position: absolute;
-	border: 2px solid var(--color);
+	border: var(--border-thickness) solid var(--color);
 	/* overflow: hidden; */
 	/* border-radius: 8px; */
 	font-family: monospace;
@@ -173,7 +185,7 @@ body {
 .psuedo-container {
 	padding: 1em;
 	cursor: move;
-	border: 2px solid var(--highlight);
+	border: var(--border-thickness) solid var(--highlight);
 	background: var(--background);
 	position: fixed;
 	z-index: 90;
@@ -191,9 +203,33 @@ img {
 }
 
 button {
-	border: 2px solid var(--highlight);
+	/* all: unset; */
+	border: var(--border-thickness) solid var(--highlight);
 	background: var(--background);
+	color: var(--color);
+	text-decoration: none;
+	display: inline;
 }
+
+.node[selected='true'] {
+	border-width: 5px;
+	border-color: #e00e;
+}
+
+.search a, .channel a {
+  text-decoration: none;
+}
+
+button:hover, a.button:hover {
+	box-shadow: 3px 3px 0 rgba(0,0,0,.3);
+}
+
+button:active, a.button:active {
+	transform: translate(2px, 2px);
+	background: var(--background2);
+	box-shadow: 3px 3px 0 rgba(0,0,0,.3);
+}
+
 td {
   border-right: 1px solid #0002;
   padding: 0.2em 1em;
@@ -220,15 +256,6 @@ code {
   margin-right: .5em;
 }
 
-button:hover {
-	box-shadow: 3px 3px 0 rgba(0,0,0,.3);
-}
-
-button:active {
-	transform: translate(2px, 2px);
-	background: var(--background2);
-	box-shadow: 3px 3px 0 rgba(0,0,0,.3);
-}
 
 .connection:hover {
 	background: var(--highlight);
@@ -244,7 +271,7 @@ button:active {
   width: 30px;
   height: 30px;
 	background-color: var(--background);
-  border: 2px solid var(--highlight);
+  border: var(--border-thickness) solid var(--highlight);
 }
 
 .connection.input {
@@ -272,7 +299,7 @@ button:active {
 	position: fixed;
 	background: var(--background);
 	z-index: 90;
-	border: 2px solid var(--highlight);
+	border: var(--border-thickness) solid var(--highlight);
 	box-shadow: 5px 5px 0 rgba(0, 0, 0, .2);
 }
 
@@ -344,8 +371,8 @@ textarea {
 	height: 90vh;
 	bottom: 5vh;
 	height: max-content;
-	background: var(--b1);
-	border: 2px solid var(--highlight);
+	background: var(--b4);
+	border: var(--border-thickness) solid var(--highlight);
 	z-index: 299;
 	box-shadow: 6px 6px 0 rgba(0, 0, 0, .1);
 }
@@ -369,7 +396,7 @@ textarea {
 	height: 90vh;
 	top: 5vh;
 	background: var(--background1);
-	border: 2px solid var(--highlight);
+	border: var(--border-thickness) solid var(--highlight);
 	z-index: 299;
 	box-shadow: 6px 6px 0 rgba(0, 0, 0, .1);
 }
@@ -411,7 +438,7 @@ textarea {
 	background-color: var(--background);
 	padding: 1em;
 	min-height: 4em;
-	border: 2px solid var(--highlight);
+	border: var(--border-thickness) solid var(--highlight);
 	box-shadow: 6px 6px 0 rgba(0, 0, 0, .13);
 	opacity: 1;
 	transition: all 2500ms ease;
@@ -419,7 +446,7 @@ textarea {
 }
 .notification.error {
 	color: red;
-	border: 2px solid var(--error);
+	border: var(--border-thickness) solid var(--error);
 	box-shadow: 6px 6px 0 rgba(255, 0, 0, .13);
 	opacity: 1;
 	transition: all 2500ms ease;
@@ -451,7 +478,7 @@ button[updated='true']{
 .change-block {
 	height: 350px;
 	width: 350px;
-	border: 1px solid var(--highlight);
+	border: var(--border-thickness) solid var(--highlight);
   padding: 1em;
   scrollbar-width: none;overflow-y: scroll;
 }

@@ -39,9 +39,9 @@ let inputConnector = (left, top, signal, position, label, side= 's', cssside = '
 				bufferkill.next('false')
 			}
 
-			else if (state.connectionBuffer) {
-				bufferkill.next(state.connectionBuffer)
-				state.connectionBuffer.connectAsOutput(signal, position)
+			else if (state.nodeConnectionBuffer) {
+				bufferkill.next(state.nodeConnectionBuffer)
+				state.nodeConnectionBuffer.connectAsOutput(signal, position)
 			}
 		}
 	}, svgArrow(side, 20, 20, colorx)])
@@ -62,10 +62,10 @@ let outputConnector = (left, top, signal, position, label, side = 's', cssside =
 			e.stopImmediatePropagation();
 			e.stopPropagation();
 
-			if (state.connectionBuffer) { state.connectionBuffer = undefined }
+			if (state.nodeConnectionBuffer) { state.nodeConnectionBuffer = undefined }
 			else {
-				state.connectionBuffer = createConnection()
-				state.connectionBuffer.connectAsInput(signal, position)
+				state.nodeConnectionBuffer = createConnection()
+				state.nodeConnectionBuffer.connectAsInput(signal, position)
 			}
 		}
 	}, svgArrow(side, 20, 20, blue)])
@@ -392,7 +392,7 @@ export function createConnection() {
 			v.next(signal.value())
 			disconnectOutput = signal.subscribe(x => v.next(x))
 			state.connections.push(self)
-			state.connectionBuffer = undefined
+			state.nodeConnectionBuffer = undefined
 		},
 
 		disconnect: () => {
