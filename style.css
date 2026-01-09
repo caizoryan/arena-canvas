@@ -216,6 +216,32 @@ button {
 	border-color: #e00e;
 }
 
+
+.edge-connector {
+	background: yellow;
+	border: 3px solid black;
+	/* border-radius: 50px; */
+	color: black;
+	cursor: crosshair;
+	width: 40px;
+	height: 40px;
+	z-index: 99999;
+}
+
+.wobble {
+	animation:wobble .5s ease-in-out infinite alternate;
+	opacity: 1 !important;
+}
+
+@keyframes wobble {
+  33% {
+    transform: rotate(5deg);
+  }
+  66% {
+    transform: rotate(-5deg);
+  }
+}
+
 .search a, .channel a {
   text-decoration: none;
 }

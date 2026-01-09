@@ -17,7 +17,18 @@ import {
 } from "./state.js"
 import { keyVisualiser, sliderAxis, slidercursor } from "./components.js"
 
+// this is for making blocks and groups
 let canceled = false
+
+// cancel node edge connectin
+let cancelConnection = () => {
+	document.querySelectorAll('.wobble').forEach(e => {
+		e.classList.toggle('wobble')
+	})
+	state.blockConnectionBuffer = undefined
+	save_data()
+}
+
 const round = (n, r) => Math.ceil(n / r) * r;
 
 let lastHistory = []
@@ -528,30 +539,58 @@ let blockEl = block => {
 		width: ${width.value() / 2}px;
 `, [height, width])
 
-	let connectionPointStyle = memo(() => `
+	let connectionPointBottom = memo(() => `
 		top:${height.value() - 15}px;
 		left:${width.value() / 2}px;
-		background: yellow;
-		width: 20px;
-		z-index: 99999;
 `, [height, width])
 
-	let connectionPoint = dom('.absolute.flex-center.box', {
-		style: connectionPointStyle, onclick: e => {
-			console.log('clicked')
+	let connectionPointRight = memo(() => `
+		top:${height.value() / 2}px;
+		left:${width.value() - 15}px;
+`, [height, width])
+
+	let connectionPointTop = memo(() => `
+		top:-15px;
+		left:${width.value() / 2}px;
+`, [height, width])
+
+	let connectionPointLeft = memo(() => `
+		top:${height.value() / 2}px;
+		left:-15px;
+`, [height, width])
+
+
+	let connectionPoint = (side, style) => dom('.edge-connector.absolute.flex-center.box', {
+		style, onclick: e => {
 			if (state.blockConnectionBuffer){
 				store.data.edges.push({
 					...state.blockConnectionBuffer,
 					toNode: block.id,
-					toSide: 'bottom'
+					toSide: side
+				})
+
+				document.querySelectorAll('.wobble').forEach(e => {
+					e.classList.toggle('wobble')
 				})
 
 				state.blockConnectionBuffer = undefined
 				save_data()
 			}
-			else state.blockConnectionBuffer = {fromNode: block.id, fromSide: 'bottom'}
+			else {
+				e.target.classList.toggle('wobble')
+				state.blockConnectionBuffer = {fromNode: block.id, fromSide: side}
+			}
 		}
 	}, 'X')
+
+	let connectionPoints = [
+		// connectionPoint('top', connectionPointTop),
+		// connectionPoint('left', connectionPointLeft),
+		// connectionPoint('bottom', connectionPointBottom),
+		// connectionPoint('right', connectionPointRight),
+	]
+
+
 
 	let resizer = dom(".absolute.flex-center.box.cur-se",
 		{ style: resize },
@@ -595,7 +634,7 @@ let blockEl = block => {
 		'block-id': block.id,
 		style: style,
 		ondblclick: () => { block.type == 'Text' && !edit ? editBlock() : null }
-	}, topBar, bottomBar, connectionPoint, resizer, resizerheightmiddle, resizerwidthmiddle)
+	}, topBar, bottomBar, ...connectionPoints, resizer, resizerheightmiddle, resizerwidthmiddle)
 	let el
 	let image = block => {
 		let link = block.image?.large?.src || block.image?.large?.url
@@ -654,6 +693,8 @@ let blockEl = block => {
 		draggable.appendChild(resizer)
 		draggable.appendChild(resizerwidthmiddle)
 		draggable.appendChild(resizerheightmiddle)
+
+		connectionPoints.forEach(e => draggable.appendChild(e))
 
 		topBar = ['.top-bar']
 
@@ -1155,6 +1196,8 @@ document.onkeydown = (e) => {
 		if (e.target.blur) e.target.blur()
 		e.preventDefault()
 		canceled = true
+		selected.next([])
+		cancelConnection()
 	}
 
 	if (e.key == 'H') {
