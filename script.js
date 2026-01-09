@@ -490,6 +490,8 @@ let blockEl = block => {
 	dataSubscriptions.push(updateFn)
 
 	let isSelected = memo(() => selected.value().includes(block.id), [selected])
+	let isMultiselected = memo(() => isSelected.value() && selected.value().length > 1,[selected])
+
 	let left = reactive(position.x)
 	let top = reactive(position.y)
 	let width = reactive(position.width)
@@ -562,8 +564,9 @@ let blockEl = block => {
 
 	let connectionPoint = (side, style) => dom('.edge-connector.absolute.flex-center.box', {
 		style, onclick: e => {
-			if (state.blockConnectionBuffer){
+			if (state.blockConnectionBuffer) {
 				store.data.edges.push({
+					id: uuid(),
 					...state.blockConnectionBuffer,
 					toNode: block.id,
 					toSide: side
@@ -578,16 +581,16 @@ let blockEl = block => {
 			}
 			else {
 				e.target.classList.toggle('wobble')
-				state.blockConnectionBuffer = {fromNode: block.id, fromSide: side}
+				state.blockConnectionBuffer = { fromNode: block.id, fromSide: side }
 			}
 		}
 	}, 'X')
 
 	let connectionPoints = [
-		// connectionPoint('top', connectionPointTop),
-		// connectionPoint('left', connectionPointLeft),
-		// connectionPoint('bottom', connectionPointBottom),
-		// connectionPoint('right', connectionPointRight),
+		connectionPoint('top', connectionPointTop),
+		connectionPoint('left', connectionPointLeft),
+		connectionPoint('bottom', connectionPointBottom),
+		connectionPoint('right', connectionPointRight),
 	]
 
 
@@ -631,6 +634,7 @@ let blockEl = block => {
 	let bottomBar = dom(['.bottom-bar', copyLink, jumpToArena])
 	let draggable = dom('.draggable.node', {
 		selected: isSelected,
+		'multi-selected': isMultiselected,
 		'block-id': block.id,
 		style: style,
 		ondblclick: () => { block.type == 'Text' && !edit ? editBlock() : null }
@@ -717,15 +721,15 @@ let blockEl = block => {
 		el = [".block.text", ...MD(value)]
 	}
 
-	else if (block.type == "Channel"){
+	else if (block.type == "Channel") {
 		console.log("CHANNEL", block)
 		el = [".block.channel",
-					['h2', block.title],
-					['h4', ['strong', block.slug]],
-					['p', ['a', {href: "#"+block.slug}, button('Open in Canvas')]],
-					['p', ['a', {href: "https://are.na/channel/"+block.slug}, button('View on Are.na')]]
-				 ]
-}
+			['h2', block.title],
+			['h4', ['strong', block.slug]],
+			['p', ['a', { href: "#" + block.slug }, button('Open in Canvas')]],
+			['p', ['a', { href: "https://are.na/channel/" + block.slug }, button('View on Are.na')]]
+		]
+	}
 
 	else if (block.type == "Image") el = [".block.image", image(block)]
 	else if (block.type == "Attachment") el = [".block.image", image(block)]
@@ -737,10 +741,10 @@ let blockEl = block => {
 
 	let onstart = (e) => {
 		console.log('started')
-		e.shiftKey ? 
+		e.shiftKey ?
 
-		selected.next(e => [...e, block.id]):
-		selected.next([block.id])
+			selected.next(e => [...e, block.id]) :
+			selected.next([block.id])
 	}
 
 	setTimeout(() => {
@@ -749,7 +753,7 @@ let blockEl = block => {
 			top.next(round(y, 5))
 		}
 
-		drag(draggable, { set_position, pan_switch: () => !edit, bound: 'inner', onstart}, )
+		drag(draggable, { set_position, pan_switch: () => !edit, bound: 'inner', onstart },)
 		drag(resizer,
 			{
 				set_left: (v) => width.next(v),
@@ -812,7 +816,7 @@ let pointEnd = reactive([0, 0])
 let renderBlocks = (blocks) => {
 	// channel uses a c prepended id
 	blocks = blocks.map(e => {
-		if (e.type == 'Channel'){
+		if (e.type == 'Channel') {
 			console.log("Channel?", e)
 			e.id = 'c' + e.id
 		}
@@ -866,6 +870,7 @@ let renderBlocks = (blocks) => {
 	let onpointerdown = e => {
 		let target = e.target
 		if (e.target != document.querySelector('.container')) return
+		selected.next([])
 		console.log("Will start drag at: ", e.offsetX, e.offsetY,
 			"For element: ", e.target,
 			"ID: ", e.pointerId,
@@ -927,6 +932,7 @@ let renderBlocks = (blocks) => {
 		}
 		if (makingBlock) {
 			makingBlock = false
+			if (width < 150 || height < 150) return
 			add_block(currentslug, '', "# New Block")
 				.then((res) => {
 
@@ -964,14 +970,99 @@ let renderBlocks = (blocks) => {
 		svgrect(...pointStart.value(), ...pointEnd.value(), "black", (anchor || canceled) ? 0 : 3)
 	], [pointStart, pointEnd])
 
-	let edgesRender = reactive(0)
+	let anchored = []
+	let boundingAnchor = {}
+	let dimsMemo = memo(() => {
+		anchored = []
+		let sel = store.data.nodes
+			.filter(e => selected.value().includes(e.id))
 
+		sel.forEach(e => {
+			let item = {
+				block: e,
+				offset: { x: e.x, y: e.y }
+			}
+			anchored.push(item)
+		})
+
+		let dims = sel.reduce((acc, e, i) => {
+			if (i == 0) {
+				Object.assign(acc, {
+					x: e.x,
+					y: e.y,
+					x2: e.x + e.width,
+					y2: e.y + e.height,
+				})
+			}
+
+			else {
+				acc.x = Math.min(acc.x, e.x)
+				acc.y = Math.min(acc.y, e.y)
+				acc.x2 = Math.max(acc.x2, e.x + e.width)
+				acc.y2 = Math.max(acc.y2, e.y + e.height)
+			}
+
+			return acc
+		}, {})
+		return { dims, sel }
+
+	}, [selected])
+	let dawgWalkers = memo(() => {
+		let { dims, sel } = dimsMemo.value()
+		boundingAnchor = {
+			x: dims.x,
+			y: dims.y,
+			width: dims.x2 - dims.x,
+			height: dims.y2 - dims.y,
+		}
+		if (sel.length > 1) {
+			return `
+left: ${dims.x}px;
+top: ${dims.y}px;
+width: ${dims.x2 - dims.x}px;
+height: ${dims.y2 - dims.y}px;
+border: 4px solid var(--bor6);
+`
+		}
+
+		else return ''
+	}, [dimsMemo])
+
+	let bigbox = dom('.absolute.big-box', { style: dawgWalkers },
+		memo(() => {
+			let { dims, sel } = dimsMemo.value();
+			console.log(dims)
+			return svgx(dims.x2-dims.x, dims.y2-dims.y, '#E3CFF5')
+		}, [dimsMemo]))
+
+	setTimeout(() => {
+		let set_position = (x, y) => {
+			let diff = {
+				x: x - boundingAnchor.x,
+				y: y - boundingAnchor.y
+			}
+
+			anchored.forEach(e => {
+				e.block.x = e.offset.x + diff.x
+				save_data()
+
+				e.block.y = e.offset.y + diff.y
+				save_data()
+			})
+
+			bigbox.style.left = x + 'px'
+			bigbox.style.top = y + 'px'
+		}
+
+		drag(bigbox, { set_position })
+	}, 150)
+
+	let edgesRender = reactive(0)
 	let edges = memo(() => {
 		if (!store.data.edges) return []
 		return store.data.edges.map(e => {
 			let boundingToSide = (b, side) => {
 				if (side == 'top') {
-
 					return ({
 						x: b.x + b.width / 2,
 						y: b.y
@@ -1006,20 +1097,25 @@ let renderBlocks = (blocks) => {
 			let fromT = boundingToSide(from, e.fromSide)
 			let toT = boundingToSide(to, e.toSide)
 
-			return svgline(fromT.x, fromT.y, toT.x, toT.y)
+			return svgline(fromT.x, fromT.y, toT.x, toT.y, 'black', 7, 0, {
+				onmouseenter: () => {
+					console.log(e)
+					state.selectedConnection = e
+				},
+				onmouseexit: () => { state.selectedConnection = undefined },
+			})
 		})
 	}, [edgesRender])
-
 	dataSubscriptions.push(f => edgesRender.next(e => e + 1))
 
-	let stupidSVG = ['svg', { width: dimensions, height: dimensions }, bigline, edges]
+	let stupidSVG = ['svg', { width: dimensions, height: dimensions }, bigline, edges, dawgWalkers]
 
 	let root = [".container",
 		{
 			holding,
 			style: stylemmeo,
 			onpointerdown, onpointermove, onpointerup
-		}, stupidSVG, groupmapped, ...blocksmapped]
+		}, stupidSVG, groupmapped, ...blocksmapped, bigbox]
 
 	document.body.appendChild(dom(root))
 }
@@ -1192,6 +1288,17 @@ document.onkeydown = (e) => {
 		helpactive.next(e => !e)
 	}
 
+	if (e.key == 'Delete' || e.key == 'Backspace') {
+		console.log("OK?", state.selectedConnection)
+		if (state.selectedConnection) {
+			let i = store.data.edges.findIndex(f => f == state.selectedConnection)
+			if (i != -1) {
+				store.data.edges.splice(i, 1)
+				save_data()
+			}
+		}
+
+	}
 	if (e.key == 'Escape') {
 		if (e.target.blur) e.target.blur()
 		e.preventDefault()
@@ -1270,7 +1377,7 @@ document.onkeydown = (e) => {
 		if (inEdit(e)) return
 		e.preventDefault()
 		console.log("V")
-		navigator.clipboard.readText().then(res => {
+		navigator.clipboard.readText().then(res =>res.split('\n').forEach(res =>  {
 			if (link_is_block(res)) {
 				console.log('will connect block: ', extract_block_id(res), ' to slug')
 				connect_block(currentslug, extract_block_id(res))
@@ -1283,7 +1390,14 @@ document.onkeydown = (e) => {
 						save_data()
 					})
 			}
-		})
+		}))
+	}
+	if (e.key == 'c' && e.metaKey) {
+		if (inEdit(e)) return
+		e.preventDefault()
+		navigator.clipboard.writeText(
+			selected.value().map(e => 'https://are.na/block/'+e).join("\n")
+		)
 	}
 
 	if (e.key == '/' && sidebarOpen.value()) {

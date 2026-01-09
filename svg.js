@@ -7,8 +7,14 @@ export let svgrect = (x1, y1, x2, y2, stroke = "blue", width = 4) =>
 		fill: '#fff1',
 		"stroke-width": width
 	}]
-export let svgline = (x1, y1, x2, y2, stroke = "blue", width = 2, dash = 0) =>
-['line', { x1, y1, x2, y2, stroke, "stroke-width": width, 'stroke-dasharray':dash}]
+export let svgline = (x1, y1, x2, y2, stroke = "blue", width = 2, dash = 0, opts) =>
+	['line', {
+		 x1, y1, x2, y2,
+		stroke,
+		"stroke-width": width,
+		'stroke-dasharray': dash,
+		...opts
+	}]
 export let svgx = (width, height, fill = 'blue', weight = 2) => {
 	if (!height) height = width
 	return ['svg', { width, height },
@@ -18,23 +24,23 @@ export let svgx = (width, height, fill = 'blue', weight = 2) => {
 let value = (v) => typeof v == 'number' ? v : v.isReactive ? v.value() : v
 
 export let svgcurveline = (
-  x1, y1,
-  x2, y2,
-  stroke = "blue",
-  width = 4,
-  curve = 40,
+	x1, y1,
+	x2, y2,
+	stroke = "blue",
+	width = 4,
+	curve = 40,
 ) => [
-  'path',
-  {
-    d: `M ${value(x1)} ${value(y1)}
+		'path',
+		{
+			d: `M ${value(x1)} ${value(y1)}
         C ${value(x1) + curve} ${value(y1)},
           ${value(x2) - curve} ${value(y2)},
           ${value(x2)} ${value(y2)}`,
-		fill: 'none',
-    stroke,
-    'stroke-width': width
-  }
-]
+			fill: 'none',
+			stroke,
+			'stroke-width': width
+		}
+	]
 
 export let svgArrow = (side, svgWidth, svgHeight, stroke = 'blue', weight = 1.5) => {
 	if (!svgHeight) svgHeight = svgWidth

@@ -84,6 +84,14 @@ svg {
 	pointer-events: none;
 }
 
+line {
+	pointer-events: auto;
+}
+
+line:hover {
+	stroke: #f00;
+}
+
 body {
 	background: var(--background);
 	overflow-y: hidden;
@@ -212,8 +220,17 @@ button {
 }
 
 .node[selected='true'] {
-	border-width: 5px;
-	border-color: #e00e;
+	border-width: 3px;
+	border-color: #00f;
+	/* box-shadow: 4px 4px 0 #ee07; */
+}
+
+.node[multi-selected='true'] {
+	pointer-events: none;
+}
+
+
+.big-box {
 }
 
 

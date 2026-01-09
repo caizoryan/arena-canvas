@@ -33,6 +33,7 @@ export let state = {
 	blockConnectionBuffer: undefined,
 	nodeConnectionBuffer: undefined,
 	dotcanvas: undefined,
+	selectedConnection: undefined,
 	connections: [],
 }
 
