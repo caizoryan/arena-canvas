@@ -5,32 +5,8 @@ import { try_set_channel } from "./script.js"
 import { setAuth, auth, try_auth } from "./arena.js"
 
 let query = ""
-export let recentSlugs = reactive([])
 export let sidebarOpen = reactive(false)
 
-let s = localStorage.getItem('recent-slugs')
-if (s) { recentSlugs.next(JSON.parse(s)) }
-
-export let addToRecents = (slug) => {
-	console.log("CALLED")
-	let recents = localStorage.getItem('recent-slugs')
-	console.log("recents", recents)
-	if (!recents) {
-		recents = [slug]
-		localStorage.setItem('recent-slugs', JSON.stringify(recents))
-		recentSlugs.next(recents)
-	}
-
-	else {
-		recents = JSON.parse(recents)
-		recents.unshift(slug)
-		recents = Array.from(new Set(recents))
-		if (recents.length > 10) { recents = recents.slice(0, 10) }
-		localStorage.setItem('recent-slugs', JSON.stringify(recents))
-		recentSlugs.next(recents)
-	}
-
-}
 
 let searchBar = dom(["input", {
 	placeholder: 'Enter Slug or URL',

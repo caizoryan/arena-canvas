@@ -1,4 +1,4 @@
-import {authslug, meData} from './state.js'
+// import {authslug, meData} from './state.js'
 import { notificationpopup } from './script.js';
 
 let host = "https://api.are.na/v2/"
@@ -72,22 +72,22 @@ export const get_channel = async (slug, page = 1) => {
 			return json
 		})
 }
-export let try_auth = () => {
-	me()
-		.then(res=>{
-			if (res.status == 200) {
-				res.json().then(m => {
-					Object.assign(meData, m)
-					authslug.next(m.slug)
-					console.log(meData)
-				})
-			}
-			else {
-				console.log("Auth failed: ", res.status, res)
-				notificationpopup("Auth failed: " + res.status, true)
-			}
-		})
-}
+// export let try_auth = () => {
+// 	me()
+// 		.then(res=>{
+// 			if (res.status == 200) {
+// 				res.json().then(m => {
+// 					Object.assign(meData, m)
+// 					authslug.next(m.slug)
+// 					console.log(meData)
+// 				})
+// 			}
+// 			else {
+// 				console.log("Auth failed: ", res.status, res)
+// 				notificationpopup("Auth failed: " + res.status, true)
+// 			}
+// 		})
+// }
 
 
 let a = localStorage.getItem("auth")
@@ -96,5 +96,5 @@ export let setAuth = au => auth = au
 
 if (a) {
 	auth = a
-	try_auth()
+	// try_auth()
 }
