@@ -13,7 +13,8 @@ import {
 	canvasScale, canvasX, canvasY, mouse,
 	dimensions,
 	dataSubscriptions,
-	selected
+	selected,
+	sync_data
 } from "./state.js"
 import { keyVisualiser, sliderAxis, slidercursor } from "./components.js"
 
@@ -324,14 +325,20 @@ let groupEl = group => {
 	width.subscribe(v => position.width = v)
 	height.subscribe(v => position.height = v)
 
-	memo(() => {
-		position.color = color.value()
-		position.x = left.value()
-		position.y = top.value()
-		position.width = width.value()
-		position.height = height.value()
-		save_data()
-	}, [left, top, width, height, color])
+	color.subscribe(sync_data)
+	left.subscribe(sync_data)
+	top.subscribe(sync_data)
+	width.subscribe(sync_data)
+	height.subscribe(sync_data)
+
+	// memo(() => {
+	// 	position.color = color.value()
+	// 	position.x = left.value()
+	// 	position.y = top.value()
+	// 	position.width = width.value()
+	// 	position.height = height.value()
+	// 	sync_data()
+	// }, [left, top, width, height, color])
 
 	let setcolorfn = i => () => color.next(i + "")
 	let removeButton = () => {
@@ -437,22 +444,29 @@ let groupEl = group => {
 	}
 
 	setTimeout(() => {
-		let set_left = (v) => {
-			left.next(v)
-			anchored.forEach(e => {
-				e.block.x = v + e.offset.x
-				save_data()
-			})
-		}
-		let set_top = (v) => {
-			top.next(v)
-			anchored.forEach(e => {
-				e.block.y = v + e.offset.y
-				save_data()
-			})
-		}
+		let set_position = (x, y) => {
+			left.next(x)
+		 	top.next(y)
 
-		drag(draggable, { set_left, set_top, onstart, onend, bound: 'inner' })
+			anchored.forEach(e => {
+				e.block.x = x + e.offset.x
+				e.block.y = y + e.offset.y
+			})
+			save_data()
+
+			// save_data()
+		}
+		// let set_left = (v) => {
+		// }
+		// let set_top = (v) => {
+		// 	top.next(v)
+		// 	anchored.forEach(e => {
+		// 		e.block.y = v + e.offset.y
+		// 		sync_data()
+		// 	})
+		// }
+
+		drag(draggable, { set_position, onstart, onend, bound: 'inner' })
 		drag(resizer, { set_left: (v) => width.next(v), set_top: (v) => height.next(v) })
 		drag(resizerwidthmiddle, { set_left: (v) => width.next(v), set_top: () => null })
 		drag(resizerheightmiddle, { set_left: () => null, set_top: (v) => height.next(v) })
@@ -500,20 +514,25 @@ let blockEl = block => {
 	let height = reactive(position.height)
 	let color = reactive(position.color)
 
-	// color.subscribe(v => position.color = v)
-	// left.subscribe(v => position.x = v)
-	// top.subscribe(v => position.y = v)
-	// width.subscribe(v => position.width = v)
-	// height.subscribe(v => position.height = v)
+	color.subscribe(v => position.color = v)
+	color.subscribe(sync_data)
+	left.subscribe(v => position.x = v)
+	left.subscribe(sync_data)
+	top.subscribe(v => position.y = v)
+	top.subscribe(sync_data)
+	width.subscribe(v => position.width = v)
+	width.subscribe(sync_data)
+	height.subscribe(v => position.height = v)
+	height.subscribe(sync_data)
 
-	memo(() => {
-		position.color = color.value()
-		position.x = left.value()
-		position.y = top.value()
-		position.width = width.value()
-		position.height = height.value()
-		save_data()
-	}, [left, top, width, height, color])
+	// memo(() => {
+	// 	position.color = color.value()
+	// 	position.x = left.value()
+	// 	position.y = top.value()
+	// 	position.width = width.value()
+	// 	position.height = height.value()
+	// 	sync_data()
+	// }, [left, top, width, height, color])
 
 
 	let style = memo(() => `
@@ -1047,10 +1066,10 @@ border: 4px solid var(--bor6);
 			anchored.forEach(e => {
 				e.block.x = e.offset.x + diff.x
 				save_data()
-
 				e.block.y = e.offset.y + diff.y
 				save_data()
 			})
+
 
 			bigbox.style.left = x + 'px'
 			bigbox.style.top = y + 'px'

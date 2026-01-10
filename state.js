@@ -43,3 +43,18 @@ export let save_data = () => {
 	localStorage.setItem("canvas", JSON.stringify(store.data))
 	dataSubscriptions.forEach(fn => fn((() => store.data)()))
 }
+
+let synced = true
+let loop = () => {
+	if (!synced){
+		console.log('syncing')
+		synced = true
+		save_data()
+	}
+
+	requestAnimationFrame(loop)
+}
+export let sync_data = () => synced = false
+requestAnimationFrame(loop)
+
+
