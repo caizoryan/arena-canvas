@@ -1,6 +1,7 @@
 import { reactive, memo } from "./chowk.js"
 import { dom } from "./dom.js"
-import { canvasScale, canvasX, canvasY, state, try_set_channel } from "./state.js"
+import { drag } from "./drag.js"
+import { canvasScale, canvasX, canvasY, getNodeLocation, state, store, subscribeToId, try_set_channel } from "./state.js"
 
 
 // first order of business
@@ -8,7 +9,7 @@ import { canvasScale, canvasX, canvasY, state, try_set_channel } from "./state.j
 // 2. Load blocks from Are.na
 // 3. Implement store
 // 4. Add nodes to store
-let mountContainer = () => {
+export let mountContainer = (blocks) => {
 
 	// Anchoring components
 	// ~~~~~~~~~~~~~~~~~~~~
@@ -77,7 +78,7 @@ let mountContainer = () => {
 			// holding,
 			style: stylemmeo,
 			onpointerdown, onpointermove, onpointerup
-		}]
+	}, ...blocks]
 
 	// ---------
 	// MOUNT
@@ -87,11 +88,71 @@ let mountContainer = () => {
 }
 
 // and the pass in the children?
-mountContainer()
+// mountContainer()
 
+
+const convertBlockToV3 = block => {
+	if (block.class) {
+		block.type = block.class
+		if (block.type == 'Text') {
+			block.content = {markdown: block.content,}
+		}
+		// if has image the change url to src or whatever
+	}
+
+	return block
+}
 // ------------------
 // Block and Group El
 // ------------------
+export function BlockElement (block){
+	// Convert From  v3 to v2 incase
+	let block = convertBlockToV3(block)
+	let location = getNodeLocation(block.id)
+
+	let r = (key) => ({
+		isReactive: true,
+		value: () => store.get(location.concat([key])),
+		next: (v) => store.tr(location, 'set', [key, v]),
+		subscribe: (fn) => subscribeToId(block.id, [key], fn)
+	})
+
+	let left = r('x')
+	let top = r('y')
+	let height = r('height')
+	let width = r('width')
+
+	let style = memo(() => `
+		position: absolute;
+		left: ${left.value()}px;
+		top: ${top.value()}px;
+		width: ${width.value()}px;
+		height: ${height.value()}px
+	`, [left, top, width, height])
+
+	let el = dom([".block", block.id + ""])
+	el = dom('.draggable.node', {style}, el)
+
+	setTimeout(() => {
+		drag(el, {
+			onstart: () => {
+				// saves this location for undo
+				left.next(left.value() + 1)
+				top.next(top.value() + 1)
+				store.pauseTracking()
+			},
+			set_position: (x, y) => {
+				left.next(x)
+				top.next(y)
+			},
+			onend: () => {
+				store.resumeTracking()
+			}
+		})
+	}, 50 )
+
+	return el
+}
 
 // ---------------
 // Data Logic
