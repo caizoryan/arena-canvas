@@ -1033,7 +1033,7 @@ border: 4px solid var(--bor6);
 	let bigbox = dom('.absolute.big-box', { style: dawgWalkers },
 		memo(() => {
 			let { dims, sel } = dimsMemo.value();
-			console.log(dims)
+			if (sel.length == 0) return  ['span']
 			return svgx(dims.x2-dims.x, dims.y2-dims.y, '#E3CFF5')
 		}, [dimsMemo]))
 

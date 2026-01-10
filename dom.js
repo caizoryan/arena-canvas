@@ -154,6 +154,9 @@ export let dom = (tag, ...contents) => {
 
 					if (diff < 0) {
 						for (let i = 0; i < (diff*-1); i++) {
+							console.log("FUCKER")
+							// REMOVE AND THEN REMOVE FROM NODES
+							// THIS MIGHT BE THE LEAK
 							nodes[(nodes.length - 1) - i].remove()
 						}
 					}
@@ -180,6 +183,8 @@ export let dom = (tag, ...contents) => {
 			if (v == undefined) return
 			if (v.isReactive) {
 				doc.setAttribute(k, v.value())
+				// this is why detatched elements are still in dom....
+				// have to clean this up... somehow...
 				v.subscribe(vv => doc.setAttribute(k, vv))
 			}
 			else {
