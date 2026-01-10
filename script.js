@@ -215,8 +215,9 @@ let setSlug = (slug) => {
 }
 
 let constructBlockData = (e, i) => {
-	let r1 = Math.random() * 850
-	let r2 = Math.random() * 850
+	let r1 = Math.random() * 0
+	let r2 = Math.random() * 0
+	let padding = 100
 
 	let d = {
 		id: e.id,
@@ -225,9 +226,8 @@ let constructBlockData = (e, i) => {
 		color: '1'
 	}
 	if (typeof i == 'number') {
-
-		d.x = (i % 8) * 400 + r1
-		d.y = (Math.floor(i / 8)) * 450 + r2
+		d.x = (i % 8) * 400 + r1+padding
+		d.y = (Math.floor(i / 8)) * 450 + r2+padding
 	}
 	else {
 		d.x = i.x
