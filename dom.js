@@ -154,6 +154,8 @@ export let dom = (tag, ...contents) => {
 
 					if (diff < 0) {
 						for (let i = 0; i < (diff*-1); i++) {
+							// REMOVE AND THEN REMOVE FROM NODES
+							// THIS MIGHT BE THE LEAK
 							nodes[(nodes.length - 1) - i].remove()
 						}
 					}
