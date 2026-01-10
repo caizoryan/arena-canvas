@@ -331,15 +331,6 @@ let groupEl = group => {
 	width.subscribe(sync_data)
 	height.subscribe(sync_data)
 
-	// memo(() => {
-	// 	position.color = color.value()
-	// 	position.x = left.value()
-	// 	position.y = top.value()
-	// 	position.width = width.value()
-	// 	position.height = height.value()
-	// 	sync_data()
-	// }, [left, top, width, height, color])
-
 	let setcolorfn = i => () => color.next(i + "")
 	let removeButton = () => {
 		let click = reactive(0)
@@ -1065,10 +1056,10 @@ border: 4px solid var(--bor6);
 
 			anchored.forEach(e => {
 				e.block.x = e.offset.x + diff.x
-				save_data()
 				e.block.y = e.offset.y + diff.y
-				save_data()
 			})
+
+			save_data()
 
 
 			bigbox.style.left = x + 'px'
