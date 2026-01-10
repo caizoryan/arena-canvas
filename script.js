@@ -287,6 +287,7 @@ let groupEl = group => {
 		);
 	}
 	let anchored = []
+	// make nodes accesible in a hashmap so dont' have to do this find bs everytime
 	let position = store.data.nodes.find(e => e.id == group.id)
 	if (!position) console.error("BRUH HOW")
 	position = store.data.nodes.find(e => e.id == group.id)
@@ -419,6 +420,7 @@ let groupEl = group => {
 					{ x: left.value(), y: top.value(), width: width.value(), height: height.value() },
 					{ x: e.x, y: e.y, width: e.width, height: e.height },
 				)) {
+				// TODO: see if you can make it so the elems become children of the group instead of updating each of them individually...
 				let item = {
 					block: e,
 					offset: {
@@ -1179,6 +1181,7 @@ let mount = () => {
 
 	// SVG STUFF
 	// Fix the leaks here...
+	// TODO: Big leaks isssueee with svg lines.... :(
 	let lines = memo(() => {
 		let l = []
 		if (state.nodeConnectionBuffer)

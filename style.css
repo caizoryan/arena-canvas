@@ -230,6 +230,10 @@ button {
 }
 
 
+.connection svg, .connection svg line{
+	pointer-events: none;
+}
+
 .big-box {
 }
 
