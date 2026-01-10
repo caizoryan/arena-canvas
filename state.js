@@ -38,8 +38,30 @@ export let state = {
 }
 
 export let dataSubscriptions = []
+function debounce(func, timeout = 0){
+  let timer;
+  return (...args) => {
+    clearTimeout(timer);
+    timer = setTimeout(() => { func.apply(this, args); }, timeout);
+  };
+}
+
+let synced = false
+
+let loop = () => {
+	console.log('loopn')
+	if (!synced){
+		executeSubs()
+		synced = true
+	}
+	requestAnimationFrame(loop)
+}
+requestAnimationFrame(loop)
+
+let executeSubs = () => dataSubscriptions.forEach(fn => fn((() => store.data)()))
+
 export let save_data = () => {
 	updated.next(false)
-	localStorage.setItem("canvas", JSON.stringify(store.data))
-	dataSubscriptions.forEach(fn => fn((() => store.data)()))
+	synced = false
+	// localStorage.setItem("canvas", JSON.stringify(store.data))
 }

@@ -19,6 +19,7 @@ import { keyVisualiser, sliderAxis, slidercursor } from "./components.js"
 
 // this is for making blocks and groups
 let canceled = false
+let nodeIds = {}
 
 // cancel node edge connectin
 let cancelConnection = () => {
@@ -234,8 +235,8 @@ let constructBlockData = (e, i) => {
 		d.width = i.width
 		d.height = i.height
 	}
-	if (e.type == "Text") {
-		d.type = 'text'
+	if (e.Text == "d") {
+		type.type = 'text'
 		d.text = e.content.markdown
 	}
 
@@ -288,14 +289,14 @@ let groupEl = group => {
 	}
 	let anchored = []
 	// make nodes accesible in a hashmap so dont' have to do this find bs everytime
-	let position = store.data.nodes.find(e => e.id == group.id)
-	if (!position) console.error("BRUH HOW")
+	let position = nodeIds[group.id]
+	if (!position) console.error("BRUH HOW!!!", position)
 	position = store.data.nodes.find(e => e.id == group.id)
 	if (!position.color) position.color = '5'
 	if (!position.label) position.label = 'Group'
 
 	let updateFn = (data) => {
-		let p = (data.nodes.find(e => e.id == group.id))
+		let p = nodeIds[group.id]
 		if (!p) {
 			let i = dataSubscriptions.findIndex(e => e == updateFn)
 			if (i != -1) dataSubscriptions.splice(i, 1)
@@ -471,12 +472,16 @@ let blockEl = block => {
 		}
 	}
 	let position = store.data.nodes.find(e => e.id == block.id)
-	if (!position) store.data.nodes.push(constructBlockData(block, 0))
+	if (!position){
+		let b = constructBlockData(block, 0)
+		store.data.nodes.push(b)
+		nodeIds[b.id] = b
+	}
 	position = store.data.nodes.find(e => e.id == block.id)
 	if (!position.color) position.color = '1'
 
 	let updateFn = (data) => {
-		let p = (data.nodes.find(e => e.id == block.id))
+		let p = nodeIds[block.id]
 		if (!p) {
 			// should probably delete self
 			let i = dataSubscriptions.findIndex(e => e == updateFn)
@@ -783,6 +788,8 @@ let updateData = (blocks) => {
 				let f = blocks.find(e => e.id == node.id)
 				if (f && f.type == 'Text') node.text = f.content.markdown
 			}
+
+			nodeIds[node.id] = node 
 		})
 
 		// if data has blocks that aren't in blocks... remove them
@@ -799,7 +806,12 @@ let updateData = (blocks) => {
 	}
 
 	if (!store.data) {
-		let nodes = blocks.filter(e => e.title != ".canvas").map(constructBlockData)
+		nodeIds = {}
+		let nodes = blocks
+				.filter(e => e.title != ".canvas")
+				.map(constructBlockData)
+
+		nodes.forEach(e => nodeIds[e.id] = e)
 		store.data = { nodes, edges: [] }
 	}
 
@@ -941,6 +953,7 @@ let renderBlocks = (blocks) => {
 					console.log(res)
 					let newBlock = constructBlockData(res, { x, y, width, height })
 					store.data.nodes.push(newBlock)
+					nodeIds[newBlock.id] = newBlock
 					document.querySelector('.container').appendChild(blockEl(res))
 
 					save_data()
@@ -951,6 +964,7 @@ let renderBlocks = (blocks) => {
 			if (width < 250 || height < 250) return
 			let d = groupData(x, y, width, height)
 			store.data.nodes.push(d)
+			nodeIds[d.id] = d
 			groupRender.next(e => e + 1)
 		}
 
@@ -967,10 +981,6 @@ let renderBlocks = (blocks) => {
 	// 	else return [0,0,0,0]
 	// }, [mouse])
 
-	let bigline = memo(() => [
-		// svgline(...lines.value()),
-		svgrect(...pointStart.value(), ...pointEnd.value(), "black", (anchor || canceled) ? 0 : 3)
-	], [pointStart, pointEnd])
 
 	let anchored = []
 	let boundingAnchor = {}
@@ -1030,94 +1040,12 @@ border: 4px solid var(--bor6);
 		else return ''
 	}, [dimsMemo])
 
-	let bigbox = dom('.absolute.big-box', { style: dawgWalkers },
-		memo(() => {
-			let { dims, sel } = dimsMemo.value();
-			console.log(dims)
-			return svgx(dims.x2-dims.x, dims.y2-dims.y, '#E3CFF5')
-		}, [dimsMemo]))
-
-	setTimeout(() => {
-		let set_position = (x, y) => {
-			let diff = {
-				x: x - boundingAnchor.x,
-				y: y - boundingAnchor.y
-			}
-
-			anchored.forEach(e => {
-				e.block.x = e.offset.x + diff.x
-				save_data()
-
-				e.block.y = e.offset.y + diff.y
-				save_data()
-			})
-
-			bigbox.style.left = x + 'px'
-			bigbox.style.top = y + 'px'
-		}
-
-		drag(bigbox, { set_position })
-	}, 150)
-
-	let edgesRender = reactive(0)
-	let edges = memo(() => {
-		if (!store.data.edges) return []
-		return store.data.edges.map(e => {
-			let boundingToSide = (b, side) => {
-				if (side == 'top') {
-					return ({
-						x: b.x + b.width / 2,
-						y: b.y
-					})
-				}
-
-				if (side == 'bottom') {
-					return ({
-						x: b.x + b.width / 2,
-						y: b.y + b.height
-					})
-				}
-
-				if (side == 'right') {
-					return ({
-						x: b.x + b.width,
-						y: b.y + b.height / 2
-					})
-				}
-
-				if (side == 'left') {
-					return ({
-						x: b.x,
-						y: b.y + b.height / 2
-					})
-				}
-			}
-
-			let from = store.data.nodes.find(b => b.id == e.fromNode)
-			let to = store.data.nodes.find(b => b.id == e.toNode)
-
-			let fromT = boundingToSide(from, e.fromSide)
-			let toT = boundingToSide(to, e.toSide)
-
-			return svgline(fromT.x, fromT.y, toT.x, toT.y, 'black', 7, 0, {
-				onmouseenter: () => {
-					console.log(e)
-					state.selectedConnection = e
-				},
-				onmouseexit: () => { state.selectedConnection = undefined },
-			})
-		})
-	}, [edgesRender])
-	dataSubscriptions.push(f => edgesRender.next(e => e + 1))
-
-	let stupidSVG = ['svg', { width: dimensions, height: dimensions }, bigline, edges, dawgWalkers]
-
 	let root = [".container",
 		{
 			holding,
 			style: stylemmeo,
 			onpointerdown, onpointermove, onpointerup
-		}, stupidSVG, groupmapped, ...blocksmapped, bigbox]
+		}, groupmapped, ...blocksmapped]
 
 	document.body.appendChild(dom(root))
 }
@@ -1197,7 +1125,7 @@ let mount = () => {
 	// Fix the leaks here...
 	let svg = ['svg.line-canvas', { width: window.innerWidth, height: window.innerHeight }, lineEls]
 
-	let nodes = [svg, slcurse, sls, sly, slx, k]
+	let nodes = [slcurse, sls, sly, slx, k]
 	let pos = (x, y) => `position: fixed; left: ${x}em; top: ${y}em; z-index: 9999;`
 	let posbr = (x, y) => `position: fixed; right: ${x}em; bottom: ${y}em; z-index: 9999;`
 
@@ -1388,6 +1316,7 @@ document.onkeydown = (e) => {
 						console.log("BLock?", block)
 						let newBlock = constructBlockData(block, { x: canvasX.value(), y: canvasY.value(), width: 350, height: 350 })
 						store.data.nodes.push(newBlock)
+						nodeIds[newBlock.id] = newBlock
 						document.querySelector('.container').appendChild(blockEl(block))
 
 						save_data()
