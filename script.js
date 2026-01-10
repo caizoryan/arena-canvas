@@ -1,35 +1,13 @@
 import { reactive, memo } from "./chowk.js"
 import { dom } from "./dom.js"
-import { canvasScale, canvasX, canvasY, state } from "./state.js"
-import { get_channel } from './arena.js'
+import { canvasScale, canvasX, canvasY, state, try_set_channel } from "./state.js"
+
 
 // first order of business
-// Get canvas showing and moving like before
-// Load blocks from Are.na
-
-// --------------------------
-// Utility #dom #notification 
-// --------------------------
-export let notificationpopup = (msg, error = false) => {
-	msg = error ? '🚫 ' +msg : msg
-	let tag = '.notification' + (error ? '.error' : '')
-
-	let d = dom(tag, msg)
-
-	document.querySelectorAll('.notification')
-		.forEach((e) => {
-			let b = parseFloat(e.style.bottom)
-			e.style.bottom = (b + 5) + 'em'
-		})
-
-	document.body.appendChild(d)
-
-	setTimeout(() => { d.style.right = '1em'; d.style.opacity = 1 }, 5)
-	setTimeout(() => { d.style.opacity = 0 }, error ? 6000 : 4500)
-	setTimeout(() => { d.remove() }, error ? 9500 : 8000)
-}
-
-
+// 1. Get canvas showing and moving like before
+// 2. Load blocks from Are.na
+// 3. Implement store
+// 4. Add nodes to store
 let mountContainer = () => {
 
 	// Anchoring components
@@ -124,39 +102,6 @@ mountContainer()
 // setting slug
 // pulling from are.na
 
-export let try_set_channel = slugOrURL => {
-	// TODO: Add more safety here?
-	let isUrl = slugOrURL.includes("are.na/");
-	if (isUrl) {
-		let slug = slugOrURL.split('/').filter(e => e != '').pop()
-		set_channel(slug)
-	}
-	else {
-		set_channel(slugOrURL.trim())
-	}
-}
-export let set_channel = slug => {
-	notificationpopup("Loading " + slug + "...")
-	get_channel(slug)
-		.then((res) => {
-			if (!res.data) {
-				console.log("Failed to get channel", res.error)
-				notificationpopup(['span', 'Failed to get channel ' + slug, ' try refreshing or opening another channel'], true)
-			}
-
-			else {
-				notificationpopup('Loaded Channel: ' + slug)
-				notificationpopup('Total Blocks: ' + res.data.length)
-
-				state.current_slug = slug
-				console.log(res.data)
-				// addToRecents(slug)
-				// setSlug(slug)
-				// localStorage.setItem('slug', slug)
-				// renderBlocks(res.data)
-			}
-		})
-}
 
 // ---------------
 // Nodes
