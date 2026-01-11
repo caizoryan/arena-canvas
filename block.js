@@ -104,6 +104,7 @@ export function GroupElement(group) {
 
 
 	let onstart = () => {
+		state.selected.next([])
 		// saves this location for undo
 		store.startBatch()
 		left.next(left.value())
