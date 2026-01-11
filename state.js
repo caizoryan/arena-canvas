@@ -7,6 +7,7 @@ import { BlockElement, constructBlockData, GroupElement} from "./block.js"
 import { createStore } from "./store.js"
 import { svgrect } from "./svg.js"
 import { dragTransforms } from "./dragOperations.js"
+import { mountBoundingBox } from "./bigBoundingBox.js"
 
 let stringify = JSON.stringify
 export let mouse = reactive({ x: 0, y: 0 })
@@ -161,6 +162,7 @@ let set_channel = slug => {
 				mountContainer([
 					svg,
 					...groups.map(GroupElement),
+					mountBoundingBox(),
 					...blocks.map(BlockElement),
 				])
 

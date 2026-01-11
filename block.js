@@ -22,9 +22,9 @@ const CSSTransform = (x, y, width, height) => `
 		width: ${unwrap(width)}px;
 		height: ${unwrap(height)}px;`
 
-const Transform = (x, y, width, height) => ({ x, y, width, height })
+export const Transform = (x, y, width, height) => ({ x, y, width, height })
 const Color = i => 'background-color: var(--b' + i + ');'
-const isRectContained = (rect1, rect2) => {
+export const isRectContained = (rect1, rect2) => {
 	return (
 		rect2.x >= rect1.x &&
 		rect2.y >= rect1.y &&
@@ -143,7 +143,7 @@ export function GroupElement(group) {
 	}
 
 	let edges = resizers(left, top, width, height, { onstart, onend })
-	let el = dom('.draggable.node.group', { style }, colorBars(group), groupTitleLabel(group), ...edges)
+	let el = dom('.draggable.group', { style }, colorBars(group), groupTitleLabel(group), ...edges)
 
 	setTimeout(() => {
 		drag(el, {
@@ -185,6 +185,18 @@ export function BlockElement(block) {
 	let color = r('color')
 	let height = r('height')
 	let width = r('width')
+	let isSelected = memo(
+		() => state.selected.value().includes(block.id), [state.selected])
+
+	let isMultiSelected = memo(
+		() => state.selected.value().length > 1
+			&& state.selected.value().includes(block.id), [state.selected])
+
+	let addToSelection = (e) => {
+		console.log(e.shiftKey)
+		if (e.shiftKey) state.selected.next(e => [...e, block.id])
+		else state.selected.next([block.id])
+	}
 
 	let style = memo(() =>
 		CSSTransform(left, top, width, height)
@@ -216,8 +228,8 @@ export function BlockElement(block) {
 
 	let b = ['.bottom-bar', ...Object.values(BasicComponents(block))]
 
-	let onstart = () => {
-		console.log('id', store.get(getNodeLocation(block.id)))
+	let onstart = (e) => {
+		addToSelection(e)
 		store.startBatch()
 		// saves this location for undo
 		left.next(left.value())
@@ -232,9 +244,15 @@ export function BlockElement(block) {
 	let onend = () => store.resumeTracking()
 
 	let edges = resizers(left, top, width, height, { onstart, onend })
-	el = dom('.draggable.node',
-		{ style, "block-id": block.id, ...attributes },
-		t, el, ...edges, b,)
+	el = dom('.draggable.node', {
+			style,
+			"block-id": block.id,
+			...attributes,
+			selected: isSelected,
+			'multi-selected': isMultiSelected,
+			// onclick: addToSelection,
+		},
+	t, el, ...edges, b,)
 
 	setTimeout(() => {
 		drag(el, {

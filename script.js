@@ -218,6 +218,11 @@ let vistLast = () => {
 	if (last) animateMove(last.x, last.y)
 }
 
+let escape = () => {
+	state.canceled.next(true)
+	state.selected.next([])
+}
+
 let keys = new Keymanager()
 let preventDefault = { preventDefault: true }
 keys.on('cmd + z', undo, preventDefault)
@@ -227,7 +232,7 @@ keys.on('cmd + -', zoomOut, preventDefault)
 keys.on('ArrowRight', moveRight)
 keys.on('ArrowLeft', moveLeft)
 keys.on('cmd + e', toggleSidebar, preventDefault)
-keys.on("Escape", () => state.canceled.next(true), {modifiers: false})
+keys.on("Escape", escape, {modifiers: false})
 // keys.on("cmd + escape", () => state.canceled.next(true))
 // keys.on("shift + escape", () => state.canceled.next(true))
 keys.on("b", vistLast)

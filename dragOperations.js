@@ -1,5 +1,5 @@
 import { reactive, memo } from "./chowk.js"
-import { BlockElement, constructBlockData, constructGroupData, GroupElement } from "./block.js"
+import { BlockElement, constructBlockData, constructGroupData, GroupElement, isRectContained, Transform } from "./block.js"
 import { addNode, state, store, updateNodeHash } from "./state.js"
 import { add_block } from "./arena.js"
 
@@ -18,6 +18,9 @@ export let dragTransforms = {
 let makingBlock = false
 let makingGroup = false
 
+/** @type {( "pan" | "making-block" | 'making-group' | 'select')}*/
+let dragAction = 'pan'
+
 export let dragOperations = {
 	onpointerdown: e => {
 		let target = e.target
@@ -32,8 +35,9 @@ export let dragOperations = {
 
 		target.setPointerCapture(e.pointerId);
 
-		if (e.metaKey) { makingBlock = true }
-		else if (e.shiftKey) { makingGroup = true }
+		if (e.metaKey && e.shiftKey) { dragAction = 'making-block' }
+		else if (e.shiftKey) { dragAction = 'select' }
+		else if (e.metaKey) { dragAction = 'making-group' }
 		else {
 			anchor = {
 				x: state.canvasX.value(),
@@ -43,6 +47,7 @@ export let dragOperations = {
 
 			state.holdingCanvas.next(true)
 		}
+
 	},
 	onpointermove: e => {
 		let target = e.target
@@ -91,23 +96,36 @@ export let dragOperations = {
 			state.canceled.next(false)
 			return
 		}
-		if (makingBlock) {
-			makingBlock = false
+
+		if (dragAction == 'making-block') {
+			dragAction = 'pan'
 			if (width < 150 || height < 150) return
 			add_block(state.currentSlug.value(), '', "# New Block")
 				.then((res) => {
 					let newBlock = constructBlockData(res, { x, y, width, height })
 					addNode(newBlock)
-
 					document.querySelector('.container').appendChild(BlockElement(res))
 				})
 
 		}
-		else if (makingGroup) {
+		else if (dragAction == 'making-group') {
+			dragAction = 'pan'
 			if (width < 250 || height < 250) return
 			let d = constructGroupData(x, y, width, height)
 			addNode(d)
 			document.querySelector('.container').appendChild(GroupElement(d))
+		}
+
+		else if (dragAction == 'select') {
+			let nodes = store.get(['data', 'nodes'])
+			let selection = []
+			nodes.forEach((node) => {
+				(isRectContained(Transform(x, y, width, height), node))
+					? selection.push(node.id)
+					: null
+			})
+
+			state.selected.next(selection)
 		}
 	}
 }

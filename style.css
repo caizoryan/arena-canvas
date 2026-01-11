@@ -106,6 +106,7 @@ body {
 	height: 100%;
 	-ms-overflow-style: none;  
   scrollbar-width: none;  
+	z-index: 99;
 }
 
 .block.text, .block.channel{
@@ -180,14 +181,21 @@ body {
 	/* overflow: hidden; */
 	/* border-radius: 8px; */
 	font-family: monospace;
-	z-index: 92;
 	box-shadow: 6px 6px 0 rgba(0, 0, 0, .13);
+}
+
+.draggable.node {
+	z-index: 99;
 }
 
 .draggable.group {
 	z-index: 91;
 	background-color: #ff22;
 	padding: 1em;
+}
+
+.big-box {
+	z-index: 94;
 }
 
 .psuedo-container {
@@ -475,6 +483,7 @@ textarea {
 	border-bottom: 1px solid black;
   max-width: 400px;
   width: max-content;
+
 }
 
 .notification {
