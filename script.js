@@ -44,7 +44,7 @@ export function moveToBlock(id) {
 			last.x = state.canvasX.value()
 			last.y = state.canvasY.value()
 
-			lastHistory.push(last)
+			state.last_history.push(last)
 
 			let destX = (xDist / state.canvasScale.value()) + last.x
 			let destY = (yDist / state.canvasScale.value()) + last.y
@@ -213,6 +213,10 @@ let zoomOut = (e) => state.canvasScale.next(f => f - (inc() / 500))
 let moveLeft = () => state.canvasX.next(f => f - inc())
 let moveRight = () => state.canvasX.next(f => f + inc())
 let toggleSidebar = () => state.sidebarOpen.next(e => !e)
+let vistLast = () => {
+	let last = state.last_history.pop()
+	if (last) animateMove(last.x, last.y)
+}
 
 let keys = new Keymanager()
 let preventDefault = { preventDefault: true }
@@ -226,6 +230,7 @@ keys.on('cmd + e', toggleSidebar, preventDefault)
 keys.on("Escape", () => state.canceled.next(true))
 keys.on("cmd + escape", () => state.canceled.next(true))
 keys.on("shift + escape", () => state.canceled.next(true))
+keys.on("b", vistLast)
 
 document.onkeydown = e => keys.event(e)
 
