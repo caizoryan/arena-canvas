@@ -4,21 +4,26 @@ import { dom } from "./dom.js"
 import { drag } from "./drag.js"
 import { MD } from "./md.js"
 import { notificationpopup } from "./notification.js"
-import { getNodeLocation, store, subscribeToId, state, addNode } from "./state.js"
+import { getNodeLocation, store, subscribeToId, state, addNode, addEdge } from "./state.js"
 import { svgx } from "./svg.js"
 
 // ---------
 // Utilities
 // ~~~~~~~~~
 const uuid = () => Math.random().toString(36).slice(-6);
-const button = (t, fn, opts = {}) => ['button', { onclick: fn, ...opts }, t]
+export const button = (t, fn, opts = {}) => ['button', { onclick: fn, ...opts }, t]
 export const unwrap = t => t.isReactive ? t.value() : t
-const CSSTransform = (x, y, width, height) => `
+export const CSSTransform = (x, y, width, height) => {
+	let v = `
 		position: absolute;
 		left: ${unwrap(x)}px;
-		top: ${unwrap(y)}px;
-		width: ${unwrap(width)}px;
-		height: ${unwrap(height)}px;`
+		top: ${unwrap(y)}px;`
+
+	if (width != undefined) v+= `width: ${unwrap(width)}px;`
+	if (height != undefined)v += `height: ${unwrap(height)}px;`
+
+	return v
+}
 
 export const Transform = (x, y, width, height) => ({ x, y, width, height })
 const Color = i => 'background-color: var(--b' + i + ');'
@@ -167,6 +172,9 @@ export function BlockElement(block) {
 	let onend = () => store.resumeTracking()
 
 	let edges = resizers(left, top, width, height, { onstart, onend })
+
+	let connectionEdges = connectors(block, left, top, width, height)
+
 	el = dom('.draggable.node', {
 			style,
 			"block-id": block.id,
@@ -174,8 +182,7 @@ export function BlockElement(block) {
 			selected: isSelected,
 			'multi-selected': isMultiSelected,
 			// onclick: addToSelection,
-		},
-	t, el, ...edges, b,)
+		}, t, el, ...edges,...connectionEdges, b,)
 
 	setTimeout(() => {
 		drag(el, {
@@ -207,7 +214,7 @@ export function GroupElement(group) {
 		, [left, top, width, height, color])
 
 
-	let onstart = () => {
+	let onstart = (e) => {
 		state.selected.next([])
 
 		// saves this location for undo
@@ -217,28 +224,29 @@ export function GroupElement(group) {
 		width.next(width.value())
 		height.next(height.value())
 
-		store.get(['data', 'nodes']).forEach((e, i) => {
-			if (isRectContained(
-				Transform(
-					left.value(), top.value(),
-					width.value(), height.value()), e)
-			) {
-				let item = {
-					blockLocation: ['data', 'nodes', i],
-					position: { x: e.x, y: e.y },
-					offset: {
-						x: e.x - left.value(),
-						y: e.y - top.value(),
+		if (!e.metaKey){
+			store.get(['data', 'nodes']).forEach((e, i) => {
+				if (isRectContained(
+					Transform(
+						left.value(), top.value(),
+						width.value(), height.value()), e)
+				) {
+					let item = {
+						blockLocation: ['data', 'nodes', i],
+						position: { x: e.x, y: e.y },
+						offset: {
+							x: e.x - left.value(),
+							y: e.y - top.value(),
+						}
 					}
+					anchored.push(item)
 				}
-				anchored.push(item)
-			}
-		})
-
-		anchored.forEach((e, i) => {
-			store.tr(e.blockLocation, 'set', ['x', e.position.x])
-			store.tr(e.blockLocation, 'set', ['y', e.position.y])
-		})
+			})
+			anchored.forEach((e, i) => {
+				store.tr(e.blockLocation, 'set', ['x', e.position.x])
+				store.tr(e.blockLocation, 'set', ['y', e.position.y])
+			})
+		}
 
 		store.endBatch()
 		store.pauseTracking()
@@ -310,6 +318,63 @@ const resizers = (left, top, width, height, opts = {}) => {
 	}, 100)
 
 	return [MainCorner, WidthMiddle, HeightMiddle]
+}
+const connectors = (block, left, top, width, height, opts = {}) => {
+	let connectionPointBottom = memo(() =>
+		CSSTransform(width.value() / 2, height.value() - 15)
+, [height, width])
+
+	let connectionPointRight = memo(() => 
+		CSSTransform (width.value() - 15, height.value() / 2)
+, [height, width])
+
+	let connectionPointTop = memo(() =>
+		CSSTransform(width.value() / 2, -15),
+	[height, width])
+
+	let connectionPointLeft = memo(() =>
+		CSSTransform(-15, height.value() / 2),
+	[height, width])
+
+
+	let connectionPoint = (side, style) => dom('.edge-connector.absolute.flex-center.box', {
+		style, onclick: e => {
+			if (state.blockConnectionBuffer) {
+				// add edge
+				if (state.blockConnectionBuffer.fromNode == block.id) {
+					console.log('canelling')
+					state.blockConnectionBuffer = undefined
+				}
+
+				addEdge({
+					id: uuid(),
+					...state.blockConnectionBuffer,
+					toNode: block.id,
+					toSide: side
+				})
+
+				document.querySelectorAll('.wobble').forEach(e => {
+					e.classList.toggle('wobble')
+				})
+
+				state.blockConnectionBuffer = undefined
+			}
+
+			else {
+				e.target.classList.toggle('wobble')
+				state.blockConnectionBuffer = { fromNode: block.id, fromSide: side }
+			}
+		}
+	}, 'X')
+
+	let connectionPoints = [
+		connectionPoint('top', connectionPointTop),
+		connectionPoint('left', connectionPointLeft),
+		connectionPoint('bottom', connectionPointBottom),
+		connectionPoint('right', connectionPointRight),
+	]
+
+	return connectionPoints
 }
 
 const TextBlock = (block) => {
@@ -433,6 +498,7 @@ const BasicComponents = (block) => {
 }
 
 export let constructBlockData = (e, i) => {
+	let padding = 400
 	let d = {
 		id: e.id,
 		width: 300,
@@ -440,8 +506,8 @@ export let constructBlockData = (e, i) => {
 		color: '1'
 	}
 	if (typeof i == 'number') {
-		d.x = (i % 8) * 400
-		d.y = (Math.floor(i / 8)) * 450
+		d.x = (i % 8) * 400 + padding
+		d.y = (Math.floor(i / 8)) * 450 + padding
 	}
 	else {
 		d.x = i.x

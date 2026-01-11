@@ -198,6 +198,20 @@ body {
 	z-index: 94;
 }
 
+.main-buttons {
+	z-index: 99;
+	position: fixed;
+	left: 0;
+	top: 0;
+	height: max-content;
+	width: 98vw;
+	padding: .5em;
+	display: flex;
+}
+
+.main-buttons > * {
+	margin-right: 1em;
+}
 svg.background {
 	z-index: 94;
 	position: absolute;
@@ -227,7 +241,7 @@ img {
 
 button {
 	/* all: unset; */
-	border: var(--border-thickness) solid var(--highlight);
+	border: 2px solid var(--highlight);
 	background: var(--background);
 	color: var(--color);
 	text-decoration: none;
@@ -461,6 +475,7 @@ textarea {
 	border: var(--border-thickness) solid var(--highlight);
 	z-index: 299;
 	box-shadow: 6px 6px 0 rgba(0, 0, 0, .1);
+	transition: all 150ms ease-in-out;
 }
 
 .sidebar>* {
@@ -473,7 +488,7 @@ textarea {
 }
 
 .sidebar[open='false'] {
-	left: -40vw;
+	left: -60vw;
 }
 
 .section {

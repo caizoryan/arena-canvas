@@ -3,9 +3,11 @@ import { dom } from "./dom.js"
 import { store, state, try_set_channel } from "./state.js"
 import { Keymanager } from "./keymanager.js"
 import { sidebar } from "./sidebar.js"
-import { dragOperations  } from "./dragOperations.js"
+import { dragOperations } from "./dragOperations.js"
 import { notificationpopup } from "./notification.js"
 import { update_block } from "./arena.js"
+import { button, CSSTransform } from "./block.js"
+import { helpbar } from "./help.js"
 
 // first order of business
 // 1. Get canvas showing and moving like before
@@ -22,6 +24,29 @@ let checkSlugUrl = (url) => {
 	else return url.split('#').filter(e => e != '').pop()
 }
 
+// --------------------
+// ACTIONS
+// --------------------
+let toggleSidebar = () => state.sidebarOpen.next(e => !e)
+
+let undo = () => store.canUndo() ? store.doUndo() : null
+let redo = () => store.canRedo() ? store.doRedo() : null
+
+let inc = (e = false) => e ? 250 : 50
+let zoomIn = (e) => state.canvasScale.next(f => f + (inc() / 500))
+let zoomOut = (e) => state.canvasScale.next(f => f - (inc() / 500))
+let moveLeft = () => state.canvasX.next(f => f - inc())
+let moveRight = () => state.canvasX.next(f => f + inc())
+let vistLast = () => {
+	let last = state.last_history.pop()
+	if (last) animateMove(last.x, last.y)
+}
+
+
+let escape = () => {
+	state.canceled.next(true)
+	state.selected.next([])
+}
 let saveCanvasToArena = () => {
 	notificationpopup("trying?")
 	let content = JSON.stringify(store.get(['data']))
@@ -49,6 +74,29 @@ let saveCanvasToArena = () => {
 		})
 	}
 }
+
+// ---------------------
+// Main Buttons
+// ~~~~~~~~~~~~~~~~~~~~~
+
+export const CSSTransformNoUnit = (x, y, width, height) => {
+	let v = `
+		position: absolute;
+		left: ${(x)};
+		top: ${(y)};`
+
+	if (width != undefined) v += `width: ${(width)};`
+	if (height != undefined) v += `height: ${(height)};`
+
+	return v
+}
+
+let openbtn = button(['span', 'SIDEBAR ', ['code', "⌘E"]], toggleSidebar,)
+let savebtn = button(['span', 'SAVE ', ['code', "⌘S"]], saveCanvasToArena, { updated: state.updated })
+
+let helpbtn = button(['span', 'HELP ', ['code', "?"]], () => state.helpOpen.next(e => !e))
+
+let buttons = ['.main-buttons', savebtn, openbtn, helpbtn]
 
 // --------------------
 // Move this somewhere
@@ -137,7 +185,9 @@ export let mount = () => {
 		? try_set_channel(slug)
 		: try_set_channel(state.currentSlug.value())
 
+	document.body.appendChild(dom(helpbar))
 	document.body.appendChild(dom(sidebar))
+	document.body.appendChild(dom(buttons))
 }
 
 let unmountContainer = () => {
@@ -231,27 +281,6 @@ document.addEventListener("wheel", e => {
 }, { passive: false })
 
 
-// --------------------
-// ACTIONS
-// --------------------
-let undo = () => store.canUndo() ? store.doUndo() : null
-let redo = () => store.canRedo() ? store.doRedo() : null
-
-let inc = (e = false) => e ? 250 : 50
-let zoomIn = (e) => state.canvasScale.next(f => f + (inc() / 500))
-let zoomOut = (e) => state.canvasScale.next(f => f - (inc() / 500))
-let moveLeft = () => state.canvasX.next(f => f - inc())
-let moveRight = () => state.canvasX.next(f => f + inc())
-let toggleSidebar = () => state.sidebarOpen.next(e => !e)
-let vistLast = () => {
-	let last = state.last_history.pop()
-	if (last) animateMove(last.x, last.y)
-}
-
-let escape = () => {
-	state.canceled.next(true)
-	state.selected.next([])
-}
 
 let keys = new Keymanager()
 let prevent = { preventDefault: true }
@@ -263,7 +292,7 @@ keys.on('ArrowRight', moveRight)
 keys.on('ArrowLeft', moveLeft)
 keys.on('cmd + e', toggleSidebar, prevent)
 keys.on('alt + cmd + c', toggleSidebar, prevent)
-keys.on("escape", escape, {modifiers: false})
+keys.on("escape", escape, { modifiers: false })
 keys.on("b", vistLast)
 keys.on("cmd + s", saveCanvasToArena, prevent)
 

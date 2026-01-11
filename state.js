@@ -17,8 +17,10 @@ export let state = {
 	authKey: undefined,
 	me: {},
 
-	recentSlugs: reactive([]),
 	sidebarOpen: reactive(false),
+	helpOpen: reactive(false),
+
+	recentSlugs: reactive([]),
 	currentSlug: reactive("are-na-canvas"),
 	selected: reactive([]),
 
@@ -46,6 +48,8 @@ export let store = createStore({
 })
 
 store.subscribe(['data', 'nodes'], (e) => {
+	state.updated.next(false)
+
 	let yes = false
 	if (e.id){
 		// check if e.id is in edges
@@ -57,6 +61,7 @@ store.subscribe(['data', 'nodes'], (e) => {
 	}
 	if (yes) state.reRenderEdges.next(e => e+.0001)
 }, true)
+store.subscribe(['data', 'edges'], () => state.reRenderEdges.next(e => e+.0001))
 
 // ~~~~~~~~~~~
 // STORE UTILS
@@ -109,6 +114,27 @@ export let setNodes = (nodes) => {
 export let addNode = (node) =>{
 	store.tr(NODES, 'push', node, false)
 	updateNodeHash()
+}
+
+export let addEdge = edge => {
+	// check if connection already exists
+	// if not then add
+	let exists = false
+	store.get(EDGES).forEach(e => {
+		if (exists) return
+		if (
+			e.fromNode == edge.fromNode
+			&& e.fromSide == edge.fromSide
+			&& e.toSide == edge.toSide
+			&& e.toNode == edge.toNode
+		) exists = true
+	})
+
+	if (!exists) store.tr(EDGES, 'push', edge)
+	else notificationpopup("Connection Already Exists", true)
+
+	state.reRenderEdges.next(e => e+.0001)
+	// updateNodeHash()
 }
 
 // TODO: when block is reorganzied this addressh becomes invalid...
