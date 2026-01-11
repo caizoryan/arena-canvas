@@ -1,25 +1,38 @@
+import { dom } from "./dom.js"
 import { reactive, memo } from "./chowk.js"
 import { get_channel, try_auth } from './arena.js'
 import { notificationpopup } from './notification.js'
 import {  mountContainer } from "./script.js"
 import { BlockElement, constructBlockData, GroupElement} from "./block.js"
 import { createStore } from "./store.js"
+import { svgrect } from "./svg.js"
+import { dragTransforms } from "./dragOperations.js"
 
 let stringify = JSON.stringify
 export let mouse = reactive({ x: 0, y: 0 })
 
 export let state = {
-	recentSlugs: reactive([]),
-	sidebarOpen: reactive(false),
-	currentSlug: reactive("are-na-canvas"),
-	canvasX : reactive(0),
-	canvasY : reactive(0),
-	canvasScale : reactive(1),
 	authSlug: reactive(''),
 	authKey: undefined,
 	me: {},
-	dot_canvas: undefined,
+
+	recentSlugs: reactive([]),
+	sidebarOpen: reactive(false),
+	currentSlug: reactive("are-na-canvas"),
+	selected: reactive([]),
+
+	canvasX : reactive(0),
+	canvasY : reactive(0),
+	canvasScale : reactive(1),
+
+	dimensions: reactive(10000),
+	holdingCanvas: reactive(false),
+	canceled: reactive(false),
+
 	trackpad_movement: true,
+	last_history: [],
+	dot_canvas: undefined,
+	moving_timeout: undefined,
 }
 
 export let store = createStore({
@@ -33,7 +46,7 @@ export let store = createStore({
 let NODES = ['data', 'nodes']
 let NODEHASH = ['data', 'nodeHash']
 let NODEAT = i => NODES.concat([i])
-let updateNodeHash = () => {
+export let updateNodeHash = () => {
 	let oldHash = store.get(NODEHASH)
 	let hash = store.get(NODES)
 			.reduce((acc, n, i) => (acc[n.id] = NODEAT(i), acc), {})
@@ -41,7 +54,6 @@ let updateNodeHash = () => {
 	if (oldHash){
 		Object.entries(oldHash).forEach(([key, value]) => {
 			if (!idSubscriptions[key]) return
-
 			let {remove, fn, location} = idSubscriptions[key]
 
 			if (!hash[key]) {
@@ -57,25 +69,20 @@ let updateNodeHash = () => {
 	}
 
 	store.tr(['data'], 'set', ['nodeHash', hash], false)
-	console.log("Updated nodehash", store.get(NODEHASH))
 }
 let idSubscriptions = {}
 
 export let subscribeToId = (id, location, fn) => {
 	let l = getNodeLocation(id)
 	let remove = store.subscribe(l.concat(location), fn)
-
-	// will figure this out later
 	idSubscriptions[id] = {fn, location, remove}
-	// will manage subscriptions for id
-	// whenever hash changes, resubscribe to new location
-	// basically proxy a subscription and whenver hash changes internally update
 }
+
 export let setNodes = (nodes) => {
-	console.log("setting nodes", nodes)
 	store.tr(['data'], 'set', ['nodes', nodes], false)
 	updateNodeHash()
 } 
+
 export let addNode = (node) => store.tr(NODES, 'push', node, false)
 
 // TODO: when block is reorganzied this addressh becomes invalid...
@@ -142,8 +149,10 @@ let set_channel = slug => {
 
 				let blocks = processBlockForRendering(res.data)
 				let groups = store.get(NODES).filter(e => e.type == 'group')
+				let svg = svgBackground()
 
 				mountContainer([
+					svg,
 					...groups.map(GroupElement),
 					...blocks.map(BlockElement),
 				])
@@ -155,12 +164,26 @@ let set_channel = slug => {
 		})
 }
 
+let dragMarker = dom(svgrect(
+	dragTransforms.startX,
+	dragTransforms.startY,
+	dragTransforms.endX,
+	dragTransforms.endY,
+
+	memo(() =>
+		(state.holdingCanvas.value() || state.canceled.value())
+			? '#fff1'
+			: '#0008',
+		[state.holdingCanvas, state.canceled])
+))
+
+let svgBackground = () => {
+	return ['svg', { width: state.dimensions, height: state.dimensions }, dragMarker]
+}
+
 let updateData = (blocks) => {
-	console.log("UDPATIN DATA")
 	state.dot_canvas = blocks.find(e => e.title == '.canvas')
 	if (state.dot_canvas) {
-		console.log("FOUND DOT CANVAS")
-		// put in a try block
 		let parsed = JSON.parse(state.dot_canvas.content.plain)
 		setNodes(parsed.nodes)
 		store.tr(['data'], 'set', ['edges', parsed.edges])
@@ -172,17 +195,23 @@ let updateData = (blocks) => {
 		})
 
 		// if data has blocks that aren't in blocks... remove them
+		let updateHash = false
 		store.get(NODES).forEach(node => {
 			if (node.type == 'group') return
-			let f = blocks.find(e => e.id == node.id)
+			let f
+			if (node.id.toString().charAt(0) == 'c')
+				f = blocks.find(e => 'c'+e.id == node.id)
+			else f = blocks.find(e => e.id == node.id)
 			if (!f) {
-				console.log('removing', node)
+				console.log('removing')
 				let i = store.get(NODES).findIndex(n => n == node)
-				// TODO: implement relocate or this will fuck 
 				store.tr(NODES, 'remove', [i, 1])
-				updateNodeHash()
+				updateHash = true
 			}
 		})
+
+		// will relocate
+		if (updateHash) updateNodeHash()
 	}
 	else {
 		console.log("DIDNT FIND DOT CANVAS")
@@ -193,7 +222,7 @@ let updateData = (blocks) => {
 	}
 }
 let processBlockForRendering = (blocks) => {
-	blocks = blocks.filter(e => e.title != ".canvas" || e.type != 'Channel')
+	blocks = blocks.filter(e => e.title != ".canvas")
 	return blocks
 }
 

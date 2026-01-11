@@ -3,6 +3,7 @@ import { dom } from "./dom.js"
 import { store, state, try_set_channel } from "./state.js"
 import { Keymanager } from "./keymanager.js"
 import { sidebar } from "./sidebar.js"
+import { dragOperations  } from "./dragOperations.js"
 
 // first order of business
 // 1. Get canvas showing and moving like before
@@ -17,6 +18,83 @@ import { sidebar } from "./sidebar.js"
 let checkSlugUrl = (url) => {
 	if (!url.includes("#")) return
 	else return url.split('#').filter(e => e != '').pop()
+}
+
+// --------------------
+// Move this somewhere
+// xxxxxxxxxxxxxxxxxxxxx
+export function moveToBlock(id) {
+	let found = document.querySelector("*[block-id='" + id + "']")
+	if (found) {
+		if (movingTimeout) clearTimeout(movingTimeout)
+		let { x, y, width, height } = found.getBoundingClientRect()
+		let xDist = x - 150
+		let yDist = y - 150
+
+		if (width < window.innerWidth) {
+			let left = (window.innerWidth - width) / 2
+			xDist = x - left
+		}
+
+		// if visible don't move
+		if (!(x > 0 && x + width < window.innerWidth)
+			|| !(y > 0 && y + 150 < window.innerHeight)
+		) {
+			let last = {}
+			last.x = state.canvasX.value()
+			last.y = state.canvasY.value()
+
+			lastHistory.push(last)
+
+			let destX = (xDist / state.canvasScale.value()) + last.x
+			let destY = (yDist / state.canvasScale.value()) + last.y
+
+			animateMove(destX, destY)
+		}
+
+
+		let c = found.style.backgroundColor
+		let z = found.style.zindex
+		found.style.backgroundColor = 'yellow'
+		found.style.zIndex = 99
+		setTimeout(() => {
+			found.style.backgroundColor = c
+			found.style.zIndex = z
+		}, 800)
+	}
+
+	else {
+		notificationpopup(
+			['span', "Block not found, ",
+				['a', {
+					href: 'https://are.na/block/' + id,
+					target: '_blank'
+				},
+					'jump to link'], "?"])
+	}
+}
+
+// --------------
+// Animation
+// --------------
+const lerp = (start, stop, amt) => amt * (stop - start) + start
+const InOutQuad = (t) => (t < 0.5 ? 2 * t * t : -1 + (4 - 2 * t) * t)
+let animateMove = (destX, destY) => {
+	let last = {}
+	last.x = state.canvasX.value()
+	last.y = state.canvasY.value()
+
+	let t = 0
+	let v = 0
+	let progress = () => {
+		t += .03
+		v = InOutQuad(t)
+		state.canvasX.next(lerp(last.x, destX, v))
+		state.canvasY.next(lerp(last.y, destY, v))
+		if (t > .99) return
+		state.moving_timeout = setTimeout(progress, 1000 / 60)
+	}
+	progress()
 }
 
 // -------------
@@ -36,56 +114,8 @@ let unmountContainer = () => {
 	let exists = document.querySelector('.container')
 	if (exists) exists.remove()
 }
-
-export let mountContainer = (blocks) => {
+export let mountContainer = (children) => {
 	unmountContainer()
-
-	// Anchoring components
-	// ~~~~~~~~~~~~~~~~~~~~
-	let pointStart = reactive([0, 0])
-	let pointEnd = reactive([0, 0])
-	let anchor
-	let startAnchor = () => anchor = {
-		x: state.canvasX.value(),
-		y: state.canvasY.value(),
-		scale: state.canvasScale.value(),
-	}
-	let endAnchor = () => anchor = undefined
-
-	// Draggin on .container
-	// ~~~~~~~~~~~~~~~~~~~~
-	let onpointerdown = e => {
-		let target = e.target
-		if (e.target != document.querySelector('.container')) return
-
-		startAnchor()
-		target.setPointerCapture(e.pointerId);
-
-		pointStart.next([e.offsetX, e.offsetY])
-		pointEnd.next([e.offsetX, e.offsetY])
-	}
-	let onpointermove = e => {
-		let target = e.target
-
-		if (!target.hasPointerCapture(e.pointerId)) return;
-
-		const deltaX = e.movementX / state.canvasScale.value();
-		const deltaY = e.movementY / state.canvasScale.value();
-		pointEnd.next(v => [v[0] + deltaX, v[1] + deltaY])
-		if (anchor) {
-			state.canvasX.next(anchor.x + (pointStart.value()[0] - pointEnd.value()[0]))
-			state.canvasY.next(anchor.y + (pointStart.value()[1] - pointEnd.value()[1]))
-		}
-	}
-	let onpointerup = e => {
-		let target = e.target
-		target.releasePointerCapture(e.pointerId);
-
-		if (anchor) {
-			endAnchor()
-			return
-		}
-	}
 
 	// CSS transforms
 	// ~~~~~~~~~~~~~~~~~~~~
@@ -104,10 +134,11 @@ export let mountContainer = (blocks) => {
 	// DOM
 	// ~~~~
 	let root = [".container", {
-		// holding,
+		holding: state.holdingCanvas,
 		style: stylemmeo,
-		onpointerdown, onpointermove, onpointerup
-	}, ...blocks]
+		onpointerdown, onpointermove, onpointerup,
+		...dragOperations,
+	}, ...children]
 
 	// ---------
 	// MOUNT
@@ -192,6 +223,9 @@ keys.on('cmd + -', zoomOut, preventDefault)
 keys.on('ArrowRight', moveRight)
 keys.on('ArrowLeft', moveLeft)
 keys.on('cmd + e', toggleSidebar, preventDefault)
+keys.on("Escape", () => state.canceled.next(true))
+keys.on("cmd + escape", () => state.canceled.next(true))
+keys.on("shift + escape", () => state.canceled.next(true))
 
 document.onkeydown = e => keys.event(e)
 

@@ -87,6 +87,8 @@ export class Keystroke {
 			char: character,
 		};
 
+		console.log(character)
+
 		if (e.ctrlKey) keystroke_event.ctrl = true;
 		if (e.shiftKey) keystroke_event.shift = true;
 		if (e.altKey) keystroke_event.alt = true;

@@ -1,5 +1,6 @@
 import markdownIt from "./markdown-it/markdown-it.js"
 import markdownItMark from "./markdown-it/markdown-it-mark.js"
+import { moveToBlock } from "./script.js";
 // import { moveToBlock } from "./script.js";
 
 // ********************************
@@ -41,8 +42,7 @@ function eat(tree) {
 				item.tag = 'button'
 				at.onclick = e => {
 					e.preventDefault()
-					console.log("clicked", e, id)
-					// moveToBlock(id)
+					moveToBlock(id)
 				}
 			}
 

@@ -1,12 +1,17 @@
-export let svgrect = (x1, y1, x2, y2, stroke = "blue", width = 4) =>
-	['rect', {
-		x: Math.min(x1, x2), y: Math.min(y1, y2),
-		width: Math.abs(x2 - x1),
-		height: Math.abs(y2 - y1),
+import { memo } from "./chowk.js"
+
+export let svgrect = (x1, y1, x2, y2, stroke = "blue", width = 4) =>{
+	// TODO: Move the memo outside and send inside
+	return ['rect', {
+		x: memo(() => Math.min(x1.value(), x2.value()), [x1, x2]),
+		y: memo(() => Math.min(y1.value(), y2.value()), [y1, y2]),
+		width: memo(() => Math.abs(x2.value() - x1.value()),[x1, x2] ),
+		height: memo(() =>  Math.abs(y2.value() - y1.value()), [y1, y2]),
 		stroke,
 		fill: '#fff1',
 		"stroke-width": width
 	}]
+}
 export let svgline = (x1, y1, x2, y2, stroke = "blue", width = 2, dash = 0, opts) =>
 	['line', {
 		 x1, y1, x2, y2,
