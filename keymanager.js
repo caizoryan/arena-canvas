@@ -60,7 +60,7 @@ export class Keystroke {
 		return [ctrl, meta, shift, alt, char].filter((e) => e != "").join(" + ");
 	}
 
-	compareEvent(e) {
+	compareEvent(e, modifiers = true) {
 		// -------------------
 		// Find Which key is pressed
 		// -------------------
@@ -87,12 +87,18 @@ export class Keystroke {
 			char: character,
 		};
 
-		console.log(character)
-
 		if (e.ctrlKey) keystroke_event.ctrl = true;
 		if (e.shiftKey) keystroke_event.shift = true;
 		if (e.altKey) keystroke_event.alt = true;
 		if (e.metaKey) keystroke_event.meta = true;
+
+		if (!modifiers){
+			// make the keystroke event modifiers same as this
+			keystroke_event.ctrl = this.ctrl
+			keystroke_event.alt = this.alt
+			keystroke_event.meta = this.meta
+			keystroke_event.shift = this.shift
+		}
 
 		const matched = this.compare(keystroke_event);
 		return matched;
@@ -153,7 +159,7 @@ export class Keymanager {
 				if (element.tagName == "INPUT" || element.tagName == "TEXTAREA") return;
 			}
 
-			const matched = shortcut.compareEvent(e);
+			const matched = shortcut.compareEvent(e, options.modifiers);
 
 			// -------------------
 			// running callback
@@ -180,6 +186,7 @@ export class Keymanager {
 		// -------------------
 		const default_options = {
 			"type": "keydown",
+			'modifiers': true,
 			"propagate": false,
 			"preventDefault": false,
 			"disable_in_input": false,
