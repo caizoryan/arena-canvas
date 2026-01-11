@@ -4,6 +4,8 @@ import { store, state, try_set_channel } from "./state.js"
 import { Keymanager } from "./keymanager.js"
 import { sidebar } from "./sidebar.js"
 import { dragOperations  } from "./dragOperations.js"
+import { notificationpopup } from "./notification.js"
+import { update_block } from "./arena.js"
 
 // first order of business
 // 1. Get canvas showing and moving like before
@@ -18,6 +20,34 @@ import { dragOperations  } from "./dragOperations.js"
 let checkSlugUrl = (url) => {
 	if (!url.includes("#")) return
 	else return url.split('#').filter(e => e != '').pop()
+}
+
+let saveCanvasToArena = () => {
+	notificationpopup("trying?")
+	let content = JSON.stringify(store.get(['data']))
+	if (state.dot_canvas?.id) {
+		notificationpopup("attempting: " + state.dot_canvas.id)
+		let description = `This block was made using [Are.na Canvas](http://canvas.a-p.space). You can view this channel as a canvas [here](http://canvas.a-p.space/#${state.currentSlug.value()})`
+		update_block(state.dot_canvas.id, { content, title: ".canvas", description })
+			.then(res => {
+				if (res.status == 204) {
+					notificationpopup("Updated 👍")
+					state.updated.next(true)
+				}
+				else if (res.status == 401) notificationpopup("Failed: Unauthorized :( ", true)
+				else notificationpopup("Failed :( status: " + res.status, true)
+			})
+	}
+	else {
+		add_block(state.currentSlug.value(), '.canvas', content).then((res) => {
+			if (res.status == 204) {
+				window.location.reload()
+				// for now jsut refresh, butt todo later: 
+				// fetch from v3 api so get the content.plain and then make that dotcanvas.
+				// make this the dotcanvas
+			}
+		})
+	}
 }
 
 // --------------------
@@ -224,19 +254,18 @@ let escape = () => {
 }
 
 let keys = new Keymanager()
-let preventDefault = { preventDefault: true }
-keys.on('cmd + z', undo, preventDefault)
-keys.on('cmd + shift + z', redo, preventDefault)
-keys.on('cmd + =', zoomIn, preventDefault)
-keys.on('cmd + -', zoomOut, preventDefault)
+let prevent = { preventDefault: true }
+keys.on('cmd + z', undo, prevent)
+keys.on('cmd + shift + z', redo, prevent)
+keys.on('cmd + =', zoomIn, prevent)
+keys.on('cmd + -', zoomOut, prevent)
 keys.on('ArrowRight', moveRight)
 keys.on('ArrowLeft', moveLeft)
-keys.on('cmd + e', toggleSidebar, preventDefault)
-keys.on('alt + cmd + c', toggleSidebar, preventDefault)
-keys.on("Escape", escape, {modifiers: false})
-// keys.on("cmd + escape", () => state.canceled.next(true))
-// keys.on("shift + escape", () => state.canceled.next(true))
+keys.on('cmd + e', toggleSidebar, prevent)
+keys.on('alt + cmd + c', toggleSidebar, prevent)
+keys.on("escape", escape, {modifiers: false})
 keys.on("b", vistLast)
+keys.on("cmd + s", saveCanvasToArena, prevent)
 
 document.onkeydown = e => keys.event(e)
 

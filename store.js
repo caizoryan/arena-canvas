@@ -1,4 +1,59 @@
 let stringify = JSON.stringify
+const FS = (function () {
+	/**@type {Map<string, Content>}*/
+	let fs = new Map()
+	let sanitize = location => {
+		let split = location.split("/").filter(e => e != "")
+		let sanitized = split.join("/") + "/"
+		return sanitized
+	}
+
+	return {
+		add: (content) => {
+			// TODO: check if parents are already there if not add...
+			content.location = sanitize(content.location)
+			fs.set(content.location, content)
+		},
+
+		read: (location) => {
+			let content = fs.get(sanitize(location))
+			if (content.type == "file") return content.content
+
+			else {
+				let matcher = location.split("/")
+				if (matcher[matcher.length - 1] == "") matcher.pop()
+				let under = []
+
+				// TODO: use this matcher pattern for children enabled stuff...
+				fs.forEach((value, key) => {
+					let tomatch = key.split("/")
+					if (tomatch[tomatch.length - 1] == "") tomatch.pop()
+
+					if (tomatch.length != matcher.length + 1) return
+
+					let matched = matcher.reduce((acc, val, i) =>
+						acc ?
+							// if last was true check again
+							tomatch[i] == val
+								? true
+								: false
+							// if is false will be false
+							: false
+
+						// start with true
+						, true)
+
+					if (matched) under.push(value)
+				})
+
+				// return dir files
+				// everything under should go...
+				return under
+			}
+		}
+	}
+})();
+
 export let createStore = (internal) => {
 	let undo = []
 	let redo = []
@@ -29,7 +84,7 @@ export let createStore = (internal) => {
 	let recordInverse = (action) => {
 		if (tracking == 'undo') undo.push(action)
 		else if (tracking == 'redo') redo.push(action)
-		else if (tracking == 'batch') batch.push(action) 
+		else if (tracking == 'batch') batch.push(action)
 	}
 
 	let startBatch = () => {
@@ -44,6 +99,7 @@ export let createStore = (internal) => {
 	}
 
 	let relocate = (from, to, fn) => {
+		// also relocate for children enabled
 		let f = subscriptions.get(stringify(from))
 		let i = -1
 		if (f) f.findIndex(e => e == fn)
@@ -59,6 +115,9 @@ export let createStore = (internal) => {
 	let resumeTracking = () => tracking = 'undo'
 
 	let subscriptions = new Map()
+	let childrenEnabled = new Map()
+	let conditionalSubscription = new Map()
+
 	let apply = (location, action, value, track = true) => {
 		if (!track) pauseTracking()
 
@@ -87,8 +146,18 @@ export let createStore = (internal) => {
 			ref[value[0]] = value[1]
 
 			let loc = location.concat([value[0]])
+
 			let subscribers = subscriptions.get(stringify(loc))
-			if (subscribers) {subscribers.forEach(fn => fn(ref[value[0]]))}
+			if (subscribers) { subscribers.forEach(fn => fn(ref[value[0]])) }
+
+			let childSubscribers = childrenEnabled.get(stringify(loc))
+			if (childSubscribers) { childSubscribers.forEach(fn => fn(ref[value[0]])) }
+
+			childrenEnabled.forEach((v, k) => {
+				// check if loc is under k
+				// if it is, run the fn
+			})
+
 
 			recordInverse([[...location], 'set', [value[0], old]])
 		}
@@ -106,25 +175,62 @@ export let createStore = (internal) => {
 		// should also notify ['key'] subscription
 		// should notify parent basically
 		let subscribers = subscriptions.get(stringify(location))
-		if (subscribers) {subscribers.forEach(fn => fn(ref))}
+		if (subscribers) { subscribers.forEach(fn => fn(ref)) }
 
+		let childSubscribers = childrenEnabled.get(stringify(location))
+		if (childSubscribers) { childSubscribers.forEach(fn => fn(ref)) }
+
+		let tomatch = location
+		let under = []
+		childrenEnabled.forEach((v, k) => {
+			// TODO: use this matcher pattern for children enabled stuff...
+			let matcher = JSON.parse(k)
+			if (tomatch.length <= matcher.length) return
+			let matched = matcher.reduce((acc, val, i) =>
+				acc ?
+					// if last was true check again
+					tomatch[i] == val
+						? true
+						: false
+					// if is false will be false
+					: false
+
+				// start with true
+				, true)
+
+			// if (matched) under.push(v)
+			if (matched) under.push(v)
+
+			// return dir files
+			// everything under should go...
+			return under
+		})
+
+		under.forEach(fns => fns.forEach(fn => fn(ref)))
 		if (!track) resumeTracking()
 	}
-
 	let get = location => getref(location, internal)
-	let subscribe = (location, fn) => {
+	let subscribe = (location, fn, children = false) => {
 		// somehow make this nestable?
 		// ['key', 'another'] subscription
 		// should also notify ['key'] subscription
 		// should notify parent basically
 		let key = stringify(location)
-		let is = subscriptions.get(key)
+		let map = subscriptions
+
+		if (children) {
+			// then do something where each update checks if it is a child of
+			// and if it is then calls this fn
+			map = childrenEnabled
+		}
+
+		let is = map.get(key)
 		if (is) is.push(fn)
-		else subscriptions.set(key, [fn])
+		else map.set(key, [fn])
 		return () => {
-			let fns = subscriptions.get(key)
+			let fns = map.get(key)
 			let index = fns.find(e => e == fn)
-			if (index!=-1) fns.splice(index, 1)
+			if (index != -1) fns.splice(index, 1)
 		}
 	}
 
@@ -134,7 +240,9 @@ export let createStore = (internal) => {
 		if (copy.length == 0) return arr[index]
 		return getref(copy, arr[index])
 	}
-	return {apply, tr: apply, get, subscribe,
-					startBatch, endBatch,
-					doUndo, canUndo, doRedo, canRedo, pauseTracking, resumeTracking, relocate}
+	return {
+		apply, tr: apply, get, subscribe,
+		startBatch, endBatch,
+		doUndo, canUndo, doRedo, canRedo, pauseTracking, resumeTracking, relocate
+	}
 }

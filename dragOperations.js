@@ -1,6 +1,6 @@
-import { reactive, memo } from "./chowk.js"
+import { reactive } from "./chowk.js"
 import { BlockElement, constructBlockData, constructGroupData, GroupElement, isRectContained, Transform } from "./block.js"
-import { addNode, state, store, updateNodeHash } from "./state.js"
+import { addNode, state, store } from "./state.js"
 import { add_block } from "./arena.js"
 
 
@@ -11,12 +11,7 @@ let startY = reactive(0)
 let endX = reactive(0)
 let endY = reactive(0)
 
-export let dragTransforms = {
-	startX, startY, endX, endY
-}
-
-let makingBlock = false
-let makingGroup = false
+export let dragTransforms = { startX, startY, endX, endY }
 
 /** @type {( "pan" | "making-block" | 'making-group' | 'select' | 'zoom')}*/
 let dragAction = 'pan'
@@ -67,7 +62,6 @@ export let dragOperations = {
 			state.canvasY.next(anchor.y + startY.value() - endY.value())
 		}
 	},
-
 	onpointerup: e => {
 		let target = e.target
 		state.holdingCanvas.next(false)

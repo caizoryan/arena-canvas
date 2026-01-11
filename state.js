@@ -22,6 +22,7 @@ export let state = {
 	currentSlug: reactive("are-na-canvas"),
 	selected: reactive([]),
 
+	updated: reactive(false),
 	canvasX : reactive(0),
 	canvasY : reactive(0),
 	canvasScale : reactive(1),
@@ -34,17 +35,34 @@ export let state = {
 	last_history: [],
 	dot_canvas: undefined,
 	moving_timeout: undefined,
+
+	reRenderEdges: reactive(0)
 }
+
 
 export let store = createStore({
 	data: {nodes:[], edges: []},
 	nodeHash: {}
 })
 
+store.subscribe(['data', 'nodes'], (e) => {
+	let yes = false
+	if (e.id){
+		// check if e.id is in edges
+		store.get(['data', 'edges']).forEach(n => {
+			if (n.fromNode == e.id || n.toNode == e.id) {
+				yes = true
+			}
+		})
+	}
+	if (yes) state.reRenderEdges.next(e => e+.0001)
+}, true)
+
 // ~~~~~~~~~~~
 // STORE UTILS
 // ~~~~~~~~~~~
 let NODES = ['data', 'nodes']
+let EDGES = ['data', 'edges']
 let NODEHASH = ['data', 'nodeHash']
 let NODEAT = i => NODES.concat([i])
 export let updateNodeHash = () => {
@@ -160,8 +178,8 @@ let set_channel = slug => {
 				let svg = svgBackground()
 
 				mountContainer([
-					svg,
 					...groups.map(GroupElement),
+					svg,
 					mountBoundingBox(),
 					...blocks.map(BlockElement),
 				])
@@ -200,9 +218,13 @@ let R = (location) => ({
 	subscribe: (fn) => store.subscribe(location, fn)
 })
 
+
+
 let edges = memo(() => {
 		if (!store.get(['data', 'edges'])) return []
 		return store.get(['data', 'edges']).map(e => {
+			console.log('running')
+			
 			let boundingToSide = (b, side) => {
 				if (side == 'top') {
 					return ({
@@ -233,24 +255,31 @@ let edges = memo(() => {
 				}
 			}
 
-			let from = store.get(['data', 'nodes']).find(b => b.id == e.fromNode)
-			let to = store.get(['data', 'nodes']).find(b => b.id == e.toNode)
+			let from = store.get(['data', 'nodes']).find(f => f.id == e.fromNode)
+			let to = store.get(['data', 'nodes']).find(f => f.id == e.toNode)
+
+			if (!(from && to)) return
+			// let to = store.get(getNodeLocation(e.toNode))
 
 			let fromT = boundingToSide(from, e.fromSide)
 			let toT = boundingToSide(to, e.toSide)
 
-			return svgline(fromT.x, fromT.y, toT.x, toT.y, 'black', 7, 0, {
-				// onmouseenter: () => {
-				// 	state.selectedConnection = e
-				// },
+			return svgline(fromT.x, fromT.y, toT.x, toT.y, 'black', 15, 0, {
+				onmouseenter: () => {
+					console.log(e)
+					// state.selectedConnection = e
+				},
 				// onmouseexit: () => { state.selectedConnection = undefined },
 			})
-		})
-}, [R([ 'data', 'edges' ])])
+		}).filter(e => e!=undefined)
+}, [
+	R([ 'data', 'edges' ]),
+	state.reRenderEdges,
+])
 
 
 let svgBackground = () => {
-	return ['svg', { width: state.dimensions, height: state.dimensions }, dragMarker, edges]
+	return ['svg.background', { width: state.dimensions, height: state.dimensions }, dragMarker, edges]
 }
 
 let updateData = (blocks) => {
@@ -281,9 +310,39 @@ let updateData = (blocks) => {
 				updateHash = true
 			}
 		})
+		let removeEdges = []
+		store.get(EDGES).forEach(node => {
+			let toTest = node.fromNode
+			let f
+			if (toTest.toString().charAt(0) == 'c')
+				f = blocks.find(e => 'c'+e.id == toTest)
+			else f = blocks.find(e => e.id == toTest)
+			if (!f) {removeEdges.push(node)}
+		})
+
+		store.get(EDGES).forEach(node => {
+			let toTest = node.toNode
+			if (toTest == 42489767) console.log(node)
+			let f
+			if (toTest.toString().charAt(0) == 'c')
+				f = blocks.find(e => 'c'+e.id == toTest)
+
+			else f = blocks.find(e => e.id == toTest)
+			if (!f) {removeEdges.push(node)}
+		})
+
+		removeEdges.forEach(node => {
+				console.log('removing edge')
+				let i = store.get(EDGES).findIndex(n => n == node)
+				store.tr(EDGES, 'remove', [i, 1], false)
+				updateHash = true
+		})
 
 		// will relocate
-		if (updateHash) updateNodeHash()
+		if (updateHash){
+			state.reRenderEdges.next(e => e+.00001)
+			updateNodeHash()
+		}
 	}
 	else {
 		console.log("DIDNT FIND DOT CANVAS")
