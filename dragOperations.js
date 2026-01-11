@@ -1,6 +1,6 @@
 import { reactive, memo } from "./chowk.js"
 import { BlockElement, constructBlockData, constructGroupData, GroupElement } from "./block.js"
-import { state, store, updateNodeHash } from "./state.js"
+import { addNode, state, store, updateNodeHash } from "./state.js"
 import { add_block } from "./arena.js"
 
 
@@ -97,8 +97,8 @@ export let dragOperations = {
 			add_block(state.currentSlug.value(), '', "# New Block")
 				.then((res) => {
 					let newBlock = constructBlockData(res, { x, y, width, height })
-					store.tr(['data', 'nodes'], 'push', newBlock, false)
-					updateNodeHash()
+					addNode(newBlock)
+
 					document.querySelector('.container').appendChild(BlockElement(res))
 				})
 
@@ -106,8 +106,7 @@ export let dragOperations = {
 		else if (makingGroup) {
 			if (width < 250 || height < 250) return
 			let d = constructGroupData(x, y, width, height)
-			store.tr(['data', 'nodes'], 'push', d, false)
-			updateNodeHash()
+			addNode(d)
 			document.querySelector('.container').appendChild(GroupElement(d))
 		}
 	}

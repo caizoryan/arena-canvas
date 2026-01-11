@@ -4,7 +4,7 @@ import { dom } from "./dom.js"
 import { drag } from "./drag.js"
 import { MD } from "./md.js"
 import { notificationpopup } from "./notification.js"
-import { getNodeLocation, store, subscribeToId, state } from "./state.js"
+import { getNodeLocation, store, subscribeToId, state, addNode } from "./state.js"
 import { svgx } from "./svg.js"
 
 
@@ -60,6 +60,7 @@ let groupTitleLabel = group => {
 	let location = getNodeLocation(group.id)
 	let r = R(location, group.id)
 	let label = r('label')
+
 	let editingLabel = reactive(false)
 	let textLabel = () => ['h4', { onclick: () => { editingLabel.next(true) } }, label]
 	let editLabel = () => ['div', ['input',
@@ -172,8 +173,9 @@ export function BlockElement(block) {
 	let location = getNodeLocation(block.id)
 
 	if (!location) {
-		console.log("not found", block.id)
-		return
+		let newNode = constructBlockData(block, 0)
+		addNode(newNode)
+		location = getNodeLocation(block.id)
 	}
 
 	let r = R(location, block.id)
@@ -206,7 +208,7 @@ export function BlockElement(block) {
 			[el, components, attributes] = Channel(block); break;
 	}
 
-	let t =['.top-bar', colorBars(block)]
+	let t = ['.top-bar', colorBars(block)]
 
 	if (components && components["edit-controls"]) {
 		t.push(components["edit-controls"])
@@ -232,13 +234,13 @@ export function BlockElement(block) {
 	let edges = resizers(left, top, width, height, { onstart, onend })
 	el = dom('.draggable.node',
 		{ style, "block-id": block.id, ...attributes },
-					 t, el, ...edges, b, )
+		t, el, ...edges, b,)
 
 	setTimeout(() => {
 		drag(el, {
 			onstart,
 			onend,
-			pan_switch: () => !attributes.edit.value(),
+			pan_switch: () => attributes ? !attributes.edit.value() : true,
 			set_position: (x, y) => {
 				left.next(x)
 				top.next(y)
@@ -306,7 +308,7 @@ const TextBlock = (block) => {
 	let value = block.content?.markdown
 	let old = ''
 	let wc = reactive(value?.split(" ").length)
-	let reset = () =>root.innerHTML = ''
+	let reset = () => root.innerHTML = ''
 
 	let editBlock = (e) => {
 		e.stopImmediatePropagation()
@@ -463,6 +465,7 @@ export let constructGroupData = (x, y, width, height) => {
 		label: "Group",
 		id: 'group-' + uuid(),
 		x, y, width, height,
+		color: '6',
 	}
 
 	return d

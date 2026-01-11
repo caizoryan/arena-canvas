@@ -88,7 +88,7 @@ export let createStore = (internal) => {
 
 			let loc = location.concat([value[0]])
 			let subscribers = subscriptions.get(stringify(loc))
-			if (subscribers) {subscribers.forEach(fn => fn(ref))}
+			if (subscribers) {subscribers.forEach(fn => fn(ref[value[0]]))}
 
 			recordInverse([[...location], 'set', [value[0], old]])
 		}

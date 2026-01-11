@@ -26,7 +26,7 @@ let checkSlugUrl = (url) => {
 export function moveToBlock(id) {
 	let found = document.querySelector("*[block-id='" + id + "']")
 	if (found) {
-		if (movingTimeout) clearTimeout(movingTimeout)
+		if (state.moving_timeout) clearTimeout(state.moving_timeout)
 		let { x, y, width, height } = found.getBoundingClientRect()
 		let xDist = x - 150
 		let yDist = y - 150

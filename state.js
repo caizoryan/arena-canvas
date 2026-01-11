@@ -54,7 +54,7 @@ export let updateNodeHash = () => {
 	if (oldHash){
 		Object.entries(oldHash).forEach(([key, value]) => {
 			if (!idSubscriptions[key]) return
-			let {remove, fn, location} = idSubscriptions[key]
+			let {remove, fns, location} = idSubscriptions[key]
 
 			if (!hash[key]) {
 				remove()
@@ -62,7 +62,9 @@ export let updateNodeHash = () => {
 			}
 
 			else if (stringify(value) != stringify(hash[key])) {
-				idSubscriptions[key].remove = store.relocate(location, hash[key], fn)		
+				fns.forEach(fn => {
+					idSubscriptions[key].remove = store.relocate(location, hash[key], fn)		
+				})
 				idSubscriptions[key].location = hash[key] 
 			}
 		})
@@ -74,8 +76,10 @@ let idSubscriptions = {}
 
 export let subscribeToId = (id, location, fn) => {
 	let l = getNodeLocation(id)
+	// TODO: Make removes...
 	let remove = store.subscribe(l.concat(location), fn)
-	idSubscriptions[id] = {fn, location, remove}
+	if (idSubscriptions[id]) idSubscriptions[id].fns.push([fn])
+	idSubscriptions[id] = {fns: [fn], location, remove}
 }
 
 export let setNodes = (nodes) => {
@@ -83,7 +87,10 @@ export let setNodes = (nodes) => {
 	updateNodeHash()
 } 
 
-export let addNode = (node) => store.tr(NODES, 'push', node, false)
+export let addNode = (node) =>{
+	store.tr(NODES, 'push', node, false)
+	updateNodeHash()
+}
 
 // TODO: when block is reorganzied this addressh becomes invalid...
 // Block will need to remove subs and resub
