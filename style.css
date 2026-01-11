@@ -490,13 +490,6 @@ textarea {
 	opacity: 1;
 	transition: all 2500ms ease;
 	pointer-events: none;
-	position: fixed;
-	right: -50vw;
-	opacity: 0;
-	bottom: 1em;
-	transition: 200ms;
-
-	
 }
 
 .notification.error {

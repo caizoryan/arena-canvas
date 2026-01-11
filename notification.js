@@ -6,8 +6,15 @@ import {dom} from './dom.js'
 export let notificationpopup = (msg, error = false) => {
 	msg = error ? '🚫 ' +msg : msg
 	let tag = '.notification' + (error ? '.error' : '')
+	let style = `
+	position: fixed;
+	right: -50vw;
+	opacity: 0;
+	bottom: 1em;
+	transition: 200ms;
+`
 
-	let d = dom(tag, msg)
+	let d = dom(tag, {style}, msg)
 
 	document.querySelectorAll('.notification')
 		.forEach((e) => {

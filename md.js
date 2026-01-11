@@ -1,6 +1,6 @@
 import markdownIt from "./markdown-it/markdown-it.js"
 import markdownItMark from "./markdown-it/markdown-it-mark.js"
-import { moveToBlock } from "./script.js";
+// import { moveToBlock } from "./script.js";
 
 // ********************************
 // SECTION : MARKDOWN RENDERING
@@ -35,7 +35,6 @@ function eat(tree) {
 			if (at.href) at.target = '_blank'
 
 			if (at.href && link_is_block(at.href)) {
-				console.log("OK?")
 				let id = extract_block_id(at.href);
 				// at.href = undefined
 				at.class = 'jump'
@@ -43,7 +42,7 @@ function eat(tree) {
 				at.onclick = e => {
 					e.preventDefault()
 					console.log("clicked", e, id)
-					moveToBlock(id)
+					// moveToBlock(id)
 				}
 			}
 

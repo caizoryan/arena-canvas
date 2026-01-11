@@ -1,4 +1,4 @@
-// import {authslug, meData} from './state.js'
+import {state} from './state.js'
 import { notificationpopup } from './notification.js';
 
 let host = "https://api.are.na/v2/"
@@ -6,7 +6,7 @@ let host3="https://api.are.na/v3/channels/"
 
 let headers = () => ({
 	"Content-Type": "application/json",
-	Authorization: "Bearer " + auth,
+	Authorization: "Bearer " + state.authKey,
 })
 
 export const update_block = async (block_id, body, slug, fuck = false) => {
@@ -72,29 +72,21 @@ export const get_channel = async (slug, page = 1) => {
 			return json
 		})
 }
-// export let try_auth = () => {
-// 	me()
-// 		.then(res=>{
-// 			if (res.status == 200) {
-// 				res.json().then(m => {
-// 					Object.assign(meData, m)
-// 					authslug.next(m.slug)
-// 					console.log(meData)
-// 				})
-// 			}
-// 			else {
-// 				console.log("Auth failed: ", res.status, res)
-// 				notificationpopup("Auth failed: " + res.status, true)
-// 			}
-// 		})
-// }
-
-
-let a = localStorage.getItem("auth")
-export let auth = ''
-export let setAuth = au => auth = au
-
-if (a) {
-	auth = a
-	// try_auth()
+export let try_auth = () => {
+	me()
+		.then(res=>{
+			if (res.status == 200) {
+				res.json().then(m => {
+					Object.assign(state.me, m)
+					state.authSlug.next(m.slug)
+					notificationpopup('Authenticated as: ' + m.slug)
+				})
+			}
+			else {
+				console.log("Auth failed: ", res.status, res)
+				notificationpopup("Auth failed: " + res.status, true)
+			}
+		})
 }
+
+

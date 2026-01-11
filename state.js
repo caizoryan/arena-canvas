@@ -1,124 +1,31 @@
 import { reactive, memo } from "./chowk.js"
-import { get_channel } from './arena.js'
+import { get_channel, try_auth } from './arena.js'
 import { notificationpopup } from './notification.js'
-import { BlockElement, mountContainer } from "./script.js"
-import { Keymanager } from "./keymanager.js"
-
-export let mouse = reactive({ x: 0, y: 0 })
-export let canvasX = reactive(0)
-export let canvasY = reactive(0)
-export let canvasScale = reactive(1)
-
-export let recent_slugs = reactive([])
-let s = localStorage.getItem('recent-slugs')
-if (s) { recent_slugs.next(JSON.parse(s)) }
-
-
-export let state = {
-	dotcanvas: undefined,
-	current_slug: "are-na-canvas",
-}
+import {  mountContainer } from "./script.js"
+import { BlockElement, constructBlockData, GroupElement} from "./block.js"
+import { createStore } from "./store.js"
 
 let stringify = JSON.stringify
-let createStore = (internal) => {
-	let undo = []
-	let redo = []
+export let mouse = reactive({ x: 0, y: 0 })
 
-	let canUndo = () => undo.length > 0
-	let canRedo = () =>redo.length > 0
-	let doUndo = () => {
-		tracking = 'redo'
-		let action = undo.pop()
-		if (action) apply(...action)
-		tracking = 'undo'
-	}
-	let doRedo = () => {
-		tracking = 'undo'
-		let action = redo.pop()
-		if (action) apply(...action)
-		tracking = 'redo'
-	}
-
-	let recordInverse = (action) => {
-		if (tracking == 'undo') undo.push(action)
-		else if (tracking == 'redo')redo.push(action)
-	}
-
-	let tracking = 'undo'
-
-	let pauseTracking = () => tracking = 'paused'
-	let resumeTracking = () => tracking = 'undo'
-
-	let subscriptions = new Map()
-	let apply = (location, action, value) => {
-		let ref = getref(location, internal)
-		if (action == 'push') {
-			ref.push(value)
-			recordInverse([[...location], 'pop'])
-		}
-		else if (action == 'pop') {
-			let removed = ref.pop()
-			recordInverse([[...location], 'push', removed])
-		}
-		else if (action == 'insert') {
-			ref.splice(value[0], 0, value[1])
-			recordInverse([[...location], 'remove', [value[0], 1]])
-		}
-		else if (action == 'set') {
-			let old = ref[value[0]]
-			ref[value[0]] = value[1]
-
-			let loc = location.concat([value[0]])
-			let subscribers = subscriptions.get(stringify(loc))
-			if (subscribers) {subscribers.forEach(fn => fn(ref))}
-
-			recordInverse([[...location], 'set', [value[0], old]])
-		}
-		else if (action == 'log') {
-			console.log(ref)
-		}
-		else if (action == 'remove') {
-			// TODO: Make also work for objects (delete property)
-			let [removed] = ref.splice(value[0], value[1])
-			recordInverse([[...location], 'insert', [value[0], removed]])
-		}
-
-		// somehow make this nestable?
-		// ['key', 'another'] subscription
-		// should also notify ['key'] subscription
-		// should notify parent basically
-		let subscribers = subscriptions.get(stringify(location))
-		if (subscribers) {subscribers.forEach(fn => fn(ref))}
-	}
-
-	let get = location => getref(location, internal)
-	let subscribe = (location, fn) => {
-		// somehow make this nestable?
-		// ['key', 'another'] subscription
-		// should also notify ['key'] subscription
-		// should notify parent basically
-		let key = stringify(location)
-		let is = subscriptions.get(key)
-		if (is) is.push(fn)
-		else subscriptions.set(key, [fn])
-		return () => {
-			let fns = subscriptions.get(key)
-			let index = fns.find(e => e == fn)
-			if (index!=-1) fns.splice(index, 1)
-		}
-	}
-
-	let getref = (address, arr) => {
-		let copy = [...address]
-		let index = copy.shift()
-		if (copy.length == 0) return arr[index]
-		return getref(copy, arr[index])
-	}
-	return {apply, tr: apply, get, subscribe,
-					doUndo, canUndo, doRedo, canRedo, pauseTracking, resumeTracking}
+export let state = {
+	recentSlugs: reactive([]),
+	sidebarOpen: reactive(false),
+	currentSlug: reactive("are-na-canvas"),
+	canvasX : reactive(0),
+	canvasY : reactive(0),
+	canvasScale : reactive(1),
+	authSlug: reactive(''),
+	authKey: undefined,
+	me: {},
+	dot_canvas: undefined,
+	trackpad_movement: true,
 }
 
-export let store = createStore({data: {nodes:[], edges: []}, nodeHash: {}})
+export let store = createStore({
+	data: {nodes:[], edges: []},
+	nodeHash: {}
+})
 
 // ~~~~~~~~~~~
 // STORE UTILS
@@ -131,66 +38,82 @@ let updateNodeHash = () => {
 	let hash = store.get(NODES)
 			.reduce((acc, n, i) => (acc[n.id] = NODEAT(i), acc), {})
 
-	// Object.entries(oldHash).forEach(([key, value]) => {
-	// 	if (!idSubscriptions[key]) return
+	if (oldHash){
+		Object.entries(oldHash).forEach(([key, value]) => {
+			if (!idSubscriptions[key]) return
 
-	// 	if (!hash[key]) {
-	// 		console.log("REMOVE THIS SUB FN")
-	// 		let {remove, fn} = idSubscriptions[key]
-	// 		// TODO: FIgure this out
-	// 		// remove()
-	// 		// subscribeToId()
-			
-	// 	}
-	// 	if (stringify(value) != stringify(hash[key])) {
-	// 		console.log("RELOCATE SUBSCRIPTION")
-	// 	}
-	// })
+			let {remove, fn, location} = idSubscriptions[key]
 
-	store.tr(['data'], 'set', ['nodeHash', hash])
-	console.log(store.get(NODEHASH))
+			if (!hash[key]) {
+				remove()
+				delete idSubscriptions[key]
+			}
+
+			else if (stringify(value) != stringify(hash[key])) {
+				idSubscriptions[key].remove = store.relocate(location, hash[key], fn)		
+				idSubscriptions[key].location = hash[key] 
+			}
+		})
+	}
+
+	store.tr(['data'], 'set', ['nodeHash', hash], false)
+	console.log("Updated nodehash", store.get(NODEHASH))
 }
 let idSubscriptions = {}
+
 export let subscribeToId = (id, location, fn) => {
 	let l = getNodeLocation(id)
-	console.log("SUBS?", l.concat(location))
 	let remove = store.subscribe(l.concat(location), fn)
+
 	// will figure this out later
-	idSubscriptions[id] = {remove, fn, location}
+	idSubscriptions[id] = {fn, location, remove}
 	// will manage subscriptions for id
 	// whenever hash changes, resubscribe to new location
 	// basically proxy a subscription and whenver hash changes internally update
 }
-export let setNodes = (nodes) =>{
-	store.tr(['data'], 'set', ['nodes', nodes])
+export let setNodes = (nodes) => {
+	console.log("setting nodes", nodes)
+	store.tr(['data'], 'set', ['nodes', nodes], false)
 	updateNodeHash()
 } 
-
-export let addNode = (node) => store.tr(NODES, 'push', node)
+export let addNode = (node) => store.tr(NODES, 'push', node, false)
 
 // TODO: when block is reorganzied this addressh becomes invalid...
 // Block will need to remove subs and resub
 // or need to add a way to change sub location? relocate
 export let getNodeLocation = id => store.get(NODEHASH)[id]
 
-store.subscribe(NODES, updateNodeHash)
-
+// ~~~~~~~~~~~---------
+// Initialize local storage
+// ~~~~~~~~~~~---------
 function load_local_storage() {
-	let local_currentslug = localStorage.getItem("slug")
-	if (local_currentslug) state.current_slug = local_currentslug
+	// let local_currentslug = localStorage.getItem("slug")
+	// if (local_currentslug) state.current_slug = local_currentslug
+
+	let a = localStorage.getItem("auth")
+	if (a) {
+		state.authKey = a
+		try_auth()
+	}
+
+	let s = localStorage.getItem('recent-slugs')
+	if (s) { state.recentSlugs.next(JSON.parse(s)) }
 
 	let t = localStorage.getItem('transform')
-	if (t){
+	if (t) {
 		t = JSON.parse(t)
-		canvasX.next(t.x)
-		canvasY.next(t.y)
-		canvasScale.next(t.scale)
+		state.canvasX.next(t.x)
+		state.canvasY.next(t.y)
+		state.canvasScale.next(t.scale)
 	}
+
 	else t = {x: 0, y: 0, scale: 1}
 }
 load_local_storage()
 
-
+// ~~~~~~~~~~~---------
+// Are.na Functions
+// ~~~~~~~~~~~---------
 export let try_set_channel = slugOrURL => {
 	// TODO: Add more safety here?
 	let isUrl = slugOrURL.includes("are.na/");
@@ -202,13 +125,11 @@ export let try_set_channel = slugOrURL => {
 		set_channel(slugOrURL.trim())
 	}
 }
-
 let set_channel = slug => {
 	notificationpopup("Loading " + slug + "...")
 	get_channel(slug)
 		.then((res) => {
 			if (!res.data) {
-				console.log("Failed to get channel", res.error)
 				notificationpopup(['span', 'Failed to get channel ' + slug, ' try refreshing or opening another channel'], true)
 			}
 
@@ -216,77 +137,74 @@ let set_channel = slug => {
 				notificationpopup('Loaded Channel: ' + slug)
 				notificationpopup('Total Blocks: ' + res.data.length)
 
-				state.current_slug = slug
-				console.log(res.data)
+				state.currentSlug.next(slug)
+				updateData(res.data)
 
-				let nodes =res.data.map(constructBlockData)
-				setNodes(nodes)
-				mountContainer(nodes.map(BlockElement))
+				let blocks = processBlockForRendering(res.data)
+				let groups = store.get(NODES).filter(e => e.type == 'group')
+
+				mountContainer([
+					...groups.map(GroupElement),
+					...blocks.map(BlockElement),
+				])
+
 				// addToRecents(slug)
 				// setSlug(slug)
 				// localStorage.setItem('slug', slug)
-				// renderBlocks(res.data)
 			}
 		})
 }
-let constructBlockData = (e, i) => {
-	let d = {
-		id: e.id,
-		width: 300,
-		height: 300,
-		color: '1'
-	}
-	if (typeof i == 'number') {
-		d.x = (i % 8) * 400 
-		d.y = (Math.floor(i / 8)) * 450 
+
+let updateData = (blocks) => {
+	console.log("UDPATIN DATA")
+	state.dot_canvas = blocks.find(e => e.title == '.canvas')
+	if (state.dot_canvas) {
+		console.log("FOUND DOT CANVAS")
+		// put in a try block
+		let parsed = JSON.parse(state.dot_canvas.content.plain)
+		setNodes(parsed.nodes)
+		store.tr(['data'], 'set', ['edges', parsed.edges])
+		store.get(NODES).forEach(node => {
+			if (node.type == 'text') {
+				let f = blocks.find(e => e.id == node.id)
+				if (f && f.type == 'Text') node.text = f.content.markdown
+			}
+		})
+
+		// if data has blocks that aren't in blocks... remove them
+		store.get(NODES).forEach(node => {
+			if (node.type == 'group') return
+			let f = blocks.find(e => e.id == node.id)
+			if (!f) {
+				console.log('removing', node)
+				let i = store.get(NODES).findIndex(n => n == node)
+				// TODO: implement relocate or this will fuck 
+				store.tr(NODES, 'remove', [i, 1])
+				updateNodeHash()
+			}
+		})
 	}
 	else {
-		d.x = i.x
-		d.y = i.y
-		d.width = i.width
-		d.height = i.height
-	}
+		console.log("DIDNT FIND DOT CANVAS")
+		let nodes = blocks.filter(e => e.title != ".canvas")
+				.map(constructBlockData)
 
-	if (e.type == "Text") {
-		d.type = 'text'
-		d.text = e.content.markdown
+		setNodes(nodes)
 	}
-
-	else if (e.type == "Image") {
-		d.type = 'link'
-		d.url = e.image.large.src
-	}
-
-	else if (e.type == "Link") {
-		d.type = 'link'
-		d.url = e.source.url
-	}
-
-	else if (e.type == "Attachment") {
-		d.type = 'link'
-		d.url = e.attachment.url
-	}
-
-	else if (e.type == "Embed") {
-		d.type = 'link'
-		d.url = e.source.url
-	}
-
-	else {
-		d.type = 'text'
-		d.text = ''
-	}
-
-	return d
+}
+let processBlockForRendering = (blocks) => {
+	blocks = blocks.filter(e => e.title != ".canvas" || e.type != 'Channel')
+	return blocks
 }
 
-let keys = new Keymanager()
+memo(() => {
+	state.canvasScale.value() < 0.1 ? state.canvasScale.next(.1):null
+	state.canvasScale.value() > 2.3 ? state.canvasScale.next(2.3):null
 
-let UndoRedo = (e) => {
-	if (e.shiftKey && store.canRedo()) store.doRedo()
-	else if (store.canUndo()) store.doUndo()
-}
+	localStorage.setItem("transform", JSON.stringify({
+		x: state.canvasX.value(),
+		y: state.canvasY.value(),
+		scale: state.canvasScale.value()
+	}))
 
-keys.on('cmd+z', UndoRedo, {preventDefault: true})
-
-document.onkeydown = e => keys.event(e)
+}, [state.canvasX, state.canvasY, state.canvasScale])

@@ -118,6 +118,7 @@ export class Keymanager {
 		let keys = keystroke.toLowerCase().split("+");
 
 		keys.forEach((k) => {
+			k = k.trim()
 			//Modifiers
 			if (k == "ctrl" || k == "control") {
 				keystroke_obj.ctrl = true;
@@ -128,6 +129,8 @@ export class Keymanager {
 			} else if (k == "meta" || k == "cmd") {
 				keystroke_obj.meta = true;
 			} else {
+				if (k == '-') k = 'minus'
+				else if (k == '=') k = 'equal'
 				keystroke_obj.char = k;
 			}
 		});
@@ -155,11 +158,11 @@ export class Keymanager {
 			// -------------------
 			if (matched) {
 				console.log("*️⃣ Matched " + shortcut.toString());
-				if (!options["propagate"]) { //Stop the event
+				if (!options["propagate"]) { 
 					e.stopPropagation();
 				}
 
-				if (!options["preventDefault"]) { //Stop the event
+				if (options["preventDefault"]) { 
 					e.preventDefault();
 				}
 

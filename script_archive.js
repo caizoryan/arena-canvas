@@ -769,9 +769,9 @@ let blockEl = block => {
 
 let processBlockForRendering = (blocks) => {
 	blocks = blocks.filter(e => e.title != ".canvas")
-
 	return blocks
 }
+
 let updateData = (blocks) => {
 	state.dotcanvas = (blocks.find(e => e.title == '.canvas'))
 	if (state.dotcanvas) {
@@ -1253,6 +1253,7 @@ let mount = () => {
 	]
 
 	document.body.appendChild(dom(['.nodes', { active: nodesActive }, ...nodes]))
+
 	document.body.appendChild(dom(sidebar))
 	document.body.appendChild(dom(openbtn))
 	document.body.appendChild(dom(savebtn))
@@ -1262,23 +1263,6 @@ let mount = () => {
 
 document.onkeydown = (e) => {
 	keys.forEach((key) => key.fn(e))
-
-	// if (e.key == 'W') {
-	// 	addnode(keyPresser({ left: 150, top: 250, key: 'w' }))
-	// }
-
-	// if (e.key == 'A') {
-	// 	addnode(keyPresser({ left: 150, top: 250, key: 'a' }))
-	// }
-
-	// if (e.key == 'N') {
-	// 	let value = reactive(Math.random() * 55)
-	// 	addnode(reactiveEl({
-	// 		left: 150, top: 250, value
-	// 	}))
-	// }
-
-
 	let inc = e => e.shiftKey ? 250 : 50
 	let inEdit = (e) => {
 		if (e.target instanceof HTMLInputElement) return true
@@ -1426,10 +1410,7 @@ document.onkeydown = (e) => {
 			a.click();
 			window.URL.revokeObjectURL(url);
 		};
-		// let obsidianable = {
-		// 	nodes: data,
-		// 	edged: []
-		// }
+
 		download_json(store.data, currentslug)
 	}
 }

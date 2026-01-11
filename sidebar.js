@@ -1,12 +1,9 @@
 import { reactive, memo } from "./chowk.js"
 import { dom } from "./dom.js"
-import { authslug, meData } from "./state.js"
-import { try_set_channel } from "./script.js"
-import { setAuth, auth, try_auth } from "./arena.js"
+import { state, try_set_channel } from "./state.js"
+import { try_auth } from "./arena.js"
 
 let query = ""
-export let sidebarOpen = reactive(false)
-
 
 let searchBar = dom(["input", {
 	placeholder: 'Enter Slug or URL',
@@ -28,34 +25,34 @@ let slicer = (str, size) => {
 let search = [".section.search", ["h4", "Channel"], searchBar,
 	["button", { onclick: (e) => try_set_channel(query.trim()) }, "set"],
 	['h5', 'Recently Visited'],
-	memo(() => recentSlugs.value()
+	memo(() => state.recentSlugs.value()
 			 .map(e => ['a', {href: "#" + e}, ['button.mr', { href: '#' + e },
-			e.slice(0, 18), e.length > 18 ? "..." : '']]), [recentSlugs])
+			e.slice(0, 18), e.length > 18 ? "..." : '']]), [state.recentSlugs])
 ]
 
 let logout = ['p', ['button', {
 	onclick: () => {
 		localStorage.setItem("auth", "")
-		authslug.next("")
+		state.authSlug.next("")
 	}
 }, 'logout']]
 
 let authbar = memo(() =>
-	authslug.value() == "" ?
+	state.authSlug.value() == "" ?
 		["div", ["input", {
 			placeholder: 'Enter Token',
-			oninput: (e) => setAuth(e.target.value.trim()),
+			oninput: (e) => state.authKey = (e.target.value.trim()),
 			onkeydown: e => {
 				if (e.key == "Enter") {
-					localStorage.setItem("auth", auth.trim())
+					localStorage.setItem("auth", state.authKey)
 					try_auth()
 				}
 			}
 		}],
-			["button", {
 
+			["button", {
 				onclick: () => {
-					localStorage.setItem("auth", auth.trim())
+					localStorage.setItem("auth", state.authKey)
 					try_auth()
 				}
 
@@ -63,13 +60,12 @@ let authbar = memo(() =>
 			['a', { href: 'https://arena-token-gen.vercel.app/' }, ['p', 'Get your token here']],
 		] :
 		['p',
-			['img.icon', { src: meData.avatar_image.thumb }],
-			["p", authslug], logout]
+			['img.icon', { src: state.me.avatar_image.thumb }],
+			["p", state.authSlug], logout]
 
-	, [authslug])
+	, [state.authSlug])
 
 let authenticate = [".section.auth", ["h4", "Authenticate"], authbar]
-
 let monospaceness = ['.section.monospaceness',
 	['h4', 'Monospaceness'],
 	['input', {
@@ -81,4 +77,4 @@ let monospaceness = ['.section.monospaceness',
 		max: 100,
 	}]]
 
-export let sidebar = [".sidebar", { open: sidebarOpen }, ["h2", "Canvas"], search, authenticate, monospaceness]
+export let sidebar = [".sidebar", { open: state.sidebarOpen }, ["h2", "Canvas"], search, authenticate, monospaceness]
