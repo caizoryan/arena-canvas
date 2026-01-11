@@ -18,7 +18,7 @@ export let dragTransforms = {
 let makingBlock = false
 let makingGroup = false
 
-/** @type {( "pan" | "making-block" | 'making-group' | 'select')}*/
+/** @type {( "pan" | "making-block" | 'making-group' | 'select' | 'zoom')}*/
 let dragAction = 'pan'
 
 export let dragOperations = {
@@ -36,7 +36,10 @@ export let dragOperations = {
 		target.setPointerCapture(e.pointerId);
 
 		if (e.metaKey && e.shiftKey) { dragAction = 'making-block' }
-		else if (e.shiftKey) { dragAction = 'select' }
+		else if (e.shiftKey) {
+			dragAction = 'zoom'
+			dragAction = 'select'
+		}
 		else if (e.metaKey) { dragAction = 'making-group' }
 		else {
 			anchor = {
@@ -114,6 +117,16 @@ export let dragOperations = {
 			let d = constructGroupData(x, y, width, height)
 			addNode(d)
 			document.querySelector('.container').appendChild(GroupElement(d))
+		}
+
+		else if (dragAction == 'zoom') {
+			let heightRatio = 1+((window.innerHeight - height)/window.innerHeight)
+			let widthRatio = 1+((window.innerWidth - width)/window.innerWidth)
+			let scale = Math.max(widthRatio, heightRatio)
+
+			state.canvasScale.next(scale)
+			state.canvasX.next(x)
+			state.canvasY.next(y)
 		}
 
 		else if (dragAction == 'select') {

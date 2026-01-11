@@ -1,12 +1,23 @@
+import { unwrap } from "./block.js"
 import { memo } from "./chowk.js"
+
+export let svgrectnormal = (x, y, width, height, stroke = "blue", strokewidth = 4) =>{
+	// TODO: Move the memo outside and send inside
+	return ['rect', {
+		x, y, width, height,
+		stroke,
+		fill: '#fff1',
+		"stroke-width": strokewidth
+	}]
+}
 
 export let svgrect = (x1, y1, x2, y2, stroke = "blue", width = 4) =>{
 	// TODO: Move the memo outside and send inside
 	return ['rect', {
-		x: memo(() => Math.min(x1.value(), x2.value()), [x1, x2]),
-		y: memo(() => Math.min(y1.value(), y2.value()), [y1, y2]),
-		width: memo(() => Math.abs(x2.value() - x1.value()),[x1, x2] ),
-		height: memo(() =>  Math.abs(y2.value() - y1.value()), [y1, y2]),
+		x: Math.min(unwrap(x1), unwrap(x2)) || 0,
+		y:  Math.min(unwrap(y1), unwrap(y2)) || 0,
+		width: Math.abs(unwrap(x2) - unwrap(x1)) || 0,
+		height: Math.abs(unwrap(y2) - unwrap(y1)) || 0,
 		stroke,
 		fill: '#fff1',
 		"stroke-width": width
@@ -20,12 +31,18 @@ export let svgline = (x1, y1, x2, y2, stroke = "blue", width = 2, dash = 0, opts
 		'stroke-dasharray': dash,
 		...opts
 	}]
+
 export let svgx = (width, height, fill = 'blue', weight = 2) => {
 	if (!height) height = width
 	return ['svg', { width, height },
-		svgline(0, 0, width, height, fill, weight),
-		svgline(width, 0, 0, height, fill, weight),]
+					...x(width, height, fill, weight),]
 }
+
+export let x = (width, height, fill = 'blue', weight) => {
+	return [svgline(0, 0, width, height, fill, weight),
+					svgline(width, 0, 0, height, fill, weight)]
+}
+
 let value = (v) => typeof v == 'number' ? v : v.isReactive ? v.value() : v
 
 export let svgcurveline = (

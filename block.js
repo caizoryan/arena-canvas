@@ -7,14 +7,12 @@ import { notificationpopup } from "./notification.js"
 import { getNodeLocation, store, subscribeToId, state, addNode } from "./state.js"
 import { svgx } from "./svg.js"
 
-
-
 // ---------
 // Utilities
 // ~~~~~~~~~
 const uuid = () => Math.random().toString(36).slice(-6);
 const button = (t, fn, opts = {}) => ['button', { onclick: fn, ...opts }, t]
-const unwrap = t => t.isReactive ? t.value() : t
+export const unwrap = t => t.isReactive ? t.value() : t
 const CSSTransform = (x, y, width, height) => `
 		position: absolute;
 		left: ${unwrap(x)}px;
@@ -87,6 +85,112 @@ let colorBars = node => {
 	return colorbuttons
 }
 
+
+// ------------------
+// Block and Group El
+// ------------------
+export function BlockElement(block) {
+	// Convert From  v3 to v2 incase
+	block = convertBlockToV3(block)
+	let location = getNodeLocation(block.id)
+
+	if (!location) {
+		let newNode = constructBlockData(block, 0)
+		addNode(newNode)
+		location = getNodeLocation(block.id)
+	}
+
+	let r = R(location, block.id)
+
+	let left = r('x')
+	let top = r('y')
+	let color = r('color')
+	let height = r('height')
+	let width = r('width')
+	let isSelected = memo(
+		() => state.selected.value().includes(block.id), [state.selected])
+
+	let isMultiSelected = memo(
+		() => state.selected.value().length > 1
+			&& state.selected.value().includes(block.id), [state.selected])
+
+	let addToSelection = (e) => {
+		if (e.shiftKey) state.selected.next(e => [...e, block.id])
+		else state.selected.next([block.id])
+	}
+
+	let style = memo(() =>
+		CSSTransform(left, top, width, height)
+		+ Color(color.value()),
+		[left, top, width, height, color])
+
+	let el, components, attributes
+
+	switch (block.type) {
+		case "Text":
+			[el, components, attributes] = TextBlock(block); break;
+		case "Image":
+			[el, components, attributes] = ImageBlock(block); break;
+		case "Embed":
+			[el, components, attributes] = EmbedBlock(block); break;
+		case "Attachment":
+			[el, components, attributes] = AttachmentBlock(block); break;
+		case "Link":
+			[el, components, attributes] = LinkBlock(block); break;
+		case "Media":
+			[el, components, attributes] = MediaBlock(block); break;
+		case "Channel":
+			[el, components, attributes] = Channel(block); break;
+	}
+
+	let t = ['.top-bar', colorBars(block)]
+
+	if (components && components["edit-controls"]) {
+		t.push(components["edit-controls"])
+	}
+
+	let b = ['.bottom-bar', ...Object.values(BasicComponents(block))]
+
+	let onstart = (e) => {
+		addToSelection(e)
+		store.startBatch()
+		// saves this location for undo
+		left.next(left.value())
+		top.next(top.value())
+		width.next(width.value())
+		height.next(height.value())
+		store.endBatch()
+
+		store.pauseTracking()
+	}
+
+	let onend = () => store.resumeTracking()
+
+	let edges = resizers(left, top, width, height, { onstart, onend })
+	el = dom('.draggable.node', {
+			style,
+			"block-id": block.id,
+			...attributes,
+			selected: isSelected,
+			'multi-selected': isMultiSelected,
+			// onclick: addToSelection,
+		},
+	t, el, ...edges, b,)
+
+	setTimeout(() => {
+		drag(el, {
+			onstart,
+			onend,
+			pan_switch: () => attributes?.edit ? !attributes.edit.value() : true,
+			set_position: (x, y) => {
+				left.next(x)
+				top.next(y)
+			},
+		})
+	}, 50)
+
+	return el
+}
 export function GroupElement(group) {
 	// Convert From  v3 to v2 incase
 	let r = R(getNodeLocation(group.id), group.id)
@@ -105,6 +209,7 @@ export function GroupElement(group) {
 
 	let onstart = () => {
 		state.selected.next([])
+
 		// saves this location for undo
 		store.startBatch()
 		left.next(left.value())
@@ -158,111 +263,6 @@ export function GroupElement(group) {
 					store.tr(e.blockLocation, 'set', ['x', x + e.offset.x])
 					store.tr(e.blockLocation, 'set', ['y', y + e.offset.y])
 				})
-			},
-		})
-	}, 50)
-
-	return el
-}
-
-// ------------------
-// Block and Group El
-// ------------------
-export function BlockElement(block) {
-	// Convert From  v3 to v2 incase
-	block = convertBlockToV3(block)
-	let location = getNodeLocation(block.id)
-
-	if (!location) {
-		let newNode = constructBlockData(block, 0)
-		addNode(newNode)
-		location = getNodeLocation(block.id)
-	}
-
-	let r = R(location, block.id)
-
-	let left = r('x')
-	let top = r('y')
-	let color = r('color')
-	let height = r('height')
-	let width = r('width')
-	let isSelected = memo(
-		() => state.selected.value().includes(block.id), [state.selected])
-
-	let isMultiSelected = memo(
-		() => state.selected.value().length > 1
-			&& state.selected.value().includes(block.id), [state.selected])
-
-	let addToSelection = (e) => {
-		console.log(e.shiftKey)
-		if (e.shiftKey) state.selected.next(e => [...e, block.id])
-		else state.selected.next([block.id])
-	}
-
-	let style = memo(() =>
-		CSSTransform(left, top, width, height)
-		+ Color(color.value()),
-		[left, top, width, height, color])
-
-	let el, components, attributes
-
-	switch (block.type) {
-		case "Text":
-			[el, components, attributes] = TextBlock(block); break;
-		case "Image":
-			[el, components, attributes] = ImageBlock(block); break;
-		case "Embed":
-			[el, components, attributes] = EmbedBlock(block); break;
-		case "Attachment":
-			[el, components, attributes] = AttachmentBlock(block); break;
-		case "Link":
-			[el, components, attributes] = LinkBlock(block); break;
-		case "Channel":
-			[el, components, attributes] = Channel(block); break;
-	}
-
-	let t = ['.top-bar', colorBars(block)]
-
-	if (components && components["edit-controls"]) {
-		t.push(components["edit-controls"])
-	}
-
-	let b = ['.bottom-bar', ...Object.values(BasicComponents(block))]
-
-	let onstart = (e) => {
-		addToSelection(e)
-		store.startBatch()
-		// saves this location for undo
-		left.next(left.value())
-		top.next(top.value())
-		width.next(width.value())
-		height.next(height.value())
-		store.endBatch()
-
-		store.pauseTracking()
-	}
-
-	let onend = () => store.resumeTracking()
-
-	let edges = resizers(left, top, width, height, { onstart, onend })
-	el = dom('.draggable.node', {
-			style,
-			"block-id": block.id,
-			...attributes,
-			selected: isSelected,
-			'multi-selected': isMultiSelected,
-			// onclick: addToSelection,
-		},
-	t, el, ...edges, b,)
-
-	setTimeout(() => {
-		drag(el, {
-			onstart,
-			onend,
-			pan_switch: () => attributes ? !attributes.edit.value() : true,
-			set_position: (x, y) => {
-				left.next(x)
-				top.next(y)
 			},
 		})
 	}, 50)
@@ -399,9 +399,9 @@ const ImageBlock = (block) => {
 	return [['.block.image', ['img', { src: link }]], {}, {}]
 }
 const LinkBlock = ImageBlock
+const MediaBlock = ImageBlock
 const EmbedBlock = ImageBlock
 const AttachmentBlock = ImageBlock
-
 const Channel = block => {
 	return [[".block.channel",
 		['h2', block.title],
@@ -477,7 +477,6 @@ export let constructBlockData = (e, i) => {
 
 	return d
 }
-
 export let constructGroupData = (x, y, width, height) => {
 	let d = {
 		type: 'group',

@@ -3,9 +3,9 @@ import { reactive, memo } from "./chowk.js"
 import { get_channel, try_auth } from './arena.js'
 import { notificationpopup } from './notification.js'
 import {  mountContainer } from "./script.js"
-import { BlockElement, constructBlockData, GroupElement} from "./block.js"
+import { BlockElement, constructBlockData, GroupElement, unwrap} from "./block.js"
 import { createStore } from "./store.js"
-import { svgrect } from "./svg.js"
+import { svgrect, svgline, svgrectnormal } from "./svg.js"
 import { dragTransforms } from "./dragOperations.js"
 import { mountBoundingBox } from "./bigBoundingBox.js"
 
@@ -172,12 +172,20 @@ let set_channel = slug => {
 			}
 		})
 }
+let x1 = dragTransforms.startX
+let x2 = dragTransforms.endX
+let y1 = dragTransforms.startY
+let y2 = dragTransforms.endY
+let rectx = memo(() => Math.min(unwrap(x1), unwrap(x2)) || 0, [x1, x2])
+let recty = memo(() => Math.min(unwrap(y1), unwrap(y2)) || 0, [y1, y2])
+let rectheight = memo(() =>  Math.abs(unwrap(y2) - unwrap(y1)) || 0, [y1, y2])
+let rectwidth = memo(() => Math.abs(unwrap(x2) - unwrap(x1)) || 0, [x1, x2])
 
-let dragMarker = dom(svgrect(
-	dragTransforms.startX,
-	dragTransforms.startY,
-	dragTransforms.endX,
-	dragTransforms.endY,
+let dragMarker = dom(svgrectnormal(
+	rectx,
+	recty,
+	rectwidth,
+	rectheight,
 
 	memo(() =>
 		(state.holdingCanvas.value() || state.canceled.value())
@@ -186,8 +194,63 @@ let dragMarker = dom(svgrect(
 		[state.holdingCanvas, state.canceled])
 ))
 
+let R = (location) => ({
+	isReactive: true,
+	value: () => store.get(location),
+	subscribe: (fn) => store.subscribe(location, fn)
+})
+
+let edges = memo(() => {
+		if (!store.get(['data', 'edges'])) return []
+		return store.get(['data', 'edges']).map(e => {
+			let boundingToSide = (b, side) => {
+				if (side == 'top') {
+					return ({
+						x: b.x + b.width / 2,
+						y: b.y
+					})
+				}
+
+				if (side == 'bottom') {
+					return ({
+						x: b.x + b.width / 2,
+						y: b.y + b.height
+					})
+				}
+
+				if (side == 'right') {
+					return ({
+						x: b.x + b.width,
+						y: b.y + b.height / 2
+					})
+				}
+
+				if (side == 'left') {
+					return ({
+						x: b.x,
+						y: b.y + b.height / 2
+					})
+				}
+			}
+
+			let from = store.get(['data', 'nodes']).find(b => b.id == e.fromNode)
+			let to = store.get(['data', 'nodes']).find(b => b.id == e.toNode)
+
+			let fromT = boundingToSide(from, e.fromSide)
+			let toT = boundingToSide(to, e.toSide)
+
+			return svgline(fromT.x, fromT.y, toT.x, toT.y, 'black', 7, 0, {
+				// onmouseenter: () => {
+				// 	state.selectedConnection = e
+				// },
+				// onmouseexit: () => { state.selectedConnection = undefined },
+			})
+		})
+}, [R([ 'data', 'edges' ])])
+
+
 let svgBackground = () => {
-	return ['svg', { width: state.dimensions, height: state.dimensions }, dragMarker]
+	return ['svg', { width: state.dimensions, height: state.dimensions }, dragMarker, edges]
 }
 
 let updateData = (blocks) => {
@@ -195,7 +258,7 @@ let updateData = (blocks) => {
 	if (state.dot_canvas) {
 		let parsed = JSON.parse(state.dot_canvas.content.plain)
 		setNodes(parsed.nodes)
-		store.tr(['data'], 'set', ['edges', parsed.edges])
+		store.tr(['data'], 'set', ['edges', parsed.edges], false)
 		store.get(NODES).forEach(node => {
 			if (node.type == 'text') {
 				let f = blocks.find(e => e.id == node.id)
@@ -214,7 +277,7 @@ let updateData = (blocks) => {
 			if (!f) {
 				console.log('removing')
 				let i = store.get(NODES).findIndex(n => n == node)
-				store.tr(NODES, 'remove', [i, 1])
+				store.tr(NODES, 'remove', [i, 1], false)
 				updateHash = true
 			}
 		})

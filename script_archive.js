@@ -1107,6 +1107,7 @@ border: 4px solid var(--bor6);
 			})
 		})
 	}, [edgesRender])
+
 	dataSubscriptions.push(f => edgesRender.next(e => e + 1))
 
 	let stupidSVG = ['svg', { width: dimensions, height: dimensions }, bigline, edges, dawgWalkers]
