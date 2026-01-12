@@ -32,12 +32,14 @@ export let dragOperations = {
 
 		target.setPointerCapture(e.pointerId);
 
-		if (e.metaKey && e.shiftKey) { dragAction = 'making-block' }
+		if (e.metaKey && e.shiftKey) { dragAction = 'making-group' }
 		else if (e.shiftKey) {
 			dragAction = 'zoom'
 			dragAction = 'select'
 		}
-		else if (e.metaKey) { dragAction = 'making-group' }
+		else if (e.metaKey) {
+			dragAction = 'making-block'
+		}
 		else {
 			anchor = {
 				x: state.canvasX.value(),

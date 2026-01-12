@@ -4,7 +4,7 @@ import { dom } from "./dom.js"
 import { drag } from "./drag.js"
 import { MD } from "./md.js"
 import { notificationpopup } from "./notification.js"
-import { getNodeLocation, store, subscribeToId, state, addNode, addEdge } from "./state.js"
+import { getNodeLocation, store, subscribeToId, state, addNode, addEdge, removeNode } from "./state.js"
 import { svgx } from "./svg.js"
 
 // ---------
@@ -82,11 +82,11 @@ let groupTitleLabel = group => {
 
 	return title
 }
-let colorBars = node => {
+let colorBars = (node, btn = ['span']) => {
 	let r = R(getNodeLocation(node.id), node.id)
 	let color = r('color')
 	let setcolorfn = i => () => color.next(i + "")
-	let colorbuttons = ['.color-bar', ...[1, 2, 3, 4, 5, 6].map((i) => button('x', setcolorfn(i), { style: 'background-color: var(--b' + i + ");" }))]
+	let colorbuttons = ['.color-bar', ...[1, 2, 3, 4, 5, 6].map((i) => button('x', setcolorfn(i), { style: 'background-color: var(--b' + i + ");" })), btn]
 	return colorbuttons
 }
 
@@ -260,8 +260,23 @@ export function GroupElement(group) {
 		anchored = []
 	}
 
+	let remove = () => {
+		removeNode(group)
+		el.remove()
+	}
+
+	let removeButton = () => {
+		let click = reactive(0)
+		let words = ['delete', 'DELETE', "DELETE!", "DELEETEEEE!!!!"]
+		let onclick = () => {
+			click.next(e => e + 1)
+			if (click.value() == words.length) remove()
+		}
+		return button(memo(() => words[click.value()], [click]), onclick)
+	}
+
 	let edges = resizers(left, top, width, height, { onstart, onend })
-	let el = dom('.draggable.group', { style }, colorBars(group), groupTitleLabel(group), ...edges)
+	let el = dom('.draggable.group', { style }, colorBars(group, removeButton()), groupTitleLabel(group), ...edges)
 
 	setTimeout(() => {
 		drag(el, {

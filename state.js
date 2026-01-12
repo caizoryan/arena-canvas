@@ -125,6 +125,13 @@ export let addNode = (node) =>{
 	store.tr(NODES, 'push', node, false)
 	updateNodeHash()
 }
+export let removeNode = node => {
+	// check if connection already exists
+	// if not then add
+	let index = store.get(NODES).findIndex(e => e.id == node.id)
+	if (index != -1) store.apply(NODES, 'remove', [index, 1], false)
+	updateNodeHash()
+}
 
 export let addEdge = edge => {
 	// check if connection already exists

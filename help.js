@@ -10,9 +10,9 @@ import { state } from "./state.js"
 | ----------   | ---------------------- |  
 | __Drag__     | (on canvas) To Pan   |
 | __Drag__     | (on blocks) To move them   |
-| __⌘+⇧+Drag__ |  To make a new Block   |
 | __⇧+Drag__   |  To multiselect    |
-| __⌘+Drag__   |  To make a new Group   |
+| __⌘+Drag__   |  To make a new Block   |
+| __⌘+⇧+Drag__ |  To make a new Group   |
 | __⌘+Drag__   |  (on a group) To Move without children   |
 | __⌘+Scroll__ |  To zoom in and out   |
 
