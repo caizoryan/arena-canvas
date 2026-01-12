@@ -310,7 +310,7 @@ let edges = memo(() => {
 			let fromT = boundingToSide(from, e.fromSide)
 			let toT = boundingToSide(to, e.toSide)
 
-			return svgline(fromT.x, fromT.y, toT.x, toT.y, 'black', 15, 0, {
+			return svgline(fromT.x, fromT.y, toT.x, toT.y, 'black', 8, 0, {
 				class: 'connection-line',
 				onmouseenter: () => {
 					console.log(e)
