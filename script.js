@@ -76,11 +76,14 @@ let removeCurrentEdge = () => state.selected_connection
 let undo = () => store.canUndo() ? store.doUndo() : null
 let redo = () => store.canRedo() ? store.doRedo() : null
 
-let inc = (e = false) => e ? 250 : 100
+let inc = (e = false) => e ? 250 : 120
 let zoomIn = (e) => state.canvasScale.next(f => f + (inc() / 500))
 let zoomOut = (e) => state.canvasScale.next(f => f - (inc() / 500))
 let moveLeft = () => state.canvasX.next(f => f - inc())
 let moveRight = () => state.canvasX.next(f => f + inc())
+let moveUp = () => state.canvasY.next(f => f - inc())
+let moveDown = () => state.canvasY.next(f => f + inc())
+
 let vistLast = () => {
 	let last = state.last_history.pop()
 	if (last) animateMove(last.x, last.y)
@@ -361,8 +364,12 @@ keys.on('cmd + z', undo, prevent)
 keys.on('cmd + shift + z', redo, prevent)
 keys.on('cmd + =', zoomIn, prevent)
 keys.on('cmd + -', zoomOut, prevent)
+
 keys.on('ArrowRight', moveRight, {disable_in_input: true})
 keys.on('ArrowLeft', moveLeft, {disable_in_input: true})
+keys.on('ArrowUp', moveUp, {disable_in_input: true})
+keys.on('ArrowDown', moveDown, {disable_in_input: true})
+
 keys.on('cmd + e', toggleSidebar, prevent)
 keys.on('alt + cmd + c', toggleSidebar, prevent)
 keys.on("escape", escape, { modifiers: false, disable_in_input: true })
@@ -372,7 +379,7 @@ keys.on("cmd + s", saveCanvasToArena, prevent)
 keys.on("shift + /", toggleHelpbar, prevent)
 keys.on("cmd + v", pasteInBlock, {disable_in_input: true, preventDefault: true})
 keys.on("cmd + d", downloadData, {disable_in_input: true, preventDefault: true})
-keys.on("backspace", removeCurrentEdge, prevent)
+keys.on("backspace", removeCurrentEdge, {disable_in_input: true, ...prevent})
 
 document.onkeydown = e => keys.event(e)
 
