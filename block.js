@@ -245,10 +245,12 @@ export function GroupElement(group) {
 			})
 		}
 
-		// left.next(left.value())
-		// top.next(top.value())
-		// width.next(width.value())
-		// height.next(height.value())
+		else {
+			left.next(left.value())
+			top.next(top.value())
+			width.next(width.value())
+			height.next(height.value())
+		}
 
 		store.endBatch()
 
