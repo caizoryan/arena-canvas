@@ -110,10 +110,8 @@ let escape = () => {
 	state.selected.next([])
 }
 let saveCanvasToArena = () => {
-	notificationpopup("trying?")
 	let content = JSON.stringify(store.get(['data']))
 	if (state.dot_canvas?.id) {
-		notificationpopup("attempting: " + state.dot_canvas.id)
 		let description = `This block was made using [Are.na Canvas](http://canvas.a-p.space). You can view this channel as a canvas [here](http://canvas.a-p.space/#${state.currentSlug.value()})`
 		update_block(state.dot_canvas.id, { content, title: ".canvas", description })
 			.then(res => {

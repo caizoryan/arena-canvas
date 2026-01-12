@@ -336,7 +336,7 @@ let currentConnection = svgline(
 	state.connectionFromY,
 	state.connectionToX,
 	state.connectionToY,
-	'black', 15)
+	'#0008', 8, 12)
 
 let svgBackground = () => {
 	return ['svg.background', { width: state.dimensions, height: state.dimensions }, , currentConnection, dragMarker, edges]

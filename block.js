@@ -377,6 +377,8 @@ const connectors = (block, left, top, width, height, opts = {}) => {
 				console.log(left.value() + unwrapFn(x), top.value() + unwrapFn(y))
 				state.connectionFromX.next(left.value() + unwrapFn(x))
 				state.connectionFromY.next(top.value() + unwrapFn(y))
+				state.connectionToX.next(left.value() + unwrapFn(x))
+				state.connectionToY.next(top.value() + unwrapFn(y))
 
 				state.block_connection_buffer = {
 					fromNode: block.id, fromSide: side
