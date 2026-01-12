@@ -253,7 +253,6 @@ export function GroupElement(group) {
 		}
 
 		store.endBatch()
-
 		store.pauseTracking()
 	}
 	let onend = () => {
