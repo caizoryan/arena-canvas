@@ -26,6 +26,24 @@ let checkSlugUrl = (url) => {
 	else return url.split('#').filter(e => e != '').pop()
 }
 
+let downloadData = () => {
+	let download_json = (json, file = 'data') => {
+		let a = document.createElement("a");
+
+		json = JSON.stringify(json)
+		console.log(json)
+		let blob = new Blob([json], { type: "octet/stream" })
+		let url = window.URL.createObjectURL(blob);
+
+		a.href = url;
+		a.download = file + ".canvas";
+		a.click();
+		window.URL.revokeObjectURL(url);
+
+	};
+	download_json(store.get(['data']), state.currentSlug.value())
+}
+
 let pasteInBlock = () => {
 		navigator.clipboard.readText().then(res =>res.split('\n').forEach(res =>  {
 			if (link_is_block(res)) {
@@ -353,6 +371,7 @@ keys.on("t", toggleTrackingMode, { disable_in_input: true })
 keys.on("cmd + s", saveCanvasToArena, prevent)
 keys.on("shift + /", toggleHelpbar, prevent)
 keys.on("cmd + v", pasteInBlock, {disable_in_input: true, preventDefault: true})
+keys.on("cmd + d", downloadData, {disable_in_input: true, preventDefault: true})
 keys.on("backspace", removeCurrentEdge, prevent)
 
 document.onkeydown = e => keys.event(e)

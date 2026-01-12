@@ -1393,9 +1393,7 @@ document.onkeydown = (e) => {
 	}
 
 	if (e.key == 'd' && e.metaKey) {
-
 		if (inEdit(e)) return
-
 		e.preventDefault()
 		let download_json = (json, file = 'data') => {
 			let a = document.createElement("a");

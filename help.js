@@ -34,6 +34,8 @@ import { state } from "./state.js"
 | ---------- | ---------------------- |  
 | __⌘+E__ | Open sidebar |
 | __⇧+H__ | Hide Nodes |
+| __⌘ + Z__ | undo |
+| __⌘ + ⇧ + Z__ | redo|
 | __⌘S__        |  Save                   |
 | __⌘D__        |  Download .canvas to open in Obsidian or kinopio                   |
 `
