@@ -19,6 +19,24 @@ export const update_block = async (block_id, body, slug, fuck = false) => {
 		return res
 	});
 };
+export const add_link = async (slug, url) => {
+	console.log("adding to", slug, url)
+	return fetch(host + "channels/" + slug + "/blocks", {
+		headers: headers(),
+		method: "POST",
+		body: JSON.stringify({source: url}),
+	})
+		.then((response) =>{
+			console.log(response)
+			console.log(response.status)
+			let msg = response.status == '401' ? "Unauthorized" : response.status
+			if (!response.ok) notificationpopup("Couldn't Make Block: " + msg, true)
+			return response.json()
+	})
+		.then((data) => {
+			 return data
+		});
+};
 export const add_block = async (slug, title, content) => {
 	console.log("adding", title, "to", slug, content)
 	return fetch(host + "channels/" + slug + "/blocks", {

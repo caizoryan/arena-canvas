@@ -5,7 +5,7 @@ import { Keymanager } from "./keymanager.js"
 import { sidebar } from "./sidebar.js"
 import { dragOperations } from "./dragOperations.js"
 import { notificationpopup } from "./notification.js"
-import { connect_block, update_block } from "./arena.js"
+import { add_block, add_link, connect_block, update_block } from "./arena.js"
 import { BlockElement, button, constructBlockData, CSSTransform } from "./block.js"
 import { helpbar } from "./help.js"
 import { history } from "./history.js"
@@ -44,11 +44,26 @@ let downloadData = () => {
 	download_json(store.get(['data']), state.currentSlug.value())
 }
 
+const link_is_url = (str) => (str.includes('http://') || str.includes('https://'))
+
 let pasteInBlock = () => {
 		navigator.clipboard.readText().then(res =>res.split('\n').forEach(res =>  {
+			console.log(res, link_is_url(res))
 			if (link_is_block(res)) {
 				console.log('will connect block: ', extract_block_id(res), ' to slug')
 				connect_block(state.currentSlug.value(), extract_block_id(res))
+					.then(block => {
+						console.log("BLock?", block)
+						let newBlock = constructBlockData(block, {
+							x: state.canvasX.value(), y: state.canvasY.value(),
+							width: 350, height: 350
+						})
+						addNode(newBlock)
+						document.querySelector('.container').appendChild(BlockElement(block))
+					})
+			}
+			else if (link_is_url(res)){
+				add_link(state.currentSlug.value(), res.trim())
 					.then(block => {
 						console.log("BLock?", block)
 						let newBlock = constructBlockData(block, {
