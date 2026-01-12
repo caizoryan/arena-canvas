@@ -182,6 +182,8 @@ export let dom = (tag, ...contents) => {
 			if (v == undefined) return
 			if (v.isReactive) {
 				doc.setAttribute(k, v.value())
+				// this is why detatched elements are still in dom....
+				// have to clean this up... somehow...
 				v.subscribe(vv => doc.setAttribute(k, vv))
 			}
 			else {

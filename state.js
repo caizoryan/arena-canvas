@@ -105,6 +105,7 @@ export let updateNodeHash = () => {
 
 	store.tr(['data'], 'set', ['nodeHash', hash], false)
 }
+
 let idSubscriptions = {}
 
 export let subscribeToId = (id, location, fn) => {
