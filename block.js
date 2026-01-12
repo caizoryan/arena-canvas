@@ -219,10 +219,6 @@ export function GroupElement(group) {
 
 		// saves this location for undo
 		store.startBatch()
-		left.next(left.value())
-		top.next(top.value())
-		width.next(width.value())
-		height.next(height.value())
 
 		if (!e.metaKey){
 			store.get(['data', 'nodes']).forEach((e, i) => {
@@ -242,13 +238,20 @@ export function GroupElement(group) {
 					anchored.push(item)
 				}
 			})
+
 			anchored.forEach((e, i) => {
 				store.tr(e.blockLocation, 'set', ['x', e.position.x])
 				store.tr(e.blockLocation, 'set', ['y', e.position.y])
 			})
 		}
 
+		// left.next(left.value())
+		// top.next(top.value())
+		// width.next(width.value())
+		// height.next(height.value())
+
 		store.endBatch()
+
 		store.pauseTracking()
 	}
 	let onend = () => {
@@ -320,35 +323,22 @@ const resizers = (left, top, width, height, opts = {}) => {
 	return [MainCorner, WidthMiddle, HeightMiddle]
 }
 const connectors = (block, left, top, width, height, opts = {}) => {
-	let connectionPointBottom = memo(() =>
-		CSSTransform(width.value() / 2, height.value() - 15)
-, [height, width])
+	let unwrapFn = v => typeof v  == 'function' ? v() : v
+	let connectionPoint = (side, x, y) => dom('.edge-connector.absolute.flex-center.box', {
+		style: memo(() => CSSTransform(unwrapFn(x), unwrapFn(y)), [height, width]),
+		onpointerdown: e => {
+			e.stopImmediatePropagation()
+			e.stopPropagation()
 
-	let connectionPointRight = memo(() => 
-		CSSTransform (width.value() - 15, height.value() / 2)
-, [height, width])
-
-	let connectionPointTop = memo(() =>
-		CSSTransform(width.value() / 2, -15),
-	[height, width])
-
-	let connectionPointLeft = memo(() =>
-		CSSTransform(-15, height.value() / 2),
-	[height, width])
-
-
-	let connectionPoint = (side, style) => dom('.edge-connector.absolute.flex-center.box', {
-		style, onclick: e => {
-			if (state.blockConnectionBuffer) {
+			if (state.block_connection_buffer) {
 				// add edge
-				if (state.blockConnectionBuffer.fromNode == block.id) {
-					console.log('canelling')
-					state.blockConnectionBuffer = undefined
+				if (state.block_connection_buffer.fromNode == block.id) {
+					state.block_connection_buffer = undefined
 				}
 
 				addEdge({
 					id: uuid(),
-					...state.blockConnectionBuffer,
+					...state.block_connection_buffer,
 					toNode: block.id,
 					toSide: side
 				})
@@ -357,21 +347,35 @@ const connectors = (block, left, top, width, height, opts = {}) => {
 					e.classList.toggle('wobble')
 				})
 
-				state.blockConnectionBuffer = undefined
+				state.block_connection_buffer = undefined
+
+				state.connectionFromX.next(0)
+				state.connectionFromY.next(0)
+				state.connectionToX.next(0)
+				state.connectionToY.next(0)
 			}
 
 			else {
 				e.target.classList.toggle('wobble')
-				state.blockConnectionBuffer = { fromNode: block.id, fromSide: side }
+
+				console.log(left.value() + unwrapFn(x), top.value() + unwrapFn(y))
+				state.connectionFromX.next(left.value() + unwrapFn(x))
+				state.connectionFromY.next(top.value() + unwrapFn(y))
+
+				state.block_connection_buffer = {
+					fromNode: block.id, fromSide: side
+				}
 			}
-		}
+		}, 
 	}, 'X')
 
 	let connectionPoints = [
-		connectionPoint('top', connectionPointTop),
-		connectionPoint('left', connectionPointLeft),
-		connectionPoint('bottom', connectionPointBottom),
-		connectionPoint('right', connectionPointRight),
+		connectionPoint('top', () => width.value() / 2, -15),
+		connectionPoint('left', -15, () => height.value() / 2),
+		connectionPoint('bottom',
+										() => width.value() / 2,
+										() => height.value() - 15),
+		connectionPoint('right', () => width.value() - 15, height.value() / 2),
 	]
 
 	return connectionPoints

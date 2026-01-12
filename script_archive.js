@@ -25,7 +25,7 @@ let cancelConnection = () => {
 	document.querySelectorAll('.wobble').forEach(e => {
 		e.classList.toggle('wobble')
 	})
-	state.blockConnectionBuffer = undefined
+	state.block_connection_buffer = undefined
 	save_data()
 }
 
@@ -566,10 +566,10 @@ let blockEl = block => {
 
 	let connectionPoint = (side, style) => dom('.edge-connector.absolute.flex-center.box', {
 		style, onclick: e => {
-			if (state.blockConnectionBuffer) {
+			if (state.block_connection_buffer) {
 				store.data.edges.push({
 					id: uuid(),
-					...state.blockConnectionBuffer,
+					...state.block_connection_buffer,
 					toNode: block.id,
 					toSide: side
 				})
@@ -578,12 +578,12 @@ let blockEl = block => {
 					e.classList.toggle('wobble')
 				})
 
-				state.blockConnectionBuffer = undefined
+				state.block_connection_buffer = undefined
 				save_data()
 			}
 			else {
 				e.target.classList.toggle('wobble')
-				state.blockConnectionBuffer = { fromNode: block.id, fromSide: side }
+				state.block_connection_buffer = { fromNode: block.id, fromSide: side }
 			}
 		}
 	}, 'X')

@@ -1,6 +1,6 @@
 import { reactive, memo } from "./chowk.js"
 import { dom } from "./dom.js"
-import { store, state, try_set_channel } from "./state.js"
+import { store, state, try_set_channel, removeEdge } from "./state.js"
 import { Keymanager } from "./keymanager.js"
 import { sidebar } from "./sidebar.js"
 import { dragOperations } from "./dragOperations.js"
@@ -8,6 +8,7 @@ import { notificationpopup } from "./notification.js"
 import { update_block } from "./arena.js"
 import { button, CSSTransform } from "./block.js"
 import { helpbar } from "./help.js"
+import { history } from "./history.js"
 
 // first order of business
 // 1. Get canvas showing and moving like before
@@ -28,11 +29,15 @@ let checkSlugUrl = (url) => {
 // ACTIONS
 // --------------------
 let toggleSidebar = () => state.sidebarOpen.next(e => !e)
+let toggleHelpbar = () => state.helpOpen.next(e => !e)
+let removeCurrentEdge = () => state.selected_connection
+		? removeEdge(state.selected_connection)
+		: null
 
 let undo = () => store.canUndo() ? store.doUndo() : null
 let redo = () => store.canRedo() ? store.doRedo() : null
 
-let inc = (e = false) => e ? 250 : 50
+let inc = (e = false) => e ? 250 : 100
 let zoomIn = (e) => state.canvasScale.next(f => f + (inc() / 500))
 let zoomOut = (e) => state.canvasScale.next(f => f - (inc() / 500))
 let moveLeft = () => state.canvasX.next(f => f - inc())
@@ -96,7 +101,7 @@ let savebtn = button(['span', 'SAVE ', ['code', "⌘S"]], saveCanvasToArena, { u
 
 let helpbtn = button(['span', 'HELP ', ['code', "?"]], () => state.helpOpen.next(e => !e))
 
-let buttons = ['.main-buttons', savebtn, openbtn, helpbtn]
+let buttons = ['.main-buttons', savebtn, openbtn, helpbtn, history()]
 
 // --------------------
 // Move this somewhere
@@ -211,19 +216,48 @@ export let mountContainer = (children) => {
 				scale(${state.canvasScale.value()});`,
 		[state.canvasX, state.canvasY, state.canvasScale])
 
+	// cursor
+	// ~~~~~~~
+	let cursor = ['.cursor', {
+			style: memo(() =>
+				CSSTransform(
+					state.containerMouseX.value(),
+					state.containerMouseY.value(), 15, 15),
+
+				[state.containerMouseX, state.containerMouseY])
+		}]
+
 	// DOM
 	// ~~~~
-	let root = [".container", {
+	let root = dom([".container", {
 		holding: state.holdingCanvas,
 		style: stylemmeo,
 		onpointerdown, onpointermove, onpointerup,
 		...dragOperations,
-	}, ...children]
+	}, ...children])
+
+
+	root.onmousemove = e => {
+		if (e.target != root) return
+		state.containerMouseX.next(e.offsetX)
+		state.containerMouseY.next(e.offsetY)
+
+		if (state.block_connection_buffer){
+			state.connectionToY.next(e.offsetY)
+			state.connectionToX.next(e.offsetX)
+			console.log(
+				state.connectionFromX.value(),
+				state.connectionFromY.value(),
+				state.connectionToX.value(),
+				state.connectionToY.value(),
+			)
+		}
+	}
 
 	// ---------
 	// MOUNT
 	// ~~~~~~~~~
-	document.body.appendChild(dom(root))
+	document.body.appendChild((root))
 	// ---------
 }
 // ---------------
@@ -295,6 +329,8 @@ keys.on('alt + cmd + c', toggleSidebar, prevent)
 keys.on("escape", escape, { modifiers: false })
 keys.on("b", vistLast)
 keys.on("cmd + s", saveCanvasToArena, prevent)
+keys.on("shift + /", toggleHelpbar, prevent)
+keys.on("backspace", removeCurrentEdge, prevent)
 
 document.onkeydown = e => keys.event(e)
 
@@ -309,4 +345,5 @@ window.onhashchange = (event) => {
 // Initialization FN
 // -------------------
 mount()
+
 

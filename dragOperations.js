@@ -23,6 +23,8 @@ export let dragOperations = {
 		// state.selected.next([])
 
 		state.canceled.next(false)
+		state.selected.next([])
+
 		startX.next(e.offsetX)
 		startY.next(e.offsetY)
 		endX.next(e.offsetX)

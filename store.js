@@ -1,63 +1,9 @@
 let stringify = JSON.stringify
-const FS = (function () {
-	/**@type {Map<string, Content>}*/
-	let fs = new Map()
-	let sanitize = location => {
-		let split = location.split("/").filter(e => e != "")
-		let sanitized = split.join("/") + "/"
-		return sanitized
-	}
-
-	return {
-		add: (content) => {
-			// TODO: check if parents are already there if not add...
-			content.location = sanitize(content.location)
-			fs.set(content.location, content)
-		},
-
-		read: (location) => {
-			let content = fs.get(sanitize(location))
-			if (content.type == "file") return content.content
-
-			else {
-				let matcher = location.split("/")
-				if (matcher[matcher.length - 1] == "") matcher.pop()
-				let under = []
-
-				// TODO: use this matcher pattern for children enabled stuff...
-				fs.forEach((value, key) => {
-					let tomatch = key.split("/")
-					if (tomatch[tomatch.length - 1] == "") tomatch.pop()
-
-					if (tomatch.length != matcher.length + 1) return
-
-					let matched = matcher.reduce((acc, val, i) =>
-						acc ?
-							// if last was true check again
-							tomatch[i] == val
-								? true
-								: false
-							// if is false will be false
-							: false
-
-						// start with true
-						, true)
-
-					if (matched) under.push(value)
-				})
-
-				// return dir files
-				// everything under should go...
-				return under
-			}
-		}
-	}
-})();
-
 export let createStore = (internal) => {
 	let undo = []
 	let redo = []
 
+	let doingRedo = false
 	let canUndo = () => undo.length > 0
 	let canRedo = () => redo.length > 0
 
@@ -72,19 +18,39 @@ export let createStore = (internal) => {
 
 	let doRedo = () => {
 		let old = tracking
+		doingRedo = true
 		tracking = 'undo'
 		let action = redo.pop()
 		console.log("Redoing", action)
 		if (action) apply(...action)
+		doingRedo = false
 		tracking = old
 	}
 
 	let batch = []
+	let onHistoryUpdate = new Set()
+	let subscribeHistory = (fn) => {
+		onHistoryUpdate.add(fn)
+		return () => onHistoryUpdate.delete(fn)
+	}
 
 	let recordInverse = (action) => {
-		if (tracking == 'undo') undo.push(action)
-		else if (tracking == 'redo') redo.push(action)
-		else if (tracking == 'batch') batch.push(action)
+		if (tracking == 'undo') {
+			if (!doingRedo){
+				while(redo.length != 0) {
+					redo.pop()
+				}
+			}
+			undo.push(action)
+			onHistoryUpdate.forEach(fn => fn())
+		}
+		else if (tracking == 'redo') {
+			redo.push(action)
+			onHistoryUpdate.forEach(fn => fn())
+		}
+		else if (tracking == 'batch') {
+			batch.push(action)
+		}
 	}
 
 	let startBatch = () => {
@@ -123,7 +89,9 @@ export let createStore = (internal) => {
 
 		if (typeof location == 'string' && location == 'batch') {
 			startBatch()
+
 			action.forEach(act => apply(...act))
+
 			endBatch()
 			return
 		}
@@ -243,6 +211,7 @@ export let createStore = (internal) => {
 	return {
 		apply, tr: apply, get, subscribe,
 		startBatch, endBatch,
-		doUndo, canUndo, doRedo, canRedo, pauseTracking, resumeTracking, relocate
+		doUndo, canUndo, doRedo, canRedo, pauseTracking, resumeTracking, relocate,
+		undo, redo, subscribeHistory
 	}
 }

@@ -24,6 +24,16 @@ export let state = {
 	currentSlug: reactive("are-na-canvas"),
 	selected: reactive([]),
 
+	containerMouseX: reactive(0),
+	containerMouseY: reactive(0),
+
+	block_connection_buffer: undefined,
+	selected_connection: undefined,
+	connectionFromX: reactive(0),
+	connectionFromY: reactive(0),
+	connectionToX: reactive(0),
+	connectionToY: reactive(0),
+
 	updated: reactive(false),
 	canvasX : reactive(0),
 	canvasY : reactive(0),
@@ -40,7 +50,6 @@ export let state = {
 
 	reRenderEdges: reactive(0)
 }
-
 
 export let store = createStore({
 	data: {nodes:[], edges: []},
@@ -132,6 +141,16 @@ export let addEdge = edge => {
 
 	if (!exists) store.tr(EDGES, 'push', edge)
 	else notificationpopup("Connection Already Exists", true)
+
+	state.reRenderEdges.next(e => e+.0001)
+	// updateNodeHash()
+}
+
+export let removeEdge = edge => {
+	// check if connection already exists
+	// if not then add
+	let index = store.get(EDGES).findIndex(e => e.id == edge.id)
+	if (index != -1) store.apply(EDGES, 'remove', [index, 1])
 
 	state.reRenderEdges.next(e => e+.0001)
 	// updateNodeHash()
@@ -291,11 +310,12 @@ let edges = memo(() => {
 			let toT = boundingToSide(to, e.toSide)
 
 			return svgline(fromT.x, fromT.y, toT.x, toT.y, 'black', 15, 0, {
+				class: 'connection-line',
 				onmouseenter: () => {
 					console.log(e)
-					// state.selectedConnection = e
+					state.selected_connection = e
 				},
-				// onmouseexit: () => { state.selectedConnection = undefined },
+				onmouseexit: () => { state.selected_connection = undefined },
 			})
 		}).filter(e => e!=undefined)
 }, [
@@ -303,9 +323,15 @@ let edges = memo(() => {
 	state.reRenderEdges,
 ])
 
+let currentConnection = svgline(
+	state.connectionFromX,
+	state.connectionFromY,
+	state.connectionToX,
+	state.connectionToY,
+	'black', 15)
 
 let svgBackground = () => {
-	return ['svg.background', { width: state.dimensions, height: state.dimensions }, dragMarker, edges]
+	return ['svg.background', { width: state.dimensions, height: state.dimensions }, , currentConnection, dragMarker, edges]
 }
 
 let updateData = (blocks) => {

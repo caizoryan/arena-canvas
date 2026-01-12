@@ -88,9 +88,20 @@ line {
 	pointer-events: auto;
 }
 
-line:hover {
+line.connection-line:hover {
 	stroke: #f00;
 }
+
+.bar {
+	height: 100%;
+	border-radius: 100px;
+	border: 1px solid black;
+}
+
+.history {
+	display: flex;
+}
+
 
 body {
 	background: var(--background);
@@ -476,6 +487,11 @@ textarea {
 	z-index: 299;
 	box-shadow: 6px 6px 0 rgba(0, 0, 0, .1);
 	transition: all 150ms ease-in-out;
+}
+
+.cursor {
+	background: var(--color);
+	pointer-events: none;
 }
 
 .sidebar>* {
