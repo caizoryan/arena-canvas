@@ -1,14 +1,15 @@
 import { reactive, memo } from "./chowk.js"
 import { dom } from "./dom.js"
-import { store, state, try_set_channel, removeEdge } from "./state.js"
+import { store, state, try_set_channel, removeEdge, addNode } from "./state.js"
 import { Keymanager } from "./keymanager.js"
 import { sidebar } from "./sidebar.js"
 import { dragOperations } from "./dragOperations.js"
 import { notificationpopup } from "./notification.js"
-import { update_block } from "./arena.js"
-import { button, CSSTransform } from "./block.js"
+import { connect_block, update_block } from "./arena.js"
+import { BlockElement, button, constructBlockData, CSSTransform } from "./block.js"
 import { helpbar } from "./help.js"
 import { history } from "./history.js"
+import { extract_block_id, link_is_block } from "./md.js"
 
 // first order of business
 // 1. Get canvas showing and moving like before
@@ -25,9 +26,29 @@ let checkSlugUrl = (url) => {
 	else return url.split('#').filter(e => e != '').pop()
 }
 
+let pasteInBlock = () => {
+		navigator.clipboard.readText().then(res =>res.split('\n').forEach(res =>  {
+			if (link_is_block(res)) {
+				console.log('will connect block: ', extract_block_id(res), ' to slug')
+				connect_block(state.currentSlug.value(), extract_block_id(res))
+					.then(block => {
+						console.log("BLock?", block)
+						let newBlock = constructBlockData(block, {
+							x: state.canvasX.value(), y: state.canvasY.value(),
+							width: 350, height: 350
+						})
+						addNode(newBlock)
+						document.querySelector('.container').appendChild(BlockElement(block))
+					})
+			}
+		}))
+}
+
+
 // --------------------
 // ACTIONS
 // --------------------
+let toggleTrackingMode = () => state.trackpad_movement = !state.trackpad_movement
 let toggleSidebar = () => state.sidebarOpen.next(e => !e)
 let toggleHelpbar = () => state.helpOpen.next(e => !e)
 let removeCurrentEdge = () => state.selected_connection
@@ -326,10 +347,12 @@ keys.on('ArrowRight', moveRight)
 keys.on('ArrowLeft', moveLeft)
 keys.on('cmd + e', toggleSidebar, prevent)
 keys.on('alt + cmd + c', toggleSidebar, prevent)
-keys.on("escape", escape, { modifiers: false })
-keys.on("b", vistLast)
+keys.on("escape", escape, { modifiers: false, disable_in_input: true })
+keys.on("b", vistLast, { modifiers: false, disable_in_input: true })
+keys.on("t", toggleTrackingMode, { disable_in_input: true })
 keys.on("cmd + s", saveCanvasToArena, prevent)
 keys.on("shift + /", toggleHelpbar, prevent)
+keys.on("cmd + v", pasteInBlock, {disable_in_input: true, preventDefault: true})
 keys.on("backspace", removeCurrentEdge, prevent)
 
 document.onkeydown = e => keys.event(e)
