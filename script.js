@@ -369,10 +369,9 @@ document.addEventListener("wheel", e => {
 	}
 }, { passive: false })
 
-
-
 let keys = new Keymanager()
 let prevent = { preventDefault: true }
+
 keys.on('cmd + z', undo, prevent)
 keys.on('cmd + shift + z', redo, prevent)
 keys.on('cmd + =', zoomIn, prevent)
@@ -389,7 +388,7 @@ keys.on("escape", escape, { modifiers: false, disable_in_input: true })
 keys.on("b", vistLast, { modifiers: false, disable_in_input: true })
 keys.on("t", toggleTrackingMode, { disable_in_input: true })
 keys.on("cmd + s", saveCanvasToArena, prevent)
-keys.on("shift + /", toggleHelpbar, prevent)
+keys.on("shift + /", toggleHelpbar, {disable_in_input: true})
 keys.on("cmd + v", pasteInBlock, {disable_in_input: true, preventDefault: true})
 keys.on("cmd + d", downloadData, {disable_in_input: true, preventDefault: true})
 keys.on("backspace", removeCurrentEdge, {disable_in_input: true, ...prevent})
