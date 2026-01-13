@@ -276,7 +276,8 @@ export function GroupElement(group) {
 	}
 
 	let edges = resizers(left, top, width, height, { onstart, onend })
-	let el = dom('.draggable.group', { style }, colorBars(group, removeButton()), groupTitleLabel(group), ...edges)
+	let connectionEdges = connectors(group, left, top, width, height)
+	let el = dom('.draggable.group', { style }, colorBars(group, removeButton()), groupTitleLabel(group), ...edges, ...connectionEdges)
 
 	setTimeout(() => {
 		drag(el, {
@@ -348,8 +349,20 @@ const connectors = (block, left, top, width, height, opts = {}) => {
 
 			if (state.block_connection_buffer) {
 				// add edge
+
+				document.querySelectorAll('.wobble').forEach(e => {
+					e.classList.toggle('wobble')
+				})
+
+				state.connectionFromX.next(0)
+				state.connectionFromY.next(0)
+				state.connectionToX.next(0)
+				state.connectionToY.next(0)
+
 				if (state.block_connection_buffer.fromNode == block.id) {
 					state.block_connection_buffer = undefined
+					notificationpopup("Can't connect to self", true)
+					return
 				}
 
 				addEdge({
@@ -359,16 +372,7 @@ const connectors = (block, left, top, width, height, opts = {}) => {
 					toSide: side
 				})
 
-				document.querySelectorAll('.wobble').forEach(e => {
-					e.classList.toggle('wobble')
-				})
-
 				state.block_connection_buffer = undefined
-
-				state.connectionFromX.next(0)
-				state.connectionFromY.next(0)
-				state.connectionToX.next(0)
-				state.connectionToY.next(0)
 			}
 
 			else {

@@ -51,6 +51,9 @@ export let state = {
 	reRenderEdges: reactive(0)
 }
 
+// subscribe to currentSlug to update url
+state.currentSlug.subscribe(slug => history.pushState('', '', '#' + slug))
+
 export let store = createStore({
 	data: {nodes:[], edges: []},
 	nodeHash: {}
@@ -118,6 +121,7 @@ export let subscribeToId = (id, location, fn) => {
 
 export let setNodes = (nodes) => {
 	store.tr(['data'], 'set', ['nodes', nodes], false)
+	store.clearHistory()
 	updateNodeHash()
 } 
 

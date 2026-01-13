@@ -104,11 +104,11 @@ let vistLast = () => {
 	if (last) animateMove(last.x, last.y)
 }
 
-
 let escape = () => {
 	state.canceled.next(true)
 	state.selected.next([])
 }
+
 let saveCanvasToArena = () => {
 	let content = JSON.stringify(store.get(['data']))
 	if (state.dot_canvas?.id) {

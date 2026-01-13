@@ -7,6 +7,12 @@ export let createStore = (internal) => {
 	let canUndo = () => undo.length > 0
 	let canRedo = () => redo.length > 0
 
+	let clearHistory = () => {
+		while(redo.length != 0) {redo.pop()}
+		while(undo.length != 0) {undo.pop()}
+		onHistoryUpdate.forEach(fn => fn())
+	}
+
 	let doUndo = () => {
 		let old = tracking
 		tracking = 'redo'
@@ -211,7 +217,7 @@ export let createStore = (internal) => {
 	return {
 		apply, tr: apply, get, subscribe,
 		startBatch, endBatch,
-		doUndo, canUndo, doRedo, canRedo, pauseTracking, resumeTracking, relocate,
+		doUndo, canUndo, doRedo, canRedo, pauseTracking, resumeTracking, relocate,clearHistory,
 		undo, redo, subscribeHistory
 	}
 }
