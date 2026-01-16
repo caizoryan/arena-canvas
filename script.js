@@ -244,7 +244,7 @@ export let mount = () => {
 	slug
 		? try_set_channel(slug)
 		: try_set_channel(state.currentSlug.value())
-
+	
 	document.body.appendChild(dom(helpbar))
 	document.body.appendChild(dom(sidebar))
 	document.body.appendChild(dom(buttons))
@@ -276,10 +276,13 @@ export let mountContainer = (children) => {
 	let cursor = ['.cursor', {
 			style: memo(() =>
 				CSSTransform(
-					state.containerMouseX.value(),
-					state.containerMouseY.value(), 15, 15),
+					state.canvasX.value() + (((window.innerWidth*.6) / state.canvasScale.value())),
+//+ window.innerWidth / 2,
+					state.canvasY.value() + window.innerHeight / 2, 45, 45)
+					+ 'transition:all 50ms '
+				,
 
-				[state.containerMouseX, state.containerMouseY])
+				[state.canvasX, state.canvasY])
 		}]
 
 	// DOM
@@ -373,9 +376,16 @@ let keys = new Keymanager()
 let prevent = { preventDefault: true }
 
 keys.on('cmd + z', undo, prevent)
+keys.on('ctrl + z', undo, prevent)
+
 keys.on('cmd + shift + z', redo, prevent)
+keys.on('ctrl + shift + z', redo, prevent)
+
 keys.on('cmd + =', zoomIn, prevent)
 keys.on('cmd + -', zoomOut, prevent)
+
+keys.on('ctrl + =', zoomIn, prevent)
+keys.on('ctrl + -', zoomOut, prevent)
 
 keys.on('ArrowRight', moveRight, {disable_in_input: true})
 keys.on('ArrowLeft', moveLeft, {disable_in_input: true})
@@ -383,14 +393,22 @@ keys.on('ArrowUp', moveUp, {disable_in_input: true})
 keys.on('ArrowDown', moveDown, {disable_in_input: true})
 
 keys.on('cmd + e', toggleSidebar, prevent)
-keys.on('alt + cmd + c', toggleSidebar, prevent)
+keys.on('ctrl + e', toggleSidebar, prevent)
+
 keys.on("escape", escape, { modifiers: false, disable_in_input: true })
 keys.on("b", vistLast, { modifiers: false, disable_in_input: true })
 keys.on("t", toggleTrackingMode, { disable_in_input: true })
+
 keys.on("cmd + s", saveCanvasToArena, prevent)
+keys.on("ctrl + s", saveCanvasToArena, prevent)
+
 keys.on("shift + /", toggleHelpbar, {disable_in_input: true})
+
 keys.on("cmd + v", pasteInBlock, {disable_in_input: true, preventDefault: true})
+keys.on("ctrl + v", pasteInBlock, {disable_in_input: true, preventDefault: true})
 keys.on("cmd + d", downloadData, {disable_in_input: true, preventDefault: true})
+keys.on("ctrl + d", downloadData, {disable_in_input: true, preventDefault: true})
+
 keys.on("backspace", removeCurrentEdge, {disable_in_input: true, ...prevent})
 
 document.onkeydown = e => keys.event(e)

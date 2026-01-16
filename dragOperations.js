@@ -32,12 +32,12 @@ export let dragOperations = {
 
 		target.setPointerCapture(e.pointerId);
 
-		if (e.metaKey && e.shiftKey) { dragAction = 'making-group' }
+		if ((e.metaKey || e.ctrlKey) && e.shiftKey) { dragAction = 'making-group' }
 		else if (e.shiftKey) {
 			dragAction = 'zoom'
 			dragAction = 'select'
 		}
-		else if (e.metaKey) {
+		else if (e.metaKey || e.ctrlKey) {
 			dragAction = 'making-block'
 		}
 		else {

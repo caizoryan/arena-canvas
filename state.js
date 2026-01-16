@@ -2,8 +2,8 @@ import { dom } from "./dom.js"
 import { reactive, memo } from "./chowk.js"
 import { get_channel, try_auth } from './arena.js'
 import { notificationpopup } from './notification.js'
-import {  mountContainer } from "./script.js"
-import { BlockElement, constructBlockData, GroupElement, unwrap} from "./block.js"
+import { mountContainer } from "./script.js"
+import { BlockElement, constructBlockData, GroupElement, unwrap } from "./block.js"
 import { createStore } from "./store.js"
 import { svgrect, svgline, svgrectnormal } from "./svg.js"
 import { dragTransforms } from "./dragOperations.js"
@@ -35,9 +35,9 @@ export let state = {
 	connectionToY: reactive(0),
 
 	updated: reactive(false),
-	canvasX : reactive(0),
-	canvasY : reactive(0),
-	canvasScale : reactive(1),
+	canvasX: reactive(0),
+	canvasY: reactive(0),
+	canvasScale: reactive(1),
 
 	dimensions: reactive(10000),
 	holdingCanvas: reactive(false),
@@ -55,7 +55,7 @@ export let state = {
 state.currentSlug.subscribe(slug => history.pushState('', '', '#' + slug))
 
 export let store = createStore({
-	data: {nodes:[], edges: []},
+	data: { nodes: [], edges: [] },
 	nodeHash: {}
 })
 
@@ -63,7 +63,7 @@ store.subscribe(['data', 'nodes'], (e) => {
 	state.updated.next(false)
 
 	let yes = false
-	if (e.id){
+	if (e.id) {
 		// check if e.id is in edges
 		store.get(['data', 'edges']).forEach(n => {
 			if (n.fromNode == e.id || n.toNode == e.id) {
@@ -71,9 +71,9 @@ store.subscribe(['data', 'nodes'], (e) => {
 			}
 		})
 	}
-	if (yes) state.reRenderEdges.next(e => e+.0001)
+	if (yes) state.reRenderEdges.next(e => e + .0001)
 }, true)
-store.subscribe(['data', 'edges'], () => state.reRenderEdges.next(e => e+.0001))
+store.subscribe(['data', 'edges'], () => state.reRenderEdges.next(e => e + .0001))
 
 // ~~~~~~~~~~~
 // STORE UTILS
@@ -85,12 +85,12 @@ let NODEAT = i => NODES.concat([i])
 export let updateNodeHash = () => {
 	let oldHash = store.get(NODEHASH)
 	let hash = store.get(NODES)
-			.reduce((acc, n, i) => (acc[n.id] = NODEAT(i), acc), {})
+		.reduce((acc, n, i) => (acc[n.id] = NODEAT(i), acc), {})
 
-	if (oldHash){
+	if (oldHash) {
 		Object.entries(oldHash).forEach(([key, value]) => {
 			if (!idSubscriptions[key]) return
-			let {remove, fns, location} = idSubscriptions[key]
+			let { remove, fns, location } = idSubscriptions[key]
 
 			if (!hash[key]) {
 				remove()
@@ -99,9 +99,9 @@ export let updateNodeHash = () => {
 
 			else if (stringify(value) != stringify(hash[key])) {
 				fns.forEach(fn => {
-					idSubscriptions[key].remove = store.relocate(location, hash[key], fn)		
+					idSubscriptions[key].remove = store.relocate(location, hash[key], fn)
 				})
-				idSubscriptions[key].location = hash[key] 
+				idSubscriptions[key].location = hash[key]
 			}
 		})
 	}
@@ -116,16 +116,16 @@ export let subscribeToId = (id, location, fn) => {
 	// TODO: Make removes...
 	let remove = store.subscribe(l.concat(location), fn)
 	if (idSubscriptions[id]) idSubscriptions[id].fns.push([fn])
-	idSubscriptions[id] = {fns: [fn], location, remove}
+	idSubscriptions[id] = { fns: [fn], location, remove }
 }
 
 export let setNodes = (nodes) => {
 	store.tr(['data'], 'set', ['nodes', nodes], false)
 	store.clearHistory()
 	updateNodeHash()
-} 
+}
 
-export let addNode = (node) =>{
+export let addNode = (node) => {
 	store.tr(NODES, 'push', node, false)
 	updateNodeHash()
 }
@@ -154,7 +154,7 @@ export let addEdge = edge => {
 	if (!exists) store.tr(EDGES, 'push', edge)
 	else notificationpopup("Connection Already Exists", true)
 
-	state.reRenderEdges.next(e => e+.0001)
+	state.reRenderEdges.next(e => e + .0001)
 	// updateNodeHash()
 }
 
@@ -164,7 +164,7 @@ export let removeEdge = edge => {
 	let index = store.get(EDGES).findIndex(e => e.id == edge.id)
 	if (index != -1) store.apply(EDGES, 'remove', [index, 1])
 
-	state.reRenderEdges.next(e => e+.0001)
+	state.reRenderEdges.next(e => e + .0001)
 	// updateNodeHash()
 }
 
@@ -197,7 +197,7 @@ function load_local_storage() {
 		state.canvasScale.next(t.scale)
 	}
 
-	else t = {x: 0, y: 0, scale: 1}
+	else t = { x: 0, y: 0, scale: 1 }
 }
 load_local_storage()
 
@@ -253,8 +253,9 @@ let y1 = dragTransforms.startY
 let y2 = dragTransforms.endY
 let rectx = memo(() => Math.min(unwrap(x1), unwrap(x2)) || 0, [x1, x2])
 let recty = memo(() => Math.min(unwrap(y1), unwrap(y2)) || 0, [y1, y2])
-let rectheight = memo(() =>  Math.abs(unwrap(y2) - unwrap(y1)) || 0, [y1, y2])
+let rectheight = memo(() => Math.abs(unwrap(y2) - unwrap(y1)) || 0, [y1, y2])
 let rectwidth = memo(() => Math.abs(unwrap(x2) - unwrap(x1)) || 0, [x1, x2])
+
 
 let dragMarker = dom(svgrectnormal(
 	rectx,
@@ -278,60 +279,60 @@ let R = (location) => ({
 
 
 let edges = memo(() => {
-		if (!store.get(['data', 'edges'])) return []
-		return store.get(['data', 'edges']).map(e => {
-			console.log('running')
-			
-			let boundingToSide = (b, side) => {
-				if (side == 'top') {
-					return ({
-						x: b.x + b.width / 2,
-						y: b.y
-					})
-				}
+	if (!store.get(['data', 'edges'])) return []
+	return store.get(['data', 'edges']).map(e => {
+		console.log('running')
 
-				if (side == 'bottom') {
-					return ({
-						x: b.x + b.width / 2,
-						y: b.y + b.height
-					})
-				}
-
-				if (side == 'right') {
-					return ({
-						x: b.x + b.width,
-						y: b.y + b.height / 2
-					})
-				}
-
-				if (side == 'left') {
-					return ({
-						x: b.x,
-						y: b.y + b.height / 2
-					})
-				}
+		let boundingToSide = (b, side) => {
+			if (side == 'top') {
+				return ({
+					x: b.x + b.width / 2,
+					y: b.y
+				})
 			}
 
-			let from = store.get(['data', 'nodes']).find(f => f.id == e.fromNode)
-			let to = store.get(['data', 'nodes']).find(f => f.id == e.toNode)
+			if (side == 'bottom') {
+				return ({
+					x: b.x + b.width / 2,
+					y: b.y + b.height
+				})
+			}
 
-			if (!(from && to)) return
-			// let to = store.get(getNodeLocation(e.toNode))
+			if (side == 'right') {
+				return ({
+					x: b.x + b.width,
+					y: b.y + b.height / 2
+				})
+			}
 
-			let fromT = boundingToSide(from, e.fromSide)
-			let toT = boundingToSide(to, e.toSide)
+			if (side == 'left') {
+				return ({
+					x: b.x,
+					y: b.y + b.height / 2
+				})
+			}
+		}
 
-			return svgline(fromT.x, fromT.y, toT.x, toT.y, 'black', 8, 0, {
-				class: 'connection-line',
-				onmouseenter: () => {
-					console.log(e)
-					state.selected_connection = e
-				},
-				onmouseexit: () => { state.selected_connection = undefined },
-			})
-		}).filter(e => e!=undefined)
+		let from = store.get(['data', 'nodes']).find(f => f.id == e.fromNode)
+		let to = store.get(['data', 'nodes']).find(f => f.id == e.toNode)
+
+		if (!(from && to)) return
+		// let to = store.get(getNodeLocation(e.toNode))
+
+		let fromT = boundingToSide(from, e.fromSide)
+		let toT = boundingToSide(to, e.toSide)
+
+		return svgline(fromT.x, fromT.y, toT.x, toT.y, 'black', 8, 0, {
+			class: 'connection-line',
+			onmouseenter: () => {
+				console.log(e)
+				state.selected_connection = e
+			},
+			onmouseexit: () => { state.selected_connection = undefined },
+		})
+	}).filter(e => e != undefined)
 }, [
-	R([ 'data', 'edges' ]),
+	R(['data', 'edges']),
 	state.reRenderEdges,
 ])
 
@@ -365,7 +366,7 @@ let updateData = (blocks) => {
 			if (node.type == 'group') return
 			let f
 			if (node.id.toString().charAt(0) == 'c')
-				f = blocks.find(e => 'c'+e.id == node.id)
+				f = blocks.find(e => 'c' + e.id == node.id)
 			else f = blocks.find(e => e.id == node.id)
 			if (!f) {
 				console.log('removing')
@@ -379,9 +380,9 @@ let updateData = (blocks) => {
 			let toTest = node.fromNode
 			let f
 			if (toTest.toString().charAt(0) == 'c')
-				f = blocks.find(e => 'c'+e.id == toTest)
+				f = blocks.find(e => 'c' + e.id == toTest)
 			else f = blocks.find(e => e.id == toTest)
-			if (!f) {removeEdges.push(node)}
+			if (!f) { removeEdges.push(node) }
 		})
 
 		store.get(EDGES).forEach(node => {
@@ -389,29 +390,29 @@ let updateData = (blocks) => {
 			if (toTest == 42489767) console.log(node)
 			let f
 			if (toTest.toString().charAt(0) == 'c')
-				f = blocks.find(e => 'c'+e.id == toTest)
+				f = blocks.find(e => 'c' + e.id == toTest)
 
 			else f = blocks.find(e => e.id == toTest)
-			if (!f) {removeEdges.push(node)}
+			if (!f) { removeEdges.push(node) }
 		})
 
 		removeEdges.forEach(node => {
-				console.log('removing edge')
-				let i = store.get(EDGES).findIndex(n => n == node)
-				store.tr(EDGES, 'remove', [i, 1], false)
-				updateHash = true
+			console.log('removing edge')
+			let i = store.get(EDGES).findIndex(n => n == node)
+			store.tr(EDGES, 'remove', [i, 1], false)
+			updateHash = true
 		})
 
 		// will relocate
-		if (updateHash){
-			state.reRenderEdges.next(e => e+.00001)
+		if (updateHash) {
+			state.reRenderEdges.next(e => e + .00001)
 			updateNodeHash()
 		}
 	}
 	else {
 		console.log("DIDNT FIND DOT CANVAS")
 		let nodes = blocks.filter(e => e.title != ".canvas")
-				.map(constructBlockData)
+			.map(constructBlockData)
 
 		setNodes(nodes)
 	}
@@ -422,8 +423,8 @@ let processBlockForRendering = (blocks) => {
 }
 
 memo(() => {
-	state.canvasScale.value() < 0.1 ? state.canvasScale.next(.1):null
-	state.canvasScale.value() > 2.3 ? state.canvasScale.next(2.3):null
+	state.canvasScale.value() < 0.1 ? state.canvasScale.next(.1) : null
+	state.canvasScale.value() > 2.3 ? state.canvasScale.next(2.3) : null
 
 	localStorage.setItem("transform", JSON.stringify({
 		x: state.canvasX.value(),

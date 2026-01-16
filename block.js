@@ -27,6 +27,7 @@ export const CSSTransform = (x, y, width, height) => {
 
 export const Transform = (x, y, width, height) => ({ x, y, width, height })
 const Color = i => 'background-color: var(--b' + i + ');'
+const GColor = i => 'background-color: var(--g' + i + ');'
 export const isRectContained = (rect1, rect2) => {
 	return (
 		rect2.x >= rect1.x &&
@@ -210,7 +211,7 @@ export function GroupElement(group) {
 	let width = r('width')
 
 	let style = memo(() =>
-		CSSTransform(left, top, width, height) + Color(color.value())
+		CSSTransform(left, top, width, height) + GColor(color.value())
 		, [left, top, width, height, color])
 
 
