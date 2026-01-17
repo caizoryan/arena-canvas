@@ -1,80 +1,108 @@
-import { reactive, memo } from "./chowk.js"
-import { dom } from "./dom.js"
-import { state, try_set_channel } from "./state.js"
-import { try_auth } from "./arena.js"
+import { memo, reactive } from "./chowk.js";
+import { dom } from "./dom.js";
+import { state, try_set_channel } from "./state.js";
+import { try_auth } from "./arena.js";
 
-let query = ""
+let query = "";
 
 let searchBar = dom(["input", {
-	placeholder: 'Enter Slug or URL',
+	placeholder: "Enter Slug or URL",
 	oninput: (e) => query = e.target.value,
-	onkeydown: e => e.key == "Enter" ? try_set_channel(query.trim()) : null
-}])
+	onkeydown: (e) => e.key == "Enter" ? try_set_channel(query.trim()) : null,
+}]);
 
-export let focusSearchBar = () => searchBar.focus()
+export let addToRecents = (slug) => {
+	// load recents
+	let s = localStorage.getItem("recent-slugs");
+	if (s) {
+		s = JSON.parse(s);
+		let newS = Array.from(new Set([...s, slug]));
+		localStorage.setItem(s);
+		state.recentSlugs.next(newS);
+	}
+};
+
+export let focusSearchBar = () => searchBar.focus();
 // slice from middle and put ... in there
 let slicer = (str, size) => {
-	let length = str.length
-	if (length <= size) return str
+	let length = str.length;
+	if (length <= size) return str;
 	else {
-		let toRemove = length - size
-
+		const toRemove = length - size;
 	}
-
-}
-let search = [".section.search", ["h4", "Channel"], searchBar,
+};
+const search = [
+	".section.search",
+	["h4", "Channel"],
+	searchBar,
 	["button", { onclick: (e) => try_set_channel(query.trim()) }, "set"],
-	['h5', 'Recently Visited'],
-	memo(() => state.recentSlugs.value()
-			 .map(e => ['a', {href: "#" + e}, ['button.mr', { href: '#' + e },
-			e.slice(0, 18), e.length > 18 ? "..." : '']]), [state.recentSlugs])
-]
+	["h5", "Recently Visited"],
+	memo(() =>
+		state.recentSlugs.value()
+			.map(
+				(e) => ["a", { href: "#" + e }, [
+					"button.mr",
+					{ href: "#" + e },
+					e.slice(0, 18),
+					e.length > 18 ? "..." : "",
+				]],
+			), [state.recentSlugs]),
+];
 
-let logout = ['p', ['button', {
+let logout = ["p", ["button", {
 	onclick: () => {
-		localStorage.setItem("auth", "")
-		state.authSlug.next("")
-	}
-}, 'logout']]
+		localStorage.setItem("auth", "");
+		state.authSlug.next("");
+	},
+}, "logout"]];
 
 let authbar = memo(() =>
-	state.authSlug.value() == "" ?
-		["div", ["input", {
-			placeholder: 'Enter Token',
-			oninput: (e) => state.authKey = (e.target.value.trim()),
-			onkeydown: e => {
+	state.authSlug.value() == ""
+		? ["div", ["input", {
+			placeholder: "Enter Token",
+			oninput: (e) => state.authKey = e.target.value.trim(),
+			onkeydown: (e) => {
 				if (e.key == "Enter") {
-					localStorage.setItem("auth", state.authKey)
-					try_auth()
+					localStorage.setItem("auth", state.authKey);
+					try_auth();
 				}
-			}
-		}],
+			},
+		}], ["button", {
+			onclick: () => {
+				localStorage.setItem("auth", state.authKey);
+				try_auth();
+			},
+		}, "try"], ["a", { href: "https://arena-token-gen.vercel.app/" }, [
+			"p",
+			"Get your token here",
+		]]]
+		: ["p", ["img.icon", { src: state.me.avatar_image.thumb }], [
+			"p",
+			state.authSlug,
+		], logout], [state.authSlug]);
 
-			["button", {
-				onclick: () => {
-					localStorage.setItem("auth", state.authKey)
-					try_auth()
-				}
-
-			}, "try"],
-			['a', { href: 'https://arena-token-gen.vercel.app/' }, ['p', 'Get your token here']],
-		] :
-		['p',
-			['img.icon', { src: state.me.avatar_image.thumb }],
-			["p", state.authSlug], logout]
-
-	, [state.authSlug])
-
-let authenticate = [".section.auth", ["h4", "Authenticate"], authbar]
-let monospaceness = ['.section.monospaceness',
-	['h4', 'Monospaceness'],
-	['input', {
-		type: 'range', oninput: e => {
-			document.documentElement.style.setProperty("--monospaceness", e.target.value);
+let authenticate = [".section.auth", ["h4", "Authenticate"], authbar];
+let monospaceness = [".section.monospaceness", ["h4", "Monospaceness"], [
+	"input",
+	{
+		type: "range",
+		oninput: (e) => {
+			document.documentElement.style.setProperty(
+				"--monospaceness",
+				e.target.value,
+			);
 		},
 		value: 65,
 		min: 0,
 		max: 100,
-	}]]
+	},
+]];
 
-export let sidebar = [".sidebar", { open: state.sidebarOpen }, ["h2", "Canvas"], search, authenticate, monospaceness]
+export let sidebar = [
+	".sidebar",
+	{ open: state.sidebarOpen },
+	["h2", "Canvas"],
+	search,
+	authenticate,
+	monospaceness,
+];
