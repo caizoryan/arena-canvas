@@ -19,7 +19,7 @@ export let addToRecents = (slug) => {
 	let s = localStorage.getItem("recent-slugs");
 	if (s) {
 		s = JSON.parse(s);
-		let newS = Array.from(new Set([...s, slug]));
+		let newS = Array.from(new Set([slug, ...s]));
 		localStorage.setItem("recent-slugs", JSON.stringify(newS));
 		state.recentSlugs.next(newS);
 	} else {
