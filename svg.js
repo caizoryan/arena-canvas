@@ -1,5 +1,3 @@
-import { unwrap } from "./block.js"
-import { memo } from "./chowk.js"
 export let svgrectnormal = (x, y, width, height, stroke = "blue", strokewidth = 4) =>{
 	// TODO: Move the memo outside and send inside
 	return ['rect', {

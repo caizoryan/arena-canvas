@@ -39,7 +39,7 @@ export let state = {
 	canvasY: reactive(0),
 	canvasScale: reactive(1),
 
-	dimensions: reactive(10000),
+	dimensions: reactive(100000),
 	holdingCanvas: reactive(false),
 	canceled: reactive(false),
 

@@ -180,8 +180,8 @@ body {
 }
 
 .container {
-	width: 10000px;
-	height: 10000px;
+	width: 100000px;
+	height: 100000px;
 	background: var(--background);
 	background-size: 100px 100px;
   background-image: linear-gradient(to right, var(--background1) 3px, transparent 3px), linear-gradient(to bottom, var(--background1) 3px, transparent 3px);
