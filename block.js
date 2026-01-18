@@ -375,21 +375,23 @@ const resizers = (left, top, width, height, opts = {}) => {
 				30,
 			), [width, height]),
 	}, svgx(30));
+
 	let WidthMiddle = dom(".absolute.flex-center.box.cur-e", {
 		style: memo(() =>
 			CSSTransform(
 				width.value() - 15,
-				height.value() / 4,
+				15,
 				30,
-				height.value() / 2,
+				height.value() - 30,
 			), [width, height]),
 	}, svgx(30));
+
 	let HeightMiddle = dom(".absolute.flex-center.box.cur-s", {
 		style: memo(() =>
 			CSSTransform(
-				width.value() / 4,
+				15,
 				height.value() - 15,
-				width.value() / 2,
+				width.value() - 30,
 				30,
 			), [width, height]),
 	}, svgx(30));
