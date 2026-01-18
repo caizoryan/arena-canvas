@@ -11,17 +11,6 @@ let searchBar = dom(["input", {
 	onkeydown: (e) => e.key == "Enter" ? try_set_channel(query.trim()) : null,
 }]);
 
-export let addToRecents = (slug) => {
-	// load recents
-	let s = localStorage.getItem("recent-slugs");
-	if (s) {
-		s = JSON.parse(s);
-		let newS = Array.from(new Set([...s, slug]));
-		localStorage.setItem(s);
-		state.recentSlugs.next(newS);
-	}
-};
-
 export let focusSearchBar = () => searchBar.focus();
 // slice from middle and put ... in there
 let slicer = (str, size) => {

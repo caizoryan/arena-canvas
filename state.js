@@ -2,7 +2,7 @@ import { dom } from "./dom.js";
 import { memo, reactive } from "./chowk.js";
 import { get_channel, try_auth } from "./arena.js";
 import { notificationpopup } from "./notification.js";
-import { mountContainer } from "./script.js";
+import { mountContainer, moveToBlock } from "./script.js";
 import {
 	BlockElement,
 	constructBlockData,
@@ -36,6 +36,7 @@ export let state = {
 	authKey: undefined,
 	me: {},
 
+	snapSize: reactive(5),
 	sidebarOpen: reactive(false),
 	helpOpen: reactive(false),
 
@@ -256,9 +257,9 @@ let set_channel = (slug) => {
 
 				mountContainer([
 					...groups.map(GroupElement),
-					svg,
 					mountBoundingBox(),
 					...blocks.map(BlockElement),
+					svg,
 				]);
 
 				// addToRecents(slug)
@@ -302,30 +303,31 @@ let edges = memo(() => {
 		console.log("running");
 
 		let boundingToSide = (b, side) => {
+			let s = 10;
 			if (side == "top") {
 				return ({
 					x: b.x + b.width / 2,
-					y: b.y,
+					y: b.y - s,
 				});
 			}
 
 			if (side == "bottom") {
 				return ({
 					x: b.x + b.width / 2,
-					y: b.y + b.height,
+					y: b.y + b.height + s,
 				});
 			}
 
 			if (side == "right") {
 				return ({
-					x: b.x + b.width,
+					x: b.x + b.width + s,
 					y: b.y + b.height / 2,
 				});
 			}
 
 			if (side == "left") {
 				return ({
-					x: b.x,
+					x: b.x - s,
 					y: b.y + b.height / 2,
 				});
 			}
@@ -340,7 +342,7 @@ let edges = memo(() => {
 		let fromT = boundingToSide(from, e.fromSide);
 		let toT = boundingToSide(to, e.toSide);
 
-		return svgline(fromT.x, fromT.y, toT.x, toT.y, "black", 8, 0, {
+		return svgline(fromT.x, fromT.y, toT.x, toT.y, "#888", 5, 0, {
 			class: "connection-line",
 			onmouseenter: () => {
 				console.log(e);
@@ -348,6 +350,16 @@ let edges = memo(() => {
 			},
 			onmouseexit: () => {
 				state.selected_connection = undefined;
+			},
+
+			onclick: (ev) => {
+				if (ev.metaKey || ev.ctrlKey) {
+					moveToBlock(e.toNode);
+				}
+
+				if (ev.shiftKey) {
+					moveToBlock(e.fromNode);
+				}
 			},
 		});
 	}).filter((e) => e != undefined);
@@ -366,11 +378,154 @@ let currentConnection = svgline(
 	12,
 );
 
+function makeArrowMarker(size = 1, id = "arrow", color = "black") {
+	return [
+		"defs",
+		{},
+		[
+			"marker",
+			{
+				id,
+				markerWidth: 10 * size,
+				markerHeight: 10 * size,
+				refX: 1 * size,
+				refY: 5 * size,
+				orient: "auto",
+				markerUnits: "strokeWidth",
+			},
+			[
+				"path",
+				{
+					d: `M0,0 L${10 * size},${5 * size} L0,${10 * size} Z`,
+					// "fill-opacity": 0,
+					"fill": color,
+					// "stroke": color,
+					// "stroke-width": 1,
+				},
+			],
+		],
+	];
+}
+
+function makeLineArrowMarker(
+	size = 1,
+	id = "arrow",
+	color = "black",
+	strokeWidth = 2,
+) {
+	const box = 10 * size;
+	const cx = box;
+	const cy = box / 2;
+	const arm = 4 * size;
+
+	return [
+		"defs",
+		{},
+		[
+			"marker",
+			{
+				id,
+				markerWidth: box + 5 * size,
+				markerHeight: box + 5 * size,
+				refX: cx,
+				refY: cy,
+				orient: "auto",
+				markerUnits: "strokeWidth",
+			},
+			[
+				"path",
+				{
+					d: `
+            M ${cx - arm} ${cy - arm}
+            L ${cx} ${cy}
+            L ${cx - arm} ${cy + arm}
+          `,
+					stroke: color,
+					strokeWidth,
+					strokeLinecap: "round",
+					strokeLinejoin: "round",
+					fill: "none",
+				},
+			],
+		],
+	];
+}
+
+function makeCircleMarker(size = 1, id = "circle", color = "black") {
+	const r = 5 * size;
+
+	return [
+		"defs",
+		{},
+		[
+			"marker",
+			{
+				id,
+				markerWidth: 10 * size,
+				markerHeight: 10 * size,
+				refX: r,
+				refY: r,
+				orient: "auto",
+				markerUnits: "strokeWidth",
+			},
+			[
+				"circle",
+				{
+					cx: r,
+					cy: r,
+					r,
+					"fill": color,
+					"stroke-width": 1,
+				},
+			],
+		],
+	];
+}
+
+function makeXMarker(size = 1, id = "x", color = "black", strokeWidth = 2) {
+	const box = 10 * size;
+	const pad = 2 * size;
+
+	return [
+		"defs",
+		{},
+		[
+			"marker",
+			{
+				id,
+				markerWidth: box,
+				markerHeight: box,
+				refX: box / 2,
+				refY: box / 2,
+				orient: "auto",
+				markerUnits: "strokeWidth",
+			},
+			[
+				"path",
+				{
+					d: `
+            M ${pad} ${pad}
+            L ${box - pad} ${box - pad}
+            M ${box - pad} ${pad}
+            L ${pad} ${box - pad}
+          `,
+					stroke: color,
+					strokeWidth,
+					strokeLinecap: "round",
+					fill: "none",
+				},
+			],
+		],
+	];
+}
+
 let svgBackground = () => {
 	return [
 		"svg.background",
 		{ width: state.dimensions, height: state.dimensions },
-		,
+		makeLineArrowMarker(.4, "arrow", "#222"),
+		makeCircleMarker(.3, "circle", "#222"),
+		makeXMarker(.4),
 		currentConnection,
 		dragMarker,
 		edges,
