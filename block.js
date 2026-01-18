@@ -4,6 +4,7 @@ import { dom } from "./dom.js";
 import { drag } from "./drag.js";
 import { MD } from "./md.js";
 import { notificationpopup } from "./notification.js";
+import { round } from "./script.js";
 import {
 	addEdge,
 	addNode,
@@ -162,8 +163,9 @@ export function BlockElement(block) {
 	);
 
 	let addToSelection = (e) => {
-		if (e.shiftKey) state.selected.next((e) => [...e, block.id]);
-		else state.selected.next([block.id]);
+		if (e.shiftKey) {
+			state.selected.next((e) => [...e, block.id]);
+		} else state.selected.next([block.id]);
 	};
 
 	let style = memo(() =>
@@ -246,8 +248,8 @@ export function BlockElement(block) {
 			onend,
 			pan_switch: () => attributes?.edit ? !attributes.edit.value() : true,
 			set_position: (x, y) => {
-				left.next(x);
-				top.next(y);
+				left.next(round(x, state.snapSize.value()));
+				top.next(round(y, state.snapSize.value()));
 			},
 		});
 	}, 50);
@@ -278,8 +280,11 @@ export function GroupElement(group) {
 
 		if (!e.metaKey) {
 			store.get(["data", "nodes"]).forEach((e, i) => {
+				let fn = isRectIntersecting;
+				if (e.type == "group") fn = isRectContained;
+
 				if (
-					isRectIntersecting(
+					fn(
 						Transform(
 							left.value(),
 							top.value(),
@@ -351,12 +356,18 @@ export function GroupElement(group) {
 			onstart,
 			onend,
 			set_position: (x, y) => {
+				x = round(x, state.snapSize.value());
+				y = round(y, state.snapSize.value());
+
 				left.next(x);
 				top.next(y);
 
 				anchored.forEach((e) => {
-					store.tr(e.blockLocation, "set", ["x", x + e.offset.x]);
-					store.tr(e.blockLocation, "set", ["y", y + e.offset.y]);
+					let xPos = x + e.offset.x;
+					let yPos = y + e.offset.y;
+
+					store.tr(e.blockLocation, "set", ["x", xPos]);
+					store.tr(e.blockLocation, "set", ["y", yPos]);
 				});
 			},
 		});
@@ -476,12 +487,17 @@ const connectors = (block, left, top, width, height, opts = {}) => {
 	let connectionPoints = [
 		connectionPoint("top", () => width.value() / 2, -15),
 		connectionPoint("left", -15, () => height.value() / 2),
+
+		connectionPoint(
+			"right",
+			() => width.value() - 15,
+			() => height.value() / 2,
+		),
 		connectionPoint(
 			"bottom",
 			() => width.value() / 2,
 			() => height.value() - 15,
 		),
-		connectionPoint("right", () => width.value() - 15, height.value() / 2),
 	];
 
 	return connectionPoints;
@@ -599,6 +615,7 @@ const Channel = (block) => {
 };
 
 const BasicComponents = (block) => {
+	let components = {};
 	let copyLink = button("copy", (e) => {
 		let link = "https://are.na/block/" + block.id;
 		if (e.metaKey) link = `[title](${link})`;
@@ -610,10 +627,17 @@ const BasicComponents = (block) => {
 		window.open(link, "_blank").focus();
 	});
 
-	return {
-		"copy-link": copyLink,
-		"jump-to-are.na": jumpToArena,
-	};
+	let sourceLink = button("source", (e) => {
+		let link = block.source?.url;
+		window.open(link, "_blank").focus();
+	});
+
+	components["copy-link"] = copyLink;
+	components["jump-to-are.na"] = jumpToArena;
+
+	if (block.source) components["source-link"] = sourceLink;
+
+	return components;
 };
 
 export let constructBlockData = (e, i) => {

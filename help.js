@@ -1,10 +1,10 @@
-import { button } from "./block.js"
-import { memo, reactive } from "./chowk.js"
-import { MD } from "./md.js"
-import { state } from "./state.js"
+import { button } from "./block.js";
+import { memo, reactive } from "./chowk.js";
+import { MD } from "./md.js";
+import { state } from "./state.js";
 
-	let commandSections = {
-		drag: `
+let commandSections = {
+	drag: `
 
 | CMD          |  Action                  |  
 | ----------   | ---------------------- |  
@@ -18,7 +18,7 @@ import { state } from "./state.js"
 
 `,
 
-		navigation: `
+	navigation: `
 | CMD             | Action                 |  
 | --------------- | ---------------------- |  
 | __⌘ + =__ | Zoom in |
@@ -29,7 +29,7 @@ import { state } from "./state.js"
 | __ArrowKeys__ | Move around the canvas |
 `,
 
-		misc: `
+	misc: `
 | CMD        | Action                 |  
 | ---------- | ---------------------- |  
 | __⌘+E__ | Open sidebar |
@@ -37,18 +37,18 @@ import { state } from "./state.js"
 | __⌘+⇧+Z__ | redo|
 | __⌘S__ |  Save                   |
 | __⌘D__ |  Download .canvas to open in Obsidian or kinopio                   |
-`
+`,
+};
 
-
-	}
-
-let current = reactive(commandSections.drag)
-export let helpbar = ['.help', {
-	style: `background: var(--b${Math.floor(Math.random() * 6)});`,
-	active: state.helpOpen
-},
+let current = reactive(commandSections.drag);
+export let helpbar = [
+	".help",
+	{
+		style: `background: var(--b${Math.floor(Math.random() * 5)});`,
+		active: state.helpOpen,
+	},
 	memo(() => MD(current.value()), [current]),
-	button('Drag', () => current.next(commandSections.drag)),
-	button('Navigation', () => current.next(commandSections.navigation)),
-	button('Misc', () => current.next(commandSections.misc)),
-]
+	button("Drag", () => current.next(commandSections.drag)),
+	button("Navigation", () => current.next(commandSections.navigation)),
+	button("Misc", () => current.next(commandSections.misc)),
+];

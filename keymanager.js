@@ -67,7 +67,8 @@ export class Keystroke {
 		let code;
 
 		if (e.keyCode) code = e.keyCode;
-		let character = e.code.replace("Key", "").replace("Digit", "").toLowerCase();
+		let character = e.code.replace("Key", "").replace("Digit", "")
+			.toLowerCase();
 
 		if (Object.values(shift_nums).includes(e.key) && e.shiftKey) {
 			// find the the value and set it to key
@@ -87,19 +88,19 @@ export class Keystroke {
 			char: character,
 		};
 
-		console.log(character)
+		console.log(character);
 
 		if (e.ctrlKey) keystroke_event.ctrl = true;
 		if (e.shiftKey) keystroke_event.shift = true;
 		if (e.altKey) keystroke_event.alt = true;
 		if (e.metaKey) keystroke_event.meta = true;
 
-		if (!modifiers){
+		if (!modifiers) {
 			// make the keystroke event modifiers same as this
-			keystroke_event.ctrl = this.ctrl
-			keystroke_event.alt = this.alt
-			keystroke_event.meta = this.meta
-			keystroke_event.shift = this.shift
+			keystroke_event.ctrl = this.ctrl;
+			keystroke_event.alt = this.alt;
+			keystroke_event.meta = this.meta;
+			keystroke_event.shift = this.shift;
 		}
 
 		const matched = this.compare(keystroke_event);
@@ -128,7 +129,7 @@ export class Keymanager {
 		let keys = keystroke.toLowerCase().split("+");
 
 		keys.forEach((k) => {
-			k = k.trim()
+			k = k.trim();
 			//Modifiers
 			if (k == "ctrl" || k == "control") {
 				keystroke_obj.ctrl = true;
@@ -139,8 +140,10 @@ export class Keymanager {
 			} else if (k == "meta" || k == "cmd") {
 				keystroke_obj.meta = true;
 			} else {
-				if (k == '-') k = 'minus'
-				else if (k == '=') k = 'equal'
+				if (k == "-") k = "minus";
+				else if (k == "=") k = "equal";
+				else if (k == "]") k = "bracketright";
+				else if (k == "[") k = "bracketleft";
 				keystroke_obj.char = k;
 			}
 		});
@@ -168,11 +171,11 @@ export class Keymanager {
 			// -------------------
 			if (matched) {
 				console.log("*️⃣ Matched " + shortcut.toString());
-				if (!options["propagate"]) { 
+				if (!options["propagate"]) {
 					e.stopPropagation();
 				}
 
-				if (options["preventDefault"]) { 
+				if (options["preventDefault"]) {
 					e.preventDefault();
 				}
 
@@ -188,7 +191,7 @@ export class Keymanager {
 		// -------------------
 		const default_options = {
 			"type": "keydown",
-			'modifiers': true,
+			"modifiers": true,
 			"propagate": false,
 			"preventDefault": false,
 			"disable_in_input": false,
