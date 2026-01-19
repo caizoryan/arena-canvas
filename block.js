@@ -9,6 +9,7 @@ import {
 	addEdge,
 	addNode,
 	getNodeLocation,
+	mouse,
 	removeNode,
 	state,
 	store,
@@ -205,6 +206,13 @@ export function BlockElement(block) {
 	}
 
 	let b = [".bottom-bar", ...Object.values(BasicComponents(block))];
+	if (components && components["view-pdf"]) {
+		b.push(components["view-pdf"]);
+	}
+
+	if (components && components["word-count"]) {
+		b.push(components["word-count"]);
+	}
 
 	let onstart = (e) => {
 		addToSelection(e);
@@ -519,6 +527,7 @@ const TextBlock = (block) => {
 	let value = block.content?.markdown;
 	let old = "";
 	let wc = reactive(value?.split(" ").length);
+	let wordCount = dom(["button", "words: ", wc]);
 	let reset = () => root.innerHTML = "";
 
 	let editBlock = (e) => {
@@ -564,8 +573,8 @@ const TextBlock = (block) => {
 			attributes.edit.value()
 				? owned ? [saveButton, cancelButton] : [cancelButton]
 				: owned && block.type == "Text"
-					? [editButton]
-					: [blockUserTag],
+				? [editButton]
+				: [blockUserTag],
 		[state.authSlug, attributes.edit],
 	);
 
@@ -586,6 +595,7 @@ const TextBlock = (block) => {
 
 	let comps = {
 		"edit-controls": editOrTagOrSave,
+		"word-count": wordCount,
 	};
 
 	return [root, comps, attributes];
@@ -597,7 +607,26 @@ const ImageBlock = (block) => {
 const LinkBlock = ImageBlock;
 const MediaBlock = ImageBlock;
 const EmbedBlock = ImageBlock;
-const AttachmentBlock = ImageBlock;
+const AttachmentBlock = (block) => {
+	console.log("ATTACHED", block.attachment);
+	if (block.attachment.file_extension == "mp4") {
+		let link = block.attachment.url;
+		return [[".block.image", ["video", { src: link, controls: true }]], {}, {}];
+	} else if (block.attachment.file_extension == "pdf") {
+		let link = block.image?.large?.src || block.image?.large?.url;
+		let pdflink = block.attachment.url;
+		let d = dom([".block.image", ["img", { src: link }]]);
+		let mountPdf = () => {
+			d.innerHTML = "";
+			let iframe = ["iframe", { src: pdflink }];
+			d.appendChild(dom(iframe));
+		};
+		return [d, { "view-pdf": button("view pdf", mountPdf) }, {}];
+	} else {
+		let link = block.image?.large?.src || block.image?.large?.url;
+		return [[".block.image", ["img", { src: link }]], {}, {}];
+	}
+};
 const Channel = (block) => {
 	return [[
 		".block.channel",
