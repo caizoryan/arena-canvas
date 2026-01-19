@@ -261,6 +261,8 @@ svg.background {
 	align-items: center;
 }
 
+
+
 img,
 video {
 	max-width: 100%;
@@ -479,8 +481,9 @@ textarea {
 	background-color: inherit;
 	outline: none;
 	border: none;
-	height: 85%;
+	height: 95%;
 	padding: .5em;
+	font-size: inherit;
 }
 
 .help {
