@@ -59,6 +59,7 @@ export const isRectIntersecting = (rect1, rect2) => {
 		rect1.y >= rect2.y + rect2.height
 	);
 };
+
 const convertBlockToV3 = (block) => {
 	if (block.class) {
 		block.type = block.class;
@@ -573,8 +574,8 @@ const TextBlock = (block) => {
 			attributes.edit.value()
 				? owned ? [saveButton, cancelButton] : [cancelButton]
 				: owned && block.type == "Text"
-				? [editButton]
-				: [blockUserTag],
+					? [editButton]
+					: [blockUserTag],
 		[state.authSlug, attributes.edit],
 	);
 

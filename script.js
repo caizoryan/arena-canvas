@@ -425,11 +425,11 @@ document.addEventListener("wheel", (e) => {
 let keys = new Keymanager();
 let prevent = { preventDefault: true };
 
-keys.on("cmd + z", undo, prevent);
-keys.on("ctrl + z", undo, prevent);
+keys.on("cmd + z", undo, { disable_in_input: true, ...prevent });
+keys.on("ctrl + z", undo, { disable_in_input: true, ...prevent });
 
-keys.on("cmd + shift + z", redo, prevent);
-keys.on("ctrl + shift + z", redo, prevent);
+keys.on("cmd + shift + z", redo, { disable_in_input: true, ...prevent });
+keys.on("ctrl + shift + z", redo, { disable_in_input: true, ...prevent });
 
 keys.on("cmd + =", zoomIn, prevent);
 keys.on("cmd + -", zoomOut, prevent);
