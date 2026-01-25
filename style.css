@@ -44,6 +44,7 @@
 	font-family: Areal;
 	font-variation-settings: "MONO" var(--monospaceness);
 	box-sizing: border-box;
+	tab-size: 2em;
 }
 
 body {
@@ -153,6 +154,11 @@ body {
 	opacity: 0;
 	transition: all 350ms;
 	padding: .3em;
+	display: flex;
+}
+
+.controls {
+	display: flex;
 }
 
 .top-bar p {

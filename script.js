@@ -59,7 +59,15 @@ let pasteInBlock = () => {
 		res.split("\n").forEach((res) => {
 			console.log(res, link_is_url(res));
 			if (link_is_block(res)) {
-				console.log("will connect block: ", extract_block_id(res), " to slug");
+				// also check if block exists
+				let id = extract_block_id(res);
+				let f = store.get(["data", "nodes"]).find((f) => f.id == id);
+				if (f) {
+					notificationpopup("BLOCK ALREADY EXISTS", true);
+					return;
+				}
+
+				console.log("will connect block: ", id, " to slug");
 				connect_block(state.currentSlug.value(), extract_block_id(res))
 					.then((block) => {
 						console.log("BLock?", block);
@@ -92,6 +100,14 @@ let pasteInBlock = () => {
 			}
 		})
 	);
+};
+
+let copySelection = () => {
+	let text = state.selected.value().map((e) => "https://are.na/block/" + e)
+		.join("\n");
+
+	console.log(text);
+	navigator.clipboard.writeText(text);
 };
 
 // --------------------
@@ -483,6 +499,17 @@ keys.on("ctrl + v", pasteInBlock, {
 	disable_in_input: true,
 	preventDefault: true,
 });
+
+keys.on("cmd + c", copySelection, {
+	disable_in_input: true,
+	preventDefault: true,
+});
+
+keys.on("ctrl + c", copySelection, {
+	disable_in_input: true,
+	preventDefault: true,
+});
+
 keys.on("cmd + d", downloadData, {
 	disable_in_input: true,
 	preventDefault: true,

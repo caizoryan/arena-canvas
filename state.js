@@ -10,7 +10,7 @@ import {
 	unwrap,
 } from "./block.js";
 import { createStore } from "./store.js";
-import { svgline, svgrect, svgrectnormal } from "./svg.js";
+import { pixelatedLine, svgline, svgrect, svgrectnormal } from "./svg.js";
 import { dragTransforms } from "./dragOperations.js";
 import { mountBoundingBox } from "./bigBoundingBox.js";
 
@@ -342,7 +342,9 @@ let edges = memo(() => {
 		let fromT = boundingToSide(from, e.fromSide);
 		let toT = boundingToSide(to, e.toSide);
 
-		return svgline(fromT.x, fromT.y, toT.x, toT.y, "#888", 5, 0, {
+		let lineFn = pixelatedLine;
+		lineFn = svgline;
+		return lineFn(fromT.x, fromT.y, toT.x, toT.y, "#888", 5, 0, {
 			class: "connection-line",
 			onmouseenter: () => {
 				console.log(e);

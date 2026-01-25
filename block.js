@@ -1,4 +1,4 @@
-import { update_block } from "./arena.js";
+import { add_block, update_block } from "./arena.js";
 import { memo, reactive } from "./chowk.js";
 import { dom } from "./dom.js";
 import { drag } from "./drag.js";
@@ -207,15 +207,33 @@ export function BlockElement(block) {
 	}
 
 	let b = [".bottom-bar", ...Object.values(BasicComponents(block))];
-	if (components && components["view-pdf"]) {
-		b.push(components["view-pdf"]);
-	}
-
-	if (components && components["word-count"]) {
-		b.push(components["word-count"]);
+	if (components) {
+		if (components["view-pdf"]) b.push(components["view-pdf"]);
+		if (components["word-count"]) b.push(components["word-count"]);
+		if (components["controls"]) b.push(components["controls"]);
+		if (components["load-embed"]) b.push(components["load-embed"]);
 	}
 
 	let onstart = (e) => {
+		if (e.altKey) {
+			add_block(
+				state.currentSlug.value(),
+				"",
+				store.get(getNodeLocation(block.id).concat(["text"])),
+			)
+				.then((res) => {
+					let newBlock = constructBlockData(res, {
+						x: left.value() + 50,
+						y: top.value() + 50,
+						width: width.value(),
+						height: height.value(),
+						color: color.value(),
+					});
+					addNode(newBlock);
+					document.querySelector(".container").appendChild(BlockElement(res));
+				});
+			return;
+		}
 		addToSelection(e);
 		store.startBatch();
 		// saves this location for undo
@@ -239,9 +257,9 @@ export function BlockElement(block) {
 		{
 			style,
 			"block-id": block.id,
-			...attributes,
 			selected: isSelected,
 			"multi-selected": isMultiSelected,
+			...attributes,
 			// onclick: addToSelection,
 		},
 		t,
@@ -419,19 +437,19 @@ const resizers = (left, top, width, height, opts = {}) => {
 	setTimeout(() => {
 		drag(MainCorner, {
 			set_position: (x, y) => {
-				width.next(x);
-				height.next(y);
+				width.next(round(x, state.snapSize.value()));
+				height.next(round(y, state.snapSize.value()));
 			},
 			...opts,
 		});
 		drag(WidthMiddle, {
-			set_left: (v) => width.next(v),
+			set_left: (v) => width.next(round(v, state.snapSize.value())),
 			set_top: () => null,
 			...opts,
 		});
 		drag(HeightMiddle, {
 			set_left: () => null,
-			set_top: (v) => height.next(v),
+			set_top: (v) => height.next(round(v, state.snapSize.value())),
 			...opts,
 		});
 	}, 100);
@@ -547,8 +565,14 @@ const TextBlock = (block) => {
 		attributes.edit.next(false);
 		update_block(block.id, { content: value })
 			.then((res) => {
-				if (res.status == 204) notificationpopup("Updated 👍");
-				else if (res.status == 401) {
+				if (res.status == 204) {
+					notificationpopup("Updated 👍");
+					store.apply(getNodeLocation(block.id), "set", ["text", value], false);
+					console.log(
+						"Updated",
+						store.get(getNodeLocation(block.id).concat(["text"])),
+					);
+				} else if (res.status == 401) {
 					notificationpopup("Failed: Unauthorized :( ", true);
 				} else notificationpopup("Failed :( status: " + res.status, true);
 			});
@@ -605,14 +629,71 @@ const ImageBlock = (block) => {
 	let link = block.image?.large?.src || block.image?.large?.url;
 	return [[".block.image", ["img", { src: link }]], {}, {}];
 };
-const LinkBlock = ImageBlock;
+const LinkBlock = (block) => {
+	let imgLink = block.image?.large?.src || block.image?.large?.url;
+	let link = block.source?.url;
+	let element = dom(
+		[".block.image", ["img", { src: imgLink }]],
+	);
+	let load = button("load", () => {
+		if (!link) return;
+		element.innerHTML = `<iframe src="${link}"></iframe>`;
+	});
+	return [[".block.embed", element], { "load-embed": load }, {}];
+};
+
 const MediaBlock = ImageBlock;
-const EmbedBlock = ImageBlock;
+const EmbedBlock = (block) => {
+	let link = block.image?.large?.src || block.image?.large?.url;
+	let element = dom(
+		[".block.image", ["img", { src: link }]],
+	);
+	let load = button("load", () => {
+		element.innerHTML = block?.embed?.html;
+	});
+	return [[".block.embed", element], { "load-embed": load }, {}];
+};
 const AttachmentBlock = (block) => {
-	console.log("ATTACHED", block.attachment);
 	if (block.attachment.file_extension == "mp4") {
 		let link = block.attachment.url;
-		return [[".block.image", ["video", { src: link, controls: true }]], {}, {}];
+		let video = dom(["video", { src: link }]);
+		let togglePlay = () => {
+			video.paused ? video.play() : video.pause();
+			video.paused
+				? playPause.innerText = "play"
+				: playPause.innerText = "pause";
+		};
+		let playPause = dom(["button", {
+			onclick: togglePlay,
+		}, "play"]);
+
+		video.ontimeupdate = (e) => {
+			seeker.value = video.currentTime / video.duration;
+		};
+
+		let seeker = dom([
+			"input",
+			{
+				oninput: (e) =>
+					video.currentTime = parseFloat(e.target.value) * video.duration,
+				type: "range",
+				min: 0,
+				max: 1,
+				step: 0.01,
+				value: 0,
+			},
+		]);
+
+		let controls = [
+			".controls",
+			playPause,
+			seeker,
+		];
+		return [
+			[".block.image", video],
+			{ controls },
+			{ ondblclick: togglePlay },
+		];
 	} else if (block.attachment.file_extension == "pdf") {
 		let link = block.image?.large?.src || block.image?.large?.url;
 		let pdflink = block.attachment.url;
@@ -686,6 +767,7 @@ export let constructBlockData = (e, i) => {
 		d.y = i.y;
 		d.width = i.width;
 		d.height = i.height;
+		d.color = i.color ? i.color : d.color;
 	}
 
 	if (e.type == "Text") {

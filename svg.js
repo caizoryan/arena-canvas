@@ -1,3 +1,65 @@
+let randoms = Array(10000).fill(0).map((e) => Math.random());
+export function pixelatedLine(
+	x1,
+	y1,
+	x2,
+	y2,
+	stroke = "blue",
+	width = 2,
+	dash = 0,
+	attr = {},
+	options = {},
+) {
+	const {
+		step = 12, // size of each "pixel" step
+		jitter = 15, // randomness per step
+		seed = randoms[1],
+	} = options;
+
+	// deterministic-ish randomness if desired
+	let rand = seed;
+	const random = () => (rand = (rand * 9301 + 49297) % 233280) / 233280;
+
+	const points = [];
+	let x = x1;
+	let y = y1;
+
+	points.push(`${x},${y}`);
+
+	const dx = x2 - x1;
+	const dy = y2 - y1;
+	const steps = Math.max(Math.abs(dx), Math.abs(dy)) / step;
+
+	for (let i = 0; i < steps; i++) {
+		// Move either horizontally or vertically (pixel style)
+		if (Math.abs(dx) > Math.abs(dy)) {
+			x += step * Math.sign(dx);
+			y += (random() - 0.5) * jitter * 2;
+		} else {
+			y += step * Math.sign(dy);
+			x += (random() - 0.5) * jitter * 2;
+		}
+
+		points.push(`${Math.round(x)},${Math.round(y)}`);
+	}
+
+	points.push(`${x2},${y2}`);
+
+	return [
+		"polyline",
+		{
+			stroke,
+			points: points.join(" "),
+			fill: "none",
+			"shape-rendering": "crispEdges",
+			"marker-start": "url(#x)",
+			"marker-end": "url(#arrow)",
+			"stroke-width": width,
+			"stroke-dasharray": dash,
+			...attr,
+		},
+	];
+}
 export let svgrectnormal = (
 	x,
 	y,
