@@ -218,6 +218,116 @@ let decSpan = button(
 	decreaseSnapSize,
 );
 
+let clock = (() => {
+	let time = reactive(Date.now());
+	let tick = (delta) => {
+		time.next(Date.now());
+		requestAnimationFrame(tick);
+	};
+
+	requestAnimationFrame(tick);
+	return { time };
+})();
+
+let timer = () => {
+	let active = reactive(false);
+	let running = reactive(false);
+	let timerTime = reactive(5);
+	let audio = new Audio("./gong.mp3");
+
+	let playingAudio = false;
+	audio.onended = (e) => {
+		if (running.value() && timeLeft.value() == 0) {
+			setTimeout(() => {
+				audio.play();
+			}, 1000);
+		} else playingAudio = false;
+	};
+
+	let startedAt;
+
+	let timeLeft = memo(() => {
+		if (!running.value()) return undefined;
+		let elapsed = startedAt - Date.now();
+		let total = timerTime.value() * 60 * 1000;
+		let left = total + elapsed;
+
+		console.log("LEFT:", left);
+
+		if (left < 0) {
+			if (!playingAudio) {
+				audio.play();
+				playingAudio = true;
+			}
+
+			active.next(true);
+			return 0;
+		}
+
+		const minutes = Math.floor(left / 60000);
+		const seconds = Math.floor((left % 60000) / 1000);
+		const text = `${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")
+			}`;
+
+		return text;
+	}, [clock.time]);
+
+	let timeInHours = memo(() => {
+		if (timeLeft.value()) return timeLeft.value();
+		let seconds = clock.time.value();
+		let date = new Date(seconds);
+		let hour = date.getHours();
+		let mins = date.getMinutes();
+		let secs = date.getSeconds();
+		return hour + ":" + mins + ":" + secs;
+	}, [clock.time]);
+
+	let startTimer = () => {
+		running.next(true);
+		active.next(false);
+		startedAt = Date.now() - (58000);
+	};
+
+	let cancelTimer = () => {
+		running.next(false);
+		startedAt = undefined;
+	};
+
+	let panel = memo(() => {
+		if (!running.value()) {
+			return [
+				["input", {
+					type: "range",
+					min: 1,
+					max: 60,
+					value: timerTime,
+					oninput: (e) => timerTime.next(e.target.value),
+				}],
+				["span", memo(() => timerTime.value() + ":00 mins", [timerTime])],
+				["button", "start", { onclick: startTimer }],
+			];
+		} else {
+			return [
+				[
+					"p",
+					memo(() => timeLeft.value() == 0 ? "Time Up!" : "", [
+						timeLeft,
+					]),
+				],
+				["button", "cancel", { onclick: cancelTimer }],
+			];
+		}
+	}, [running]);
+
+	return dom(
+		[".timer", button(timeInHours, () => active.next((e) => !e)), [
+			".timer-panel",
+			{ active },
+			panel,
+		]],
+	);
+};
+
 let buttons = [
 	".main-buttons",
 	savebtn,
@@ -226,6 +336,7 @@ let buttons = [
 	decSpan,
 	san,
 	incSpan,
+	timer(),
 	history(),
 ];
 
@@ -312,6 +423,7 @@ export let mount = () => {
 	slug ? try_set_channel(slug) : try_set_channel(state.currentSlug.value());
 
 	document.body.appendChild(dom(helpbar));
+	// document.body.appendChild(dom(timer));
 	document.body.appendChild(dom(sidebar));
 	document.body.appendChild(dom(buttons));
 };

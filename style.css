@@ -638,3 +638,16 @@ button[updated='true'] {
 	grid-template-columns: 350px 350px;
 	grid-gap: 15px;
 }
+
+.timer-panel {
+	position: absolute;
+	display: none;
+	flex-direction: column;
+	background: #eee;
+	padding: .5em;
+	border: 1px solid black;
+}
+
+.timer-panel[active='true'] {
+	display: flex;
+}

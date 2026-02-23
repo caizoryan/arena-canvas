@@ -234,9 +234,9 @@ export function BlockElement(block) {
 				});
 			return;
 		}
+
 		addToSelection(e);
 		store.startBatch();
-		// saves this location for undo
 		left.next(left.value());
 		top.next(top.value());
 		width.next(width.value());
