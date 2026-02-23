@@ -285,7 +285,7 @@ let timer = () => {
 	let startTimer = () => {
 		running.next(true);
 		active.next(false);
-		startedAt = Date.now() - (58000);
+		startedAt = Date.now();
 	};
 
 	let cancelTimer = () => {
@@ -333,9 +333,9 @@ let buttons = [
 	savebtn,
 	openbtn,
 	helpbtn,
-	decSpan,
-	san,
-	incSpan,
+	// decSpan,
+	// san,
+	// incSpan,
 	timer(),
 	history(),
 ];

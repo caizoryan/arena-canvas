@@ -36,7 +36,7 @@ export let state = {
 	authKey: undefined,
 	me: {},
 
-	snapSize: reactive(5),
+	snapSize: reactive(25),
 	sidebarOpen: reactive(false),
 	helpOpen: reactive(false),
 
