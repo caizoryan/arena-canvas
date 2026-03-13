@@ -565,7 +565,7 @@ const TextBlock = (block) => {
 		attributes.edit.next(false);
 		update_block(block.id, { content: value })
 			.then((res) => {
-				if (res.status == 204) {
+				if (res.ok) {
 					notificationpopup("Updated 👍");
 					store.apply(getNodeLocation(block.id), "set", ["text", value], false);
 					console.log(
@@ -574,7 +574,10 @@ const TextBlock = (block) => {
 					);
 				} else if (res.status == 401) {
 					notificationpopup("Failed: Unauthorized :( ", true);
-				} else notificationpopup("Failed :( status: " + res.status, true);
+				} else {
+					console.log(res)
+					notificationpopup("Failed :( status: " + res.status, true);
+				}
 			});
 		reset();
 

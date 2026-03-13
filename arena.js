@@ -2,47 +2,33 @@ import {state} from './state.js'
 import { notificationpopup } from './notification.js';
 
 let host = "https://api.are.na/v2/"
-let host3="https://api.are.na/v3/channels/" 
+let host3="https://api.are.na/v3/" 
 
 let headers = () => ({
 	"Content-Type": "application/json",
 	Authorization: "Bearer " + state.authKey,
 })
 
-export const update_block = async (block_id, body, slug, fuck = false) => {
-	return fetch(host + `blocks/${block_id}`, {
+export const update_block = async (block_id, body) => {
+	return fetch(host3 + `blocks/${block_id}`, {
 		headers: headers(),
 		method: "PUT",
 		body: JSON.stringify(body),
 	}).then((res) => {
-		// if (fuck) { fuck_refresh(slug) }
 		return res
 	});
 };
-export const add_link = async (slug, url) => {
-	console.log("adding to", slug, url)
-	return fetch(host + "channels/" + slug + "/blocks", {
-		headers: headers(),
-		method: "POST",
-		body: JSON.stringify({source: url}),
-	})
-		.then((response) =>{
-			console.log(response)
-			console.log(response.status)
-			let msg = response.status == '401' ? "Unauthorized" : response.status
-			if (!response.ok) notificationpopup("Couldn't Make Block: " + msg, true)
-			return response.json()
-	})
-		.then((data) => {
-			 return data
-		});
-};
+
 export const add_block = async (slug, title, content) => {
 	console.log("adding", title, "to", slug, content)
-	return fetch(host + "channels/" + slug + "/blocks", {
+	return fetch(host3 + "blocks/", {
 		headers: headers(),
 		method: "POST",
-		body: JSON.stringify({content: content}),
+		body: JSON.stringify({
+			value: content,
+			channel_ids : [slug],
+			title
+		}),
 	})
 		.then((response) =>{
 			console.log(response)
@@ -51,14 +37,10 @@ export const add_block = async (slug, title, content) => {
 			if (!response.ok) notificationpopup("Couldn't Make Block: " + msg, true)
 			return response.json()
 	})
-		.then((data) => {
-			let block_id = data.id;
-			// TODO: better way to do this
-			if (title !== "") return update_block(block_id, { title }, slug);
-			else return data
-		});
 };
-export const connect_block = async (slug, id, connectable_type = 'Block') => {
+export const add_link = async (slug, url) => add_block(slug, '', url)
+
+const connect_block = async (slug, id, connectable_type = 'Block') => {
 	return fetch(host+"channels/"+slug+"/connections", {
 		headers: headers(),
 		method: "POST",
@@ -66,11 +48,12 @@ export const connect_block = async (slug, id, connectable_type = 'Block') => {
 	})
 	.then((res) => res.json())
 }
+
 export const me = async () => {
-	return fetch(host + `me`, {headers: headers()}).then((res) => res);
+	return fetch(host3 + `me`, {headers: headers()}).then((res) => res);
 };
 export const get_channel = async (slug, page = 1) => {
-	return fetch(host3+ slug + `/contents?per=100&page=${page}&sort=position_desc`, { headers:headers() })
+	return fetch(host3 + "channels/" + slug + `/contents?per=100&page=${page}&sort=position_desc`, { headers:headers() })
 		.then(async (res) => {
 			if (res.status != 200) {
 				console.log(res.status)

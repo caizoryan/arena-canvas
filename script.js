@@ -5,7 +5,9 @@ import { Keymanager } from "./keymanager.js";
 import { sidebar } from "./sidebar.js";
 import { dragOperations } from "./dragOperations.js";
 import { notificationpopup } from "./notification.js";
-import { add_block, add_link, connect_block, update_block } from "./arena.js";
+import { add_block, add_link,
+	// connect_block,
+	update_block } from "./arena.js";
 import {
 	BlockElement,
 	button,
@@ -67,21 +69,21 @@ let pasteInBlock = () => {
 					return;
 				}
 
-				console.log("will connect block: ", id, " to slug");
-				connect_block(state.currentSlug.value(), extract_block_id(res))
-					.then((block) => {
-						console.log("BLock?", block);
-						let newBlock = constructBlockData(block, {
-							x: state.canvasX.value(),
-							y: state.canvasY.value(),
-							width: 350,
-							height: 350,
-						});
-						addNode(newBlock);
-						document.querySelector(".container").appendChild(
-							BlockElement(block),
-						);
-					});
+				console.log("will connect block: ", id, " to slug [DISABLED?? ]");
+				// connect_block(state.currentSlug.value(), extract_block_id(res))
+				// 	.then((block) => {
+				// 		console.log("BLock?", block);
+				// 		let newBlock = constructBlockData(block, {
+				// 			x: state.canvasX.value(),
+				// 			y: state.canvasY.value(),
+				// 			width: 350,
+				// 			height: 350,
+				// 		});
+				// 		addNode(newBlock);
+				// 		document.querySelector(".container").appendChild(
+				// 			BlockElement(block),
+				// 		);
+				// 	});
 			} else if (link_is_url(res)) {
 				add_link(state.currentSlug.value(), res.trim())
 					.then((block) => {
@@ -158,7 +160,7 @@ let saveCanvasToArena = () => {
 			description,
 		})
 			.then((res) => {
-				if (res.status == 204) {
+				if (res.ok) {
 					notificationpopup("Updated 👍");
 					state.updated.next(true);
 				} else if (res.status == 401) {

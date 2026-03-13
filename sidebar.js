@@ -65,7 +65,7 @@ let authbar = memo(() =>
 			"p",
 			"Get your token here",
 		]]]
-		: ["p", ["img.icon", { src: state.me.avatar_image.thumb }], [
+		: ["p", ["img.icon", { src: state.me.avatar }], [
 			"p",
 			state.authSlug,
 		], logout], [state.authSlug]);
