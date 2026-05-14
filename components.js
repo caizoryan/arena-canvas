@@ -19,6 +19,7 @@ const round = (value, precision)=> {
 	let multiplier = Math.pow(10, precision || 0);
 	return Math.round(value * multiplier) / multiplier;
 }
+
 const mapRange = (value, inMin, inMax, outMin, outMax) => 
 	 (value - inMin) * (outMax - outMin) / (inMax - inMin) + outMin;
 

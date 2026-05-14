@@ -330,8 +330,12 @@ let timer = () => {
 	);
 };
 
-let buttons = [
-	".main-buttons",
+let zoom = ['div', button(memo(() => parseFloat(state.canvasScale.value() * 100).toFixed(0) + "%", [state.canvasScale]))]
+let zoomPlus = ['div', button("+", () => state.canvasScale.next(e => e+=.05))]
+let zoomMinus = ['div', button("-", () => state.canvasScale.next(e => e-=.05))]
+
+let topButtons = [
+	".top-buttons",
 	savebtn,
 	openbtn,
 	helpbtn,
@@ -340,6 +344,16 @@ let buttons = [
 	// incSpan,
 	timer(),
 	history(),
+];
+
+let bottomButtons = [
+	".bottom-buttons",
+	// decSpan,
+	// san,
+	// incSpan,
+	zoomMinus,
+	zoom,
+	zoomPlus,
 ];
 
 // --------------------
@@ -427,7 +441,8 @@ export let mount = () => {
 	document.body.appendChild(dom(helpbar));
 	// document.body.appendChild(dom(timer));
 	document.body.appendChild(dom(sidebar));
-	document.body.appendChild(dom(buttons));
+	document.body.appendChild(dom(topButtons));
+	document.body.appendChild(dom(bottomButtons));
 };
 
 let unmountContainer = () => {

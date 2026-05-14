@@ -608,7 +608,7 @@ let processBlockForRendering = (blocks) => {
 };
 
 memo(() => {
-	state.canvasScale.value() < 0.1 ? state.canvasScale.next(.1) : null;
+	state.canvasScale.value() < 0.2 ? state.canvasScale.next(.2) : null;
 	state.canvasScale.value() > 2.3 ? state.canvasScale.next(2.3) : null;
 
 	localStorage.setItem(
