@@ -254,8 +254,11 @@ body {
 
 .top-buttons>*,
 .bottom-buttons>*
+{ margin-right: 1em; }
+
+.spaced>*
 {
-	margin-right: 1em;
+	margin-right: .5em;
 }
 
 svg.background {

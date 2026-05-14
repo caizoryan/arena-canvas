@@ -330,9 +330,6 @@ let timer = () => {
 	);
 };
 
-let zoom = ['div', button(memo(() => parseFloat(state.canvasScale.value() * 100).toFixed(0) + "%", [state.canvasScale]))]
-let zoomPlus = ['div', button("+", () => state.canvasScale.next(e => e+=.05))]
-let zoomMinus = ['div', button("-", () => state.canvasScale.next(e => e-=.05))]
 
 let topButtons = [
 	".top-buttons",
@@ -346,14 +343,26 @@ let topButtons = [
 	history(),
 ];
 
+let zoom = ['.spaced', 
+button("-", () => state.canvasScale.next(e => e-=.05)),
+	button(memo(() => parseFloat(state.canvasScale.value() * 100).toFixed(0) + "%", [state.canvasScale])),
+button("+", () => state.canvasScale.next(e => e+=.05)),
+]
+// let zoomPlus = ['div', ]
+// let zoomMinus = ['div', ]
+
+let x = ['div', button(memo(() => "X: " + parseFloat(state.canvasX.value()).toFixed(0) + "px", [state.canvasX]))]
+let y = ['div', button(memo(() => "Y: " + parseFloat(state.canvasY.value()).toFixed(0) + "px", [state.canvasY]))]
+
 let bottomButtons = [
 	".bottom-buttons",
 	// decSpan,
 	// san,
 	// incSpan,
-	zoomMinus,
+	// zoomMinus,
 	zoom,
-	zoomPlus,
+	// zoomPlus,
+	x,y,
 ];
 
 // --------------------
@@ -439,7 +448,6 @@ export let mount = () => {
 	slug ? try_set_channel(slug) : try_set_channel(state.currentSlug.value());
 
 	document.body.appendChild(dom(helpbar));
-	// document.body.appendChild(dom(timer));
 	document.body.appendChild(dom(sidebar));
 	document.body.appendChild(dom(topButtons));
 	document.body.appendChild(dom(bottomButtons));
@@ -569,12 +577,14 @@ document.addEventListener("wheel", (e) => {
 
 let keys = new Keymanager();
 let prevent = { preventDefault: true };
+let disableInputAndPrevent = {disable_in_input: true, preventDefault: true}
+let disableInput = {disable_in_input: true}
 
-keys.on("cmd + z", undo, { disable_in_input: true, ...prevent });
-keys.on("ctrl + z", undo, { disable_in_input: true, ...prevent });
+keys.on("cmd + z", undo, disableInputAndPrevent);
+keys.on("ctrl + z", undo, disableInputAndPrevent);
 
-keys.on("cmd + shift + z", redo, { disable_in_input: true, ...prevent });
-keys.on("ctrl + shift + z", redo, { disable_in_input: true, ...prevent });
+keys.on("cmd + shift + z", redo, disableInputAndPrevent);
+keys.on("ctrl + shift + z", redo, disableInputAndPrevent);
 
 keys.on("cmd + =", zoomIn, prevent);
 keys.on("cmd + -", zoomOut, prevent);
@@ -582,73 +592,41 @@ keys.on("cmd + -", zoomOut, prevent);
 keys.on("ctrl + =", zoomIn, prevent);
 keys.on("ctrl + -", zoomOut, prevent);
 
-keys.on("ArrowRight", moveRight, { disable_in_input: true });
-keys.on("ArrowLeft", moveLeft, { disable_in_input: true });
-keys.on("ArrowUp", moveUp, { disable_in_input: true });
-keys.on("ArrowDown", moveDown, { disable_in_input: true });
+keys.on("ArrowRight", moveRight, disableInput);
+keys.on("ArrowLeft", moveLeft, disableInput);
+keys.on("ArrowUp", moveUp, disableInput);
+keys.on("ArrowDown", moveDown, disableInput);
 
-keys.on("d", moveRight, { disable_in_input: true });
-keys.on("a", moveLeft, { disable_in_input: true });
-keys.on("w", moveUp, { disable_in_input: true });
-keys.on("s", moveDown, { disable_in_input: true });
+keys.on("d", moveRight, disableInput);
+keys.on("a", moveLeft, disableInput);
+keys.on("w", moveUp, disableInput);
+keys.on("s", moveDown, disableInput);
 
 keys.on("cmd + e", toggleSidebar, prevent);
 keys.on("ctrl + e", toggleSidebar, prevent);
 
 keys.on("escape", escape, { modifiers: false, disable_in_input: true });
 keys.on("b", vistLast, { modifiers: false, disable_in_input: true });
-keys.on("t", toggleTrackingMode, { disable_in_input: true });
+keys.on("t", toggleTrackingMode, disableInput);
 
 keys.on("cmd + s", saveCanvasToArena, prevent);
 keys.on("ctrl + s", saveCanvasToArena, prevent);
 
-keys.on("shift + ]", () => {
-	console.log("clicked");
-	increaseSnapSize();
-}, {
-	disable_in_input: true,
-	...prevent,
-});
+keys.on("shift + ]",  increaseSnapSize, disableInputAndPrevent);
+keys.on("shift + [", decreaseSnapSize, disableInputAndPrevent);
 
-keys.on("shift + [", () => {
-	decreaseSnapSize();
-}, {
-	disable_in_input: true,
-	...prevent,
-});
-// keys.on("shift + [", saveCanvasToArena, prevent);
+keys.on("shift + /", toggleHelpbar, disableInput);
 
-keys.on("shift + /", toggleHelpbar, { disable_in_input: true });
+keys.on("cmd + v", pasteInBlock, disableInputAndPrevent);
+keys.on("ctrl + v", pasteInBlock, disableInputAndPrevent);
 
-keys.on("cmd + v", pasteInBlock, {
-	disable_in_input: true,
-	preventDefault: true,
-});
-keys.on("ctrl + v", pasteInBlock, {
-	disable_in_input: true,
-	preventDefault: true,
-});
+keys.on("cmd + c", copySelection, disableInputAndPrevent);
 
-keys.on("cmd + c", copySelection, {
-	disable_in_input: true,
-	preventDefault: true,
-});
+keys.on("ctrl + c", copySelection, disableInputAndPrevent);
+keys.on("cmd + d", downloadData, disableInputAndPrevent);
+keys.on("ctrl + d", downloadData, disableInputAndPrevent);
 
-keys.on("ctrl + c", copySelection, {
-	disable_in_input: true,
-	preventDefault: true,
-});
-
-keys.on("cmd + d", downloadData, {
-	disable_in_input: true,
-	preventDefault: true,
-});
-keys.on("ctrl + d", downloadData, {
-	disable_in_input: true,
-	preventDefault: true,
-});
-
-keys.on("backspace", removeCurrentEdge, { disable_in_input: true, ...prevent });
+keys.on("backspace", removeCurrentEdge, disableInputAndPrevent);
 
 document.onkeydown = (e) => keys.event(e);
 

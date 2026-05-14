@@ -602,6 +602,7 @@ let updateData = (blocks) => {
 		setNodes(nodes);
 	}
 };
+
 let processBlockForRendering = (blocks) => {
 	blocks = blocks.filter((e) => e.title != ".canvas");
 	return blocks;
