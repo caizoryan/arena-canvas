@@ -347,7 +347,6 @@ let edges = memo(() => {
 		return lineFn(fromT.x, fromT.y, toT.x, toT.y, "#888", 5, 0, {
 			class: "connection-line",
 			onmouseenter: () => {
-				console.log(e);
 				state.selected_connection = e;
 			},
 			onmouseexit: () => {
@@ -538,6 +537,7 @@ let updateData = (blocks) => {
 	state.dot_canvas = blocks.find((e) => e.title == ".canvas");
 	if (state.dot_canvas) {
 		let parsed = JSON.parse(state.dot_canvas.content.plain);
+		if (!parsed.edges) parsed.edges = []
 		setNodes(parsed.nodes);
 		store.tr(["data"], "set", ["edges", parsed.edges], false);
 		store.get(NODES).forEach((node) => {

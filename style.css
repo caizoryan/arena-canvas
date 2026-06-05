@@ -58,6 +58,11 @@ body {
 	margin-right: .5em;
 }
 
+h1 {
+	line-height: 1.4em;
+  font-weight: 650;
+}
+
 strong {
 	background: #ff04;
 }

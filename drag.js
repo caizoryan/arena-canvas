@@ -73,9 +73,9 @@ export const drag = (elem, options = {}) => {
 		if (!target) return;
 		let pann = typeof pan_switch === 'function' ? pan_switch() : pan_switch;
 		if (!pann) return;
+		
 		// this is so hacky, fuck google chrome
 		if (target != e.target) {
-
 			if (e.target instanceof HTMLInputElement) return
 			else if (e.target instanceof HTMLButtonElement) return
 			else {

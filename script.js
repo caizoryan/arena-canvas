@@ -132,12 +132,12 @@ let undo = () => store.canUndo() ? store.doUndo() : null;
 let redo = () => store.canRedo() ? store.doRedo() : null;
 
 let inc = (e = false) => e ? 250 : 120;
-let zoomIn = (e) => state.canvasScale.next((f) => f + (inc() / 1500));
-let zoomOut = (e) => state.canvasScale.next((f) => f - (inc() / 1500));
-let moveLeft = () => state.canvasX.next((f) => f - inc());
-let moveRight = () => state.canvasX.next((f) => f + inc());
-let moveUp = () => state.canvasY.next((f) => f - inc());
-let moveDown = () => state.canvasY.next((f) => f + inc());
+let zoomIn = (num) => state.canvasScale.next((f) => f + ((num ? num : inc()) / 1500));
+let zoomOut = (num) => state.canvasScale.next((f) => f - ((num ? num : inc()) / 1500));
+let moveLeft = (num) => state.canvasX.next((f) => f - (num ? num : inc()));
+let moveRight = (num) => state.canvasX.next((f) => f + (num ? num : inc()));
+let moveUp = (num) => state.canvasY.next((f) => f - (num ? num : inc()));
+let moveDown = (num) => state.canvasY.next((f) => f + (num ? num : inc()));
 
 let vistLast = () => {
 	let last = state.last_history.pop();
@@ -345,7 +345,10 @@ let topButtons = [
 
 let zoom = ['.spaced', 
 button("-", () => state.canvasScale.next(e => e-=.05)),
-	button(memo(() => parseFloat(state.canvasScale.value() * 100).toFixed(0) + "%", [state.canvasScale])),
+	button(
+		memo(() => parseFloat(state.canvasScale.value() * 100).toFixed(0) + "%", [state.canvasScale]),
+		() => {state.canvasScale.next(1)}
+	),
 button("+", () => state.canvasScale.next(e => e+=.05)),
 ]
 // let zoomPlus = ['div', ]
@@ -586,16 +589,22 @@ keys.on("ctrl + z", undo, disableInputAndPrevent);
 keys.on("cmd + shift + z", redo, disableInputAndPrevent);
 keys.on("ctrl + shift + z", redo, disableInputAndPrevent);
 
-keys.on("cmd + =", zoomIn, prevent);
-keys.on("cmd + -", zoomOut, prevent);
+keys.on("cmd + =", () => zoomIn(), prevent);
+keys.on("cmd + -", () => zoomOut(), prevent);
 
-keys.on("ctrl + =", zoomIn, prevent);
-keys.on("ctrl + -", zoomOut, prevent);
+keys.on("cmd + shift + =", () => zoomIn(inc() * 3), prevent);
+keys.on("cmd + shift + -", () => zoomOut(inc() * 3), prevent);
 
-keys.on("ArrowRight", moveRight, disableInput);
-keys.on("ArrowLeft", moveLeft, disableInput);
-keys.on("ArrowUp", moveUp, disableInput);
-keys.on("ArrowDown", moveDown, disableInput);
+keys.on("ArrowRight", () => moveRight(), disableInput);
+keys.on("ArrowLeft", () => moveLeft(), disableInput);
+keys.on("ArrowUp", () => moveUp(), disableInput);
+keys.on("ArrowDown", () => moveDown(), disableInput);
+
+keys.on("ArrowRight + shift", () => moveRight(inc() * 3), disableInput);
+keys.on("ArrowLeft + shift", () => moveLeft(inc() * 3), disableInput);
+keys.on("ArrowUp + shift", () => moveUp(inc() * 3), disableInput);
+keys.on("ArrowDown + shift", () => moveDown(inc() * 3), disableInput);
+
 
 keys.on("d", moveRight, disableInput);
 keys.on("a", moveLeft, disableInput);
