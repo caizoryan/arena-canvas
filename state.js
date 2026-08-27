@@ -234,10 +234,25 @@ export let try_set_channel = (slugOrURL) => {
 		set_channel(slugOrURL.trim());
 	}
 };
+let renderChannel = (blocks) => {
+	updateData(blocks);
+
+	let visibleBlocks = processBlockForRendering(blocks);
+	let groups = store.get(NODES).filter((e) => e.type == "group");
+	let svg = svgBackground();
+
+	mountContainer([
+		...groups.map(GroupElement),
+		mountBoundingBox(),
+		...visibleBlocks.map(BlockElement),
+		svg,
+	]);
+};
+
 let set_channel = (slug) => {
 	notificationpopup("Loading " + slug + "...");
 	get_channel(slug)
-		.then(async (res) => {
+		.then((res) => {
 			if (!res.data) {
 				notificationpopup([
 					"span",
@@ -248,33 +263,28 @@ let set_channel = (slug) => {
 				let blocks = res.data;
 				let channelCanvas = blocks.find((block) => block.title == ".canvas");
 
-				// The channel contents endpoint can return a stale .canvas block.
-				// Fetch the block directly and use it when its timestamp differs.
-				if (channelCanvas?.id) {
-					let currentCanvas = await get_block(channelCanvas.id);
-					if (currentCanvas && currentCanvas.updated_at != channelCanvas.updated_at) {
-						blocks = blocks.map((block) =>
-							block.id == channelCanvas.id ? currentCanvas : block,
-						);
-					}
-				}
-
 				notificationpopup("Loaded Channel: " + slug);
 				notificationpopup("Total Blocks: " + blocks.length);
 
 				state.currentSlug.next(slug);
-				updateData(blocks);
+				renderChannel(blocks);
 
-				blocks = processBlockForRendering(blocks);
-				let groups = store.get(NODES).filter((e) => e.type == "group");
-				let svg = svgBackground();
+				// The channel contents endpoint can return a stale .canvas block.
+				// Fetch the block directly and refresh the canvas in the background
+				// when its timestamp differs.
+				if (channelCanvas?.id) {
+					get_block(channelCanvas.id).then((currentCanvas) => {
+						if (
+							!currentCanvas ||
+							currentCanvas.updated_at == channelCanvas.updated_at
+						) return;
 
-				mountContainer([
-					...groups.map(GroupElement),
-					mountBoundingBox(),
-					...blocks.map(BlockElement),
-					svg,
-				]);
+						blocks = blocks.map((block) =>
+							block.id == channelCanvas.id ? currentCanvas : block,
+						);
+						renderChannel(blocks);
+					});
+				}
 
 				// addToRecents(slug)
 				// setSlug(slug)
