@@ -162,6 +162,10 @@ body {
 	display: flex;
 }
 
+.bottom-bar > * {
+  margin-right: .25em;
+}
+
 .controls {
 	display: flex;
 }
