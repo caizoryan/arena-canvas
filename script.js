@@ -163,17 +163,21 @@ let saveCanvasToArena = () => {
 				if (res.ok) {
 					notificationpopup("Updated 👍");
 					state.updated.next(true);
+				} else if (res.status == 404) {
+					state.dot_canvas = undefined;
+					saveCanvasToArena();
 				} else if (res.status == 401) {
 					notificationpopup("Failed: Unauthorized :( ", true);
 				} else notificationpopup("Failed :( status: " + res.status, true);
 			});
 	} else {
 		add_block(state.currentSlug.value(), ".canvas", content).then((res) => {
-			if (res.status == 204) {
-				window.location.reload();
-				// for now jsut refresh, butt todo later:
-				// fetch from v3 api so get the content.plain and then make that dotcanvas.
-				// make this the dotcanvas
+			if (res?.id) {
+				state.dot_canvas = res;
+				notificationpopup("Saved 👍");
+				state.updated.next(true);
+			} else if (!res) {
+				notificationpopup("Failed to save :(", true);
 			}
 		});
 	}

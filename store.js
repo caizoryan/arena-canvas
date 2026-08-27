@@ -183,6 +183,7 @@ export let createStore = (internal) => {
 		under.forEach(fns => fns.forEach(fn => fn(ref)))
 		if (!track) resumeTracking()
 	}
+
 	let get = location => getref(location, internal)
 	let subscribe = (location, fn, children = false) => {
 		// somehow make this nestable?

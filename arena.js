@@ -21,7 +21,7 @@ export const update_block = async (block_id, body) => {
 
 export const add_block = async (slug, title, content) => {
 	console.log("adding", title, "to", slug, content)
-	return fetch(host3 + "blocks/", {
+	return fetch(host3 + "blocks", {
 		headers: headers(),
 		method: "POST",
 		body: JSON.stringify({
