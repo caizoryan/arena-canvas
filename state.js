@@ -54,7 +54,7 @@ export let state = {
 	connectionToX: reactive(0),
 	connectionToY: reactive(0),
 
-	updated: reactive(false),
+	updated: reactive(true),
 	canvasX: reactive(0),
 	canvasY: reactive(0),
 	canvasScale: reactive(1),
@@ -236,6 +236,9 @@ export let try_set_channel = (slugOrURL) => {
 };
 let renderChannel = (blocks) => {
 	updateData(blocks);
+	// A channel with a .canvas block is already saved. Without one, saving
+	// will create the initial .canvas block.
+	state.updated.next(Boolean(state.dot_canvas));
 
 	let visibleBlocks = processBlockForRendering(blocks);
 	let groups = store.get(NODES).filter((e) => e.type == "group");
