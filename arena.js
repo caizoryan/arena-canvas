@@ -40,6 +40,22 @@ export const add_block = async (slug, title, content) => {
 };
 export const add_link = async (slug, url) => add_block(slug, '', url)
 
+export const get_block = async (block_id) => {
+	return fetch(host3 + `blocks/${block_id}`, { headers: headers() })
+		.then(async (res) => {
+			if (!res.ok) {
+				console.log("Failed to get block:", block_id, res.status);
+				return undefined;
+			}
+			let block = await res.json();
+			return block.data || block;
+		})
+		.catch((error) => {
+			console.log("Failed to get block:", block_id, error);
+			return undefined;
+		});
+};
+
 const connect_block = async (slug, id, connectable_type = 'Block') => {
 	return fetch(host+"channels/"+slug+"/connections", {
 		headers: headers(),

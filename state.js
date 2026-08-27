@@ -1,6 +1,6 @@
 import { dom } from "./dom.js";
 import { memo, reactive } from "./chowk.js";
-import { get_channel, try_auth } from "./arena.js";
+import { get_block, get_channel, try_auth } from "./arena.js";
 import { notificationpopup } from "./notification.js";
 import { mountContainer, moveToBlock } from "./script.js";
 import {
@@ -237,7 +237,7 @@ export let try_set_channel = (slugOrURL) => {
 let set_channel = (slug) => {
 	notificationpopup("Loading " + slug + "...");
 	get_channel(slug)
-		.then((res) => {
+		.then(async (res) => {
 			if (!res.data) {
 				notificationpopup([
 					"span",
@@ -245,13 +245,27 @@ let set_channel = (slug) => {
 					" try refreshing or opening another channel",
 				], true);
 			} else {
+				let blocks = res.data;
+				let channelCanvas = blocks.find((block) => block.title == ".canvas");
+
+				// The channel contents endpoint can return a stale .canvas block.
+				// Fetch the block directly and use it when its timestamp differs.
+				if (channelCanvas?.id) {
+					let currentCanvas = await get_block(channelCanvas.id);
+					if (currentCanvas && currentCanvas.updated_at != channelCanvas.updated_at) {
+						blocks = blocks.map((block) =>
+							block.id == channelCanvas.id ? currentCanvas : block,
+						);
+					}
+				}
+
 				notificationpopup("Loaded Channel: " + slug);
-				notificationpopup("Total Blocks: " + res.data.length);
+				notificationpopup("Total Blocks: " + blocks.length);
 
 				state.currentSlug.next(slug);
-				updateData(res.data);
+				updateData(blocks);
 
-				let blocks = processBlockForRendering(res.data);
+				blocks = processBlockForRendering(blocks);
 				let groups = store.get(NODES).filter((e) => e.type == "group");
 				let svg = svgBackground();
 
