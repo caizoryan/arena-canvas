@@ -147,6 +147,16 @@ let vistLast = () => {
 let escape = () => {
 	state.canceled.next(true);
 	state.selected.next([]);
+
+	// Cancel an in-progress connection.
+	state.block_connection_buffer = undefined;
+	state.connectionFromX.next(0);
+	state.connectionFromY.next(0);
+	state.connectionToX.next(0);
+	state.connectionToY.next(0);
+	document.querySelectorAll(".wobble").forEach((e) => {
+		e.classList.remove("wobble");
+	});
 };
 
 let saveCanvasToArena = () => {
