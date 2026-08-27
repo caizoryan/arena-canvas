@@ -168,12 +168,12 @@ let escape = () => {
 	});
 };
 
-let saveCanvasToArena = () => {
+export let saveCanvasToArena = () => {
 	let content = JSON.stringify(canvasData());
 	if (state.dot_canvas?.id) {
 		let description =
 			`This block was made using [Are.na Canvas](http://canvas.a-p.space). You can view this channel as a canvas [here](http://canvas.a-p.space/#${state.currentSlug.value()})`;
-		update_block(state.dot_canvas.id, {
+		return update_block(state.dot_canvas.id, {
 			content,
 			title: ".canvas",
 			description,
@@ -182,22 +182,26 @@ let saveCanvasToArena = () => {
 				if (res.ok) {
 					notificationpopup("Updated 👍");
 					state.updated.next(true);
+					return true;
 				} else if (res.status == 404) {
 					state.dot_canvas = undefined;
-					saveCanvasToArena();
+					return saveCanvasToArena();
 				} else if (res.status == 401) {
 					notificationpopup("Failed: Unauthorized :( ", true);
 				} else notificationpopup("Failed :( status: " + res.status, true);
+				return false;
 			});
 	} else {
-		add_block(state.currentSlug.value(), ".canvas", content).then((res) => {
+		return add_block(state.currentSlug.value(), ".canvas", content).then((res) => {
 			if (res?.id) {
 				state.dot_canvas = res;
 				notificationpopup("Saved 👍");
 				state.updated.next(true);
+				return true;
 			} else if (!res) {
 				notificationpopup("Failed to save :(", true);
 			}
+			return false;
 		});
 	}
 };

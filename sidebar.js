@@ -29,7 +29,13 @@ const search = [
 	memo(() =>
 		state.recentSlugs.value()
 			.map(
-				(e) => ["a", { href: "#" + e }, [
+				(e) => ["a", {
+					href: "#" + e,
+					onclick: (event) => {
+						event.preventDefault();
+						try_set_channel(e);
+					},
+				}, [
 					"button.mr",
 					{ href: "#" + e },
 					e.slice(0, 18),

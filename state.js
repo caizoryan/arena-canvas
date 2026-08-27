@@ -2,7 +2,7 @@ import { dom } from "./dom.js";
 import { memo, reactive } from "./chowk.js";
 import { get_block, get_channel, try_auth } from "./arena.js";
 import { notificationpopup } from "./notification.js";
-import { mountContainer, moveToBlock } from "./script.js";
+import { mountContainer, moveToBlock, saveCanvasToArena } from "./script.js";
 import {
 	BlockElement,
 	constructBlockData,
@@ -224,15 +224,77 @@ load_local_storage();
 // ~~~~~~~~~~~---------
 // Are.na Functions
 // ~~~~~~~~~~~---------
+let navigationModal;
+let pendingChannel;
+
+let closeNavigationModal = () => {
+	if (navigationModal) navigationModal.remove();
+	navigationModal = undefined;
+	pendingChannel = undefined;
+};
+
+let showUnsavedChangesModal = (slug) => {
+	pendingChannel = slug;
+	if (navigationModal) return;
+
+	let saveAndNavigate = () => {
+		let nextChannel = pendingChannel;
+		saveCanvasToArena().then((saved) => {
+			if (!saved) return;
+			closeNavigationModal();
+			set_channel(nextChannel);
+		});
+	};
+
+	let discardAndNavigate = () => {
+		let nextChannel = pendingChannel;
+		closeNavigationModal();
+		set_channel(nextChannel);
+	};
+
+	navigationModal = dom([
+		".modal-overlay",
+		[".popup.unsaved-changes",
+			["h2", "Unsaved changes"],
+			["p", "This canvas has unsaved changes. What would you like to do?"],
+			[".unsaved-changes-actions",
+				["button#save-btn", { onclick: saveAndNavigate }, "Save"],
+				["button#discard-btn", { onclick: discardAndNavigate }, "Discard"],
+				["button", { onclick: closeNavigationModal }, "Cancel"],
+			],
+		],
+	]);
+	document.body.appendChild(navigationModal);
+};
+
+// Browsers do not allow custom application modals during beforeunload. This
+// triggers the browser's native unsaved-changes confirmation instead.
+window.addEventListener("beforeunload", (event) => {
+	if (state.updated.value()) return;
+	event.preventDefault();
+	event.returnValue = "You have unsaved changes. Save or cancel?";
+});
+
 export let try_set_channel = (slugOrURL) => {
-	// TODO: Add more safety here?
+	if (typeof slugOrURL != "string") return;
+
 	let isUrl = slugOrURL.includes("are.na/");
-	if (isUrl) {
-		let slug = slugOrURL.split("/").filter((e) => e != "").pop();
-		set_channel(slug);
-	} else {
-		set_channel(slugOrURL.trim());
+	let slug = isUrl
+		? slugOrURL.split("/").filter((e) => e != "").pop()
+		: slugOrURL.trim();
+	if (!slug) return;
+
+	if (!state.updated.value() && slug != state.currentSlug.value()) {
+		// A hashchange has already changed the URL by the time this runs. Put it
+		// back until the user chooses Save or Discard in the modal.
+		if (location.hash != "#" + state.currentSlug.value()) {
+			history.replaceState("", "", "#" + state.currentSlug.value());
+		}
+		showUnsavedChangesModal(slug);
+		return;
 	}
+
+	set_channel(slug);
 };
 let renderChannel = (blocks) => {
 	updateData(blocks);
