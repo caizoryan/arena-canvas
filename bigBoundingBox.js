@@ -8,28 +8,37 @@ import { svgx } from "./svg.js";
 export let mountBoundingBox = () => {
 	let anchored = [];
 	let boundingAnchor = {};
-	// NOTE: added this to update when dimsMemo needs to be recalculated
-	// when doing resize, call for an update.
-	let dimChanged = reactive(0)
-	let dimsMemo = memo(() => {
-		// TODO: Move anchored out of here into another 
-		// place. dimsMemo should run even when resized, 
-		// anchored should only recompute when selection is changed
-		anchored = [];
+	let resizeAnchor;
 
+	// This lets the bounding box recalculate after a resize without causing
+	// anchored to be rebuilt. anchored must stay based on the original selection.
+	let dimChanged = reactive(0);
+
+	let updateAnchored = (selection) => {
+		anchored = [];
+		selection.forEach((e) => {
+			anchored.push({
+				blockLocation: getNodeLocation(e.id),
+				offset: {
+					x: e.x,
+					y: e.y,
+					width: e.width,
+					height: e.height,
+				},
+			});
+		});
+	};
+
+	let selectionMemo = memo(() => {
 		let selection = store.get(["data", "nodes"])
 			.filter((e) => state.selected.value().includes(e.id));
 
-		// TODO: Obviosuly move this out too.
-		selection.forEach((e) => {
-			let item = {
-				blockLocation: getNodeLocation(e.id),
-				// NOTE: Added width height
-				offset: { x: e.x, y: e.y, width: e.width, height: e.height },
-			};
-			anchored.push(item);
-		});
+		updateAnchored(selection);
+		return selection;
+	}, [state.selected]);
 
+	let dimsMemo = memo(() => {
+		let selection = selectionMemo.value();
 		let dimension = selection.reduce((acc, e, i) => {
 			if (i == 0) {
 				Object.assign(acc, {
@@ -47,8 +56,9 @@ export let mountBoundingBox = () => {
 
 			return acc;
 		}, {});
+
 		return { dimension, selection };
-	}, [state.selected, dimChanged]);
+	}, [selectionMemo, dimChanged]);
 
 	let dawgWalkers = memo(() => {
 		let { dimension, selection } = dimsMemo.value();
@@ -70,11 +80,45 @@ export let mountBoundingBox = () => {
 		} else return "";
 	}, [dimsMemo]);
 
+	let handleStyle = (type) => memo(() => {
+		let { dimension, selection } = dimsMemo.value();
+		if (selection.length <= 1) return "display: none;";
+
+		let width = dimension.x2 - dimension.x;
+		let height = dimension.y2 - dimension.y;
+
+		if (type == "corner") {
+			return `left: ${width - 15}px; top: ${height - 15}px;`;
+		}
+
+		if (type == "east") {
+			return `left: ${width - 15}px; top: 15px; width: 30px; height: ${height - 30}px;`;
+		}
+
+		return `left: 15px; top: ${height - 15}px; width: ${width - 30}px; height: 30px;`;
+	}, [dimsMemo]);
+
+	let MainCorner = dom(
+		".absolute.flex-center.box.cur-se",
+		{ style: handleStyle("corner") },
+		svgx(30),
+	);
+	let WidthMiddle = dom(
+		".absolute.flex-center.box.cur-e",
+		{ style: handleStyle("east") },
+		svgx(30),
+	);
+	let HeightMiddle = dom(
+		".absolute.flex-center.box.cur-s",
+		{ style: handleStyle("south") },
+		svgx(30),
+	);
+
 	let bigbox = dom(
 		".absolute.big-box",
 		{ style: dawgWalkers },
 		memo(() => {
-			let { dimension, sel } = dimsMemo.value();
+			let { dimension } = dimsMemo.value();
 			let { x2, x, y2, y } = dimension;
 			x2 = x2 || 1;
 			x = x || 1;
@@ -82,13 +126,15 @@ export let mountBoundingBox = () => {
 			y2 = y2 || 1;
 			return svgx(x2 - x, y2 - y, "#E3CFF5");
 		}, [dimsMemo]),
-		// TODO: add east edge and south edge.
+		MainCorner,
+		WidthMiddle,
+		HeightMiddle,
 	);
 
 	let onstart = () => {
-		// saves this location for undo
+		// Saves this location for undo.
 		store.startBatch();
-		anchored.forEach((e, i) => {
+		anchored.forEach((e) => {
 			let x = store.get(e.blockLocation.concat(["x"]));
 			let y = store.get(e.blockLocation.concat(["y"]));
 			store.tr(e.blockLocation, "set", ["x", x]);
@@ -98,22 +144,72 @@ export let mountBoundingBox = () => {
 		store.pauseTracking();
 	};
 
+	let resetAnchors = () => {
+		let selection = store.get(["data", "nodes"])
+			.filter((e) => state.selected.value().includes(e.id));
+
+		updateAnchored(selection);
+		dimChanged.next((e) => e + 1);
+	};
+
 	let onend = () => {
 		store.resumeTracking();
+		resetAnchors();
 	};
 
 	let onresizestart = () => {
-		let resizeAnchor = {...boundingAnchor}
-		// TODO: implement
-	}
+		// Keep this fixed while the nodes are being resized.
+		resizeAnchor = { ...boundingAnchor };
 
-	let onresizemove = () => {
-		// TODO: implement
-	}
+		// Save one undo entry containing the original geometry of every node.
+		store.startBatch();
+		anchored.forEach((e) => {
+			store.tr(e.blockLocation, "set", ["x", e.offset.x]);
+			store.tr(e.blockLocation, "set", ["y", e.offset.y]);
+			store.tr(e.blockLocation, "set", ["width", e.offset.width]);
+			store.tr(e.blockLocation, "set", ["height", e.offset.height]);
+		});
+		store.endBatch();
+		store.pauseTracking();
+	};
+
+	let onresizemove = (width, height) => {
+		if (!resizeAnchor || !resizeAnchor.width || !resizeAnchor.height) return;
+
+		width = round(width, state.snapSize.value());
+		height = round(height, state.snapSize.value());
+
+		let scaleX = width / resizeAnchor.width;
+		let scaleY = height / resizeAnchor.height;
+
+		anchored.forEach((e) => {
+			store.tr(e.blockLocation, "set", [
+				"x",
+				resizeAnchor.x + (e.offset.x - resizeAnchor.x) * scaleX,
+			]);
+			store.tr(e.blockLocation, "set", [
+				"y",
+				resizeAnchor.y + (e.offset.y - resizeAnchor.y) * scaleY,
+			]);
+			store.tr(e.blockLocation, "set", [
+				"width",
+				e.offset.width * scaleX,
+			]);
+			store.tr(e.blockLocation, "set", [
+				"height",
+				e.offset.height * scaleY,
+			]);
+		});
+
+		// dimsMemo uses the fixed anchored snapshot but reads the updated nodes.
+		dimChanged.next((e) => e + 1);
+	};
 
 	let onresizeend = () => {
-		// TODO: implement
-	}
+		store.resumeTracking();
+		resetAnchors();
+		resizeAnchor = undefined;
+	};
 
 	let set_position = (x, y) => {
 		x = round(x, state.snapSize.value());
@@ -141,6 +237,24 @@ export let mountBoundingBox = () => {
 
 	setTimeout(() => {
 		drag(bigbox, { set_position, onstart, onend });
+
+		drag(MainCorner, {
+			set_position: (x, y) => onresizemove(x + 15, y + 15),
+			onstart: onresizestart,
+			onend: onresizeend,
+		});
+		drag(WidthMiddle, {
+			set_left: (x) => onresizemove(x + 15, resizeAnchor.height),
+			set_top: () => null,
+			onstart: onresizestart,
+			onend: onresizeend,
+		});
+		drag(HeightMiddle, {
+			set_left: () => null,
+			set_top: (y) => onresizemove(resizeAnchor.width, y + 15),
+			onstart: onresizestart,
+			onend: onresizeend,
+		});
 	}, 150);
 
 	return bigbox;
