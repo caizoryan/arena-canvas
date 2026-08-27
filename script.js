@@ -33,7 +33,7 @@ let checkSlugUrl = (url) => {
 	else return url.split("#").filter((e) => e != "").pop();
 };
 
-export const round = (n, r) => Math.ceil(n / r) * r;
+export const round = (n, r) => r ? Math.ceil(n / r) * r : n;
 
 let canvasData = () => ({
 	...store.get(["data"]),
@@ -247,6 +247,43 @@ let decSpan = button(
 	decreaseSnapSize,
 );
 
+let snappingSliderOpen = reactive(false);
+let toggleSnappingSlider = () =>
+	snappingSliderOpen.next((open) => !open);
+let toggleSnapping = () =>
+	state.snapSize.next((size) => size == 0 ? 25 : 0);
+
+let snappingToggle = ["button.snap-toggle", {
+	onclick: toggleSnapping,
+	style: memo(() => state.snapSize.value() == 0
+		? "background: transparent; color: black;"
+		: "background: black; color: white;", [state.snapSize]),
+}, memo(
+	() => state.snapSize.value() == 0 ? "↺" : "⊕",
+	[state.snapSize],
+)];
+
+let snappingButton = button("SNAPPING", toggleSnappingSlider);
+let snappingSlider = ["input.snap-slider", {
+	type: "range",
+	min: 0,
+	max: 200,
+	step: 5,
+	value: state.snapSize,
+	oninput: (event) => state.snapSize.next(parseInt(event.target.value, 10)),
+}];
+let snappingValue = ["span.snap-value", memo(
+	() => state.snapSize.value() + "px",
+	[state.snapSize],
+)];
+let snappingPanel = [
+	".snapping-panel",
+	{ open: snappingSliderOpen },
+	snappingSlider,
+	snappingValue,
+];
+let snapping = [".snapping-control", snappingToggle, snappingButton, snappingPanel];
+
 let clock = (() => {
 	let time = reactive(Date.now());
 	let tick = (delta) => {
@@ -308,7 +345,9 @@ let timer = () => {
 		let hour = date.getHours();
 		let mins = date.getMinutes();
 		let secs = date.getSeconds();
-		return hour + ":" + mins + ":" + secs;
+		return [hour, mins, secs]
+			.map((number) => String(number).padStart(2, "0"))
+			.join(":");
 	}, [clock.time]);
 
 	let startTimer = () => {
@@ -363,6 +402,7 @@ let topButtons = [
 	savebtn,
 	openbtn,
 	helpbtn,
+	snapping,
 	// decSpan,
 	// san,
 	// incSpan,

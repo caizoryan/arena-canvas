@@ -299,9 +299,55 @@ body {
 	display: flex;
 }
 
+.top-buttons button {
+	height: 2em;
+}
+
 .top-buttons>*,
 .bottom-buttons>*
 { margin-right: 1em; }
+
+.snapping-control {
+	display: inline-flex;
+	align-items: center;
+	gap: 0;
+	position: relative;
+}
+
+.snap-toggle {
+	width: 2em;
+	height: 2em;
+	padding: 0;
+	line-height: 1;
+	border-right: 0;
+}
+
+.snapping-panel {
+	position: absolute;
+	display: none;
+	flex-direction: column;
+	background: #eee;
+	padding: .5em;
+	border: 1px solid black;
+	top: 100%;
+	left: 0;
+	z-index: 100;
+
+	border: 2px solid black;
+	margin-top: .25em;
+}
+
+.snapping-panel[open='true'] {
+	display: flex;
+}
+
+.snap-slider {
+	width: 10em;
+}
+
+.snap-value {
+	text-align: center;
+}
 
 .spaced>*
 {
@@ -710,7 +756,8 @@ button[updated='true'] {
 	flex-direction: column;
 	background: #eee;
 	padding: .5em;
-	border: 1px solid black;
+	border: 2px solid black;
+	margin-top: .25em;
 }
 
 .timer-panel[active='true'] {
