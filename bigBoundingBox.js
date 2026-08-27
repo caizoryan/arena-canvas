@@ -1,23 +1,31 @@
-import { memo } from "./chowk.js";
+import { memo, reactive } from "./chowk.js";
 import { dom } from "./dom.js";
 import { drag } from "./drag.js";
 import { round } from "./script.js";
 import { getNodeLocation, state, store } from "./state.js";
 import { svgx } from "./svg.js";
-drag;
 
 export let mountBoundingBox = () => {
 	let anchored = [];
 	let boundingAnchor = {};
+	// NOTE: added this to update when dimsMemo needs to be recalculated
+	// when doing resize, call for an update.
+	let dimChanged = reactive(0)
 	let dimsMemo = memo(() => {
+		// TODO: Move anchored out of here into another 
+		// place. dimsMemo should run even when resized, 
+		// anchored should only recompute when selection is changed
 		anchored = [];
+
 		let selection = store.get(["data", "nodes"])
 			.filter((e) => state.selected.value().includes(e.id));
 
+		// TODO: Obviosuly move this out too.
 		selection.forEach((e) => {
 			let item = {
 				blockLocation: getNodeLocation(e.id),
-				offset: { x: e.x, y: e.y },
+				// NOTE: Added width height
+				offset: { x: e.x, y: e.y, width: e.width, height: e.height },
 			};
 			anchored.push(item);
 		});
@@ -40,7 +48,7 @@ export let mountBoundingBox = () => {
 			return acc;
 		}, {});
 		return { dimension, selection };
-	}, [state.selected]);
+	}, [state.selected, dimChanged]);
 
 	let dawgWalkers = memo(() => {
 		let { dimension, selection } = dimsMemo.value();
@@ -74,6 +82,7 @@ export let mountBoundingBox = () => {
 			y2 = y2 || 1;
 			return svgx(x2 - x, y2 - y, "#E3CFF5");
 		}, [dimsMemo]),
+		// TODO: add east edge and south edge.
 	);
 
 	let onstart = () => {
@@ -92,6 +101,19 @@ export let mountBoundingBox = () => {
 	let onend = () => {
 		store.resumeTracking();
 	};
+
+	let onresizestart = () => {
+		let resizeAnchor = {...boundingAnchor}
+		// TODO: implement
+	}
+
+	let onresizemove = () => {
+		// TODO: implement
+	}
+
+	let onresizeend = () => {
+		// TODO: implement
+	}
 
 	let set_position = (x, y) => {
 		x = round(x, state.snapSize.value());
