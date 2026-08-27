@@ -179,6 +179,30 @@ body {
 	padding-top: .5em;
 }
 
+.block.processing {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+}
+
+.processing-animation::after {
+	content: "";
+	display: inline-block;
+	width: .8em;
+	height: .8em;
+	margin-left: .5em;
+	border: .15em solid var(--background2);
+	border-top-color: var(--highlight);
+	border-radius: 50%;
+	animation: processing-spin 800ms linear infinite;
+}
+
+@keyframes processing-spin {
+	to {
+		transform: rotate(360deg);
+	}
+}
+
 .top-bar {
 	position: absolute;
 	width: 100%;

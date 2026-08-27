@@ -176,7 +176,9 @@ export function BlockElement(block) {
 
 	let el, components, attributes;
 
-	switch (block.type) {
+	if (block.state == "processing") {
+		[el, components, attributes] = ProcessingBlock(block);
+	} else switch (block.type) {
 		case "Text":
 			[el, components, attributes] = TextBlock(block);
 			break;
@@ -628,6 +630,12 @@ const TextBlock = (block) => {
 
 	return [root, comps, attributes];
 };
+const ProcessingBlock = () => [
+	[".block.processing", ["p.processing-animation", "Processing…"]],
+	{},
+	{},
+];
+
 const ImageBlock = (block) => {
 	let link = block.image?.large?.src || block.image?.large?.url;
 	return [[".block.image", ["img", { src: link }]], {}, {}];
@@ -778,7 +786,7 @@ export let constructBlockData = (e, i) => {
 		d.text = e.content.markdown;
 	} else if (e.type == "Image") {
 		d.type = "link";
-		d.url = e.image.large.src;
+		d.url = e.image?.large?.src || e.image?.large?.url;
 	} else if (e.type == "Link") {
 		d.type = "link";
 		d.url = e.source.url;

@@ -5,7 +5,7 @@ import { Keymanager } from "./keymanager.js";
 import { sidebar } from "./sidebar.js";
 import { dragOperations } from "./dragOperations.js";
 import { notificationpopup } from "./notification.js";
-import { add_block, add_link,
+import { add_block, add_image, add_link, get_block,
 	// connect_block,
 	update_block } from "./arena.js";
 import {
@@ -119,6 +119,55 @@ let copySelection = () => {
 
 	console.log(text);
 	navigator.clipboard.writeText(text);
+};
+
+let uploadDroppedImage = (file) => {
+	notificationpopup("Uploading image...");
+
+	add_image(state.currentSlug.value(), file)
+		.then((block) => {
+			if (!block?.id) {
+				notificationpopup("Failed to create image block", true);
+				return;
+			}
+
+			let width = 300;
+			let height = 300;
+			// The container's transform origin includes the current pan, so the
+			// visible viewport center is this canvas-space coordinate.
+			let x = state.canvasX.value() + window.innerWidth / 2 - width / 2;
+			let y = state.canvasY.value() + window.innerHeight / 2 - height / 2;
+			let node = constructBlockData(block, { x, y, width, height });
+
+			addNode(node);
+			let element = BlockElement(block);
+			document.querySelector(".container")?.appendChild(element);
+			if (block.state == "processing") {
+				notificationpopup("Still processing...");
+				refetchProcessingImage(block.id, element);
+			}
+			else notificationpopup("Image added 👍");
+		})
+		.catch((error) => {
+			console.log("Image upload failed:", error);
+			notificationpopup("Failed to upload image", true);
+		});
+};
+
+let refetchProcessingImage = (blockId, element) => {
+	setTimeout(() => {
+		get_block(blockId).then((block) => {
+			if (!block) return;
+			if (block.state == "processing") {
+				refetchProcessingImage(blockId, element);
+				notificationpopup("Still processing...");
+				return;
+			} else notificationpopup("Image added 👍");
+
+			let freshElement = BlockElement(block);
+			element.replaceWith(freshElement);
+		});
+	}, 1500);
 };
 
 // --------------------
@@ -626,6 +675,33 @@ export let mountContainer = (children) => {
 // keydown
 // wheel
 // drag and drop
+
+// -------------------
+// File drop
+// ~~~~~~~~~~~~~~~~~~~
+document.addEventListener("dragover", (e) => {
+	if (e.dataTransfer?.types?.includes("Files")) e.preventDefault();
+});
+
+document.addEventListener("drop", (e) => {
+	let file = e.dataTransfer?.files?.[0];
+	if (!file) return;
+
+	e.preventDefault();
+	if (e.dataTransfer.files.length > 1) {
+		notificationpopup("Please drop one image at a time", true);
+		return;
+	}
+
+	let isImage = file.type == "image/jpeg" || file.type == "image/png" ||
+		/\.(jpe?g|png)$/i.test(file.name);
+	if (!isImage) {
+		notificationpopup("Only JPG and PNG images can be uploaded", true);
+		return;
+	}
+
+	uploadDroppedImage(file);
+});
 
 // -------------------
 // Wheel Event (!)

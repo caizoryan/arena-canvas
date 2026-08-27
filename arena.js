@@ -40,6 +40,46 @@ export const add_block = async (slug, title, content) => {
 };
 export const add_link = async (slug, url) => add_block(slug, '', url)
 
+export const upload_image = async (file) => {
+	let contentType = file.type || (/\.png$/i.test(file.name) ? "image/png" : "image/jpeg");
+	let presignResponse = await fetch(host3 + "uploads/presign", {
+		method: "POST",
+		headers: headers(),
+		body: JSON.stringify({
+			files: [{
+				filename: file.name,
+				content_type: contentType,
+			}],
+		}),
+	});
+
+	if (!presignResponse.ok) {
+		let error = await presignResponse.json();
+		throw new Error(
+			`Failed to get presigned URL: ${error.error || "Unknown error"}`,
+		);
+	}
+
+	let presignData = await presignResponse.json();
+	let presignedFile = presignData.files[0];
+	let uploadResponse = await fetch(presignedFile.upload_url, {
+		method: "PUT",
+		headers: { "Content-Type": presignedFile.content_type },
+		body: await file.arrayBuffer(),
+	});
+
+	if (!uploadResponse.ok) {
+		throw new Error(`Failed to upload file: ${uploadResponse.statusText}`);
+	}
+
+	return presignedFile.upload_url.split("?")[0];
+};
+
+export const add_image = async (slug, file) => {
+	let imageUrl = await upload_image(file);
+	return add_block(slug, file.name, imageUrl);
+};
+
 export const get_block = async (block_id) => {
 	return fetch(host3 + `blocks/${block_id}`, { headers: headers() })
 		.then(async (res) => {
