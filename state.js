@@ -537,6 +537,11 @@ let updateData = (blocks) => {
 	state.dot_canvas = blocks.find((e) => e.title == ".canvas");
 	if (state.dot_canvas) {
 		let parsed = JSON.parse(state.dot_canvas.content.plain);
+		if (parsed.transform) {
+			state.canvasX.next(parsed.transform.x);
+			state.canvasY.next(parsed.transform.y);
+			state.canvasScale.next(parsed.transform.scale);
+		}
 		if (!parsed.edges) parsed.edges = []
 		setNodes(parsed.nodes);
 		store.tr(["data"], "set", ["edges", parsed.edges], false);

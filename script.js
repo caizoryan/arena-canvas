@@ -35,6 +35,15 @@ let checkSlugUrl = (url) => {
 
 export const round = (n, r) => Math.ceil(n / r) * r;
 
+let canvasData = () => ({
+	...store.get(["data"]),
+	transform: {
+		x: state.canvasX.value(),
+		y: state.canvasY.value(),
+		scale: state.canvasScale.value(),
+	},
+});
+
 let downloadData = () => {
 	let download_json = (json, file = "data") => {
 		let a = document.createElement("a");
@@ -49,7 +58,7 @@ let downloadData = () => {
 		a.click();
 		window.URL.revokeObjectURL(url);
 	};
-	download_json(store.get(["data"]), state.currentSlug.value());
+	download_json(canvasData(), state.currentSlug.value());
 };
 
 const link_is_url = (
@@ -160,7 +169,7 @@ let escape = () => {
 };
 
 let saveCanvasToArena = () => {
-	let content = JSON.stringify(store.get(["data"]));
+	let content = JSON.stringify(canvasData());
 	if (state.dot_canvas?.id) {
 		let description =
 			`This block was made using [Are.na Canvas](http://canvas.a-p.space). You can view this channel as a canvas [here](http://canvas.a-p.space/#${state.currentSlug.value()})`;
