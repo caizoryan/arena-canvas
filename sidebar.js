@@ -61,10 +61,9 @@ let authbar = memo(() =>
 				localStorage.setItem("auth", state.authKey);
 				try_auth();
 			},
-		}, "try"], ["a", { href: "https://arena-token-gen.vercel.app/" }, [
-			"p",
-			"Get your token here",
-		]]]
+		}, "try"], ["a", 
+				{ href: "https://www.are.na/developers/personal-access-tokens" },
+				[ "p", "Get your token here", ]]]
 		: ["p", ["img.icon", { src: state.me.avatar }], [
 			"p",
 			state.authSlug,
