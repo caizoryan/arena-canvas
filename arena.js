@@ -40,8 +40,23 @@ export const add_block = async (slug, title, content) => {
 };
 export const add_link = async (slug, url) => add_block(slug, '', url)
 
-export const upload_image = async (file) => {
-	let contentType = file.type || (/\.png$/i.test(file.name) ? "image/png" : "image/jpeg");
+const contentTypeForFile = (file) => {
+	if (file.type) return file.type;
+
+	let extension = file.name.split(".").pop().toLowerCase();
+	return {
+		jpg: "image/jpeg",
+		jpeg: "image/jpeg",
+		png: "image/png",
+		gif: "image/gif",
+		mp4: "video/mp4",
+		mp3: "audio/mpeg",
+		pdf: "application/pdf",
+	}[extension] || "application/octet-stream";
+};
+
+export const upload_file = async (file) => {
+	let contentType = contentTypeForFile(file);
 	let presignResponse = await fetch(host3 + "uploads/presign", {
 		method: "POST",
 		headers: headers(),
@@ -75,10 +90,14 @@ export const upload_image = async (file) => {
 	return presignedFile.upload_url.split("?")[0];
 };
 
-export const add_image = async (slug, file) => {
-	let imageUrl = await upload_image(file);
-	return add_block(slug, file.name, imageUrl);
+export const add_file = async (slug, file) => {
+	let fileUrl = await upload_file(file);
+	return add_block(slug, file.name, fileUrl);
 };
+
+// Keep the old names available for callers that still upload images.
+export const upload_image = upload_file;
+export const add_image = add_file;
 
 export const get_block = async (block_id) => {
 	return fetch(host3 + `blocks/${block_id}`, { headers: headers() })
@@ -96,13 +115,29 @@ export const get_block = async (block_id) => {
 		});
 };
 
-const connect_block = async (slug, id, connectable_type = 'Block') => {
-	return fetch(host+"channels/"+slug+"/connections", {
+export const connect_block = async (slug, id, connectable_type = 'Block') => {
+	let connectableId = Number(id);
+	if (!Number.isInteger(connectableId)) {
+		throw new Error(`Invalid ${connectable_type.toLowerCase()} id: ${id}`);
+	}
+
+	let response = await fetch(host3 + "connections", {
 		headers: headers(),
 		method: "POST",
-		body: JSON.stringify({connectable_type, connectable_id : id})
-	})
-	.then((res) => res.json())
+		body: JSON.stringify({
+			connectable_id: connectableId,
+			connectable_type,
+			channels: [{ id: slug }],
+		}),
+	});
+	let body = await response.json();
+
+	if (!response.ok) {
+		let message = body?.details?.message || body?.error || response.status;
+		throw new Error(`Couldn't connect block: ${message}`);
+	}
+
+	return body;
 }
 
 export const me = async () => {
