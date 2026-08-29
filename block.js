@@ -665,7 +665,8 @@ const EmbedBlock = (block) => {
 	return [[".block.embed", element], { "load-embed": load }, {}];
 };
 const AttachmentBlock = (block) => {
-	if (block.attachment.file_extension == "mp4") {
+	let fileExtension = block.attachment?.file_extension?.toLowerCase();
+	if (fileExtension == "mp4") {
 		let link = block.attachment.url;
 		let video = dom(["video", { src: link }]);
 		let togglePlay = () => {
@@ -705,7 +706,13 @@ const AttachmentBlock = (block) => {
 			{ controls },
 			{ ondblclick: togglePlay },
 		];
-	} else if (block.attachment.file_extension == "pdf") {
+	} else if (fileExtension == "mp3") {
+		let audio = dom(["audio", {
+			src: block.attachment.url,
+			controls: true,
+		}]);
+		return [[".block.image", audio], {}, {}];
+	} else if (fileExtension == "pdf") {
 		let link = block.image?.large?.src || block.image?.large?.url;
 		let pdflink = block.attachment.url;
 		let d = dom([".block.image", ["img", { src: link }]]);
