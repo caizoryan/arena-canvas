@@ -403,7 +403,8 @@ svg.background {
 
 
 img,
-video {
+video,
+audio {
 	max-width: 100%;
 	max-height: 100%;
 }

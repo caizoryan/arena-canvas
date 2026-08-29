@@ -5,8 +5,7 @@ import { Keymanager } from "./keymanager.js";
 import { sidebar } from "./sidebar.js";
 import { dragOperations } from "./dragOperations.js";
 import { notificationpopup } from "./notification.js";
-import { add_block, add_image, add_link, get_block,
-	// connect_block,
+import { add_block, add_file, add_link, connect_block, get_block,
 	update_block } from "./arena.js";
 import {
 	BlockElement,
@@ -78,21 +77,30 @@ let pasteInBlock = () => {
 					return;
 				}
 
-				console.log("will connect block: ", id, " to slug [DISABLED?? ]");
-				// connect_block(state.currentSlug.value(), extract_block_id(res))
-				// 	.then((block) => {
-				// 		console.log("BLock?", block);
-				// 		let newBlock = constructBlockData(block, {
-				// 			x: state.canvasX.value(),
-				// 			y: state.canvasY.value(),
-				// 			width: 350,
-				// 			height: 350,
-				// 		});
-				// 		addNode(newBlock);
-				// 		document.querySelector(".container").appendChild(
-				// 			BlockElement(block),
-				// 		);
-				// 	});
+				console.log("will connect block: ", id, " to slug");
+				connect_block(state.currentSlug.value(), id)
+					.then(async (response) => {
+						// v3 returns connection resources (`data` is an array), not
+						// the connected block. Fetch the block for rendering.
+						let block = response?.data || response;
+						if (!block?.type || !block?.id) block = await get_block(id);
+						if (!block?.id) throw new Error("Connected block was not returned");
+
+						let newBlock = constructBlockData(block, {
+							x: state.canvasX.value(),
+							y: state.canvasY.value(),
+							width: 350,
+							height: 350,
+						});
+						addNode(newBlock);
+						document.querySelector(".container")?.appendChild(
+							BlockElement(block),
+						);
+					})
+					.catch((error) => {
+						console.log("Failed to connect block:", error);
+						notificationpopup("Failed to add block", true);
+					});
 			} else if (link_is_url(res)) {
 				add_link(state.currentSlug.value(), res.trim())
 					.then((block) => {
@@ -121,48 +129,53 @@ let copySelection = () => {
 	navigator.clipboard.writeText(text);
 };
 
-let uploadDroppedImage = (file) => {
-	notificationpopup("Uploading image...");
-
-	add_image(state.currentSlug.value(), file)
+let uploadDroppedFile = (file, index = 0) => {
+	return add_file(state.currentSlug.value(), file)
 		.then((block) => {
 			if (!block?.id) {
-				notificationpopup("Failed to create image block", true);
+				notificationpopup(`Failed to create block for ${file.name}`, true);
 				return;
 			}
 
 			let width = 300;
 			let height = 300;
 			// The container's transform origin includes the current pan, so the
-			// visible viewport center is this canvas-space coordinate.
-			let x = state.canvasX.value() + window.innerWidth / 2 - width / 2;
-			let y = state.canvasY.value() + window.innerHeight / 2 - height / 2;
+			// visible viewport center is this canvas-space coordinate. Offset
+			// files in the same drop so they do not all land on top of each other.
+			let offset = index * 40;
+			let x = state.canvasX.value() + window.innerWidth / 2 - width / 2 + offset;
+			let y = state.canvasY.value() + window.innerHeight / 2 - height / 2 + offset;
 			let node = constructBlockData(block, { x, y, width, height });
 
 			addNode(node);
 			let element = BlockElement(block);
 			document.querySelector(".container")?.appendChild(element);
 			if (block.state == "processing") {
-				notificationpopup("Still processing...");
-				refetchProcessingImage(block.id, element);
+				notificationpopup(`Processing ${file.name}...`);
+				refetchProcessingFile(block.id, element);
 			}
-			else notificationpopup("Image added 👍");
+			else notificationpopup(`${file.name} added 👍`);
 		})
 		.catch((error) => {
-			console.log("Image upload failed:", error);
-			notificationpopup("Failed to upload image", true);
+			console.log("File upload failed:", error);
+			notificationpopup(`Failed to upload ${file.name}`, true);
 		});
 };
 
-let refetchProcessingImage = (blockId, element) => {
+let uploadDroppedFiles = (files) => {
+	notificationpopup(`Uploading ${files.length} file${files.length == 1 ? "" : "s"}...`);
+	files.forEach((file, index) => uploadDroppedFile(file, index));
+};
+
+let refetchProcessingFile = (blockId, element) => {
 	setTimeout(() => {
 		get_block(blockId).then((block) => {
 			if (!block) return;
 			if (block.state == "processing") {
-				refetchProcessingImage(blockId, element);
+				refetchProcessingFile(blockId, element);
 				notificationpopup("Still processing...");
 				return;
-			} else notificationpopup("Image added 👍");
+			} else notificationpopup("File added 👍");
 
 			let freshElement = BlockElement(block);
 			element.replaceWith(freshElement);
@@ -683,24 +696,40 @@ document.addEventListener("dragover", (e) => {
 	if (e.dataTransfer?.types?.includes("Files")) e.preventDefault();
 });
 
+const MAX_DROPPED_FILES = 5;
+const supportedFileTypes = new Set([
+	"image/jpeg",
+	"image/png",
+	"image/gif",
+	"video/mp4",
+	"audio/mpeg",
+	"audio/mp3",
+	"application/pdf",
+]);
+const supportedFileExtensions = /\.(jpe?g|png|gif|mp4|mp3|pdf)$/i;
+
+let isSupportedFile = (file) =>
+	supportedFileTypes.has((file.type || "").toLowerCase()) ||
+	supportedFileExtensions.test(file.name);
+
 document.addEventListener("drop", (e) => {
-	let file = e.dataTransfer?.files?.[0];
-	if (!file) return;
+	let files = Array.from(e.dataTransfer?.files || []);
+	if (!files.length) return;
 
 	e.preventDefault();
-	if (e.dataTransfer.files.length > 1) {
-		notificationpopup("Please drop one image at a time", true);
+	if (files.length > MAX_DROPPED_FILES) {
+		notificationpopup("Please drop no more than 5 files at a time", true);
 		return;
 	}
 
-	let isImage = file.type == "image/jpeg" || file.type == "image/png" ||
-		/\.(jpe?g|png)$/i.test(file.name);
-	if (!isImage) {
-		notificationpopup("Only JPG and PNG images can be uploaded", true);
-		return;
+	let supportedFiles = files.filter(isSupportedFile);
+	if (supportedFiles.length != files.length) {
+		notificationpopup(
+			"Only JPG, PNG, GIF, MP4, MP3, and PDF files can be uploaded",
+			true,
+		);
 	}
-
-	uploadDroppedImage(file);
+	if (supportedFiles.length) uploadDroppedFiles(supportedFiles);
 });
 
 // -------------------

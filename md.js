@@ -18,6 +18,7 @@ let attrs = (item) => {
 export const link_is_block = (link) => {
 	return link.includes("are.na/block");
 };
+
 export const extract_block_id = (link) => {
 	return link.split("/").pop().trim();
 };
