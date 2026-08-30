@@ -9,7 +9,6 @@ import {
 	store,
 	subscribeToId,
 } from "../state.js";
-import { register } from "../plugin.js";
 
 // A renderer returns an object with this shape:
 // {
@@ -182,84 +181,77 @@ const EmbedBlock = (block) => {
 	};
 };
 
-const AttachmentBlock = (block) => {
-	let fileExtension = block.attachment?.file_extension?.toLowerCase();
-	if (fileExtension == "mp4") {
-		let link = block.attachment.url;
-		let video = dom(["video", { src: link }]);
-		let togglePlay = () => {
-			video.paused ? video.play() : video.pause();
-			video.paused
-				? playPause.innerText = "play"
-				: playPause.innerText = "pause";
-		};
-		let playPause = dom(["button", {
-			onclick: togglePlay,
-		}, "play"]);
+const MP4Block = (block) => {
+	let link = block.attachment.url;
+	let video = dom(["video", { src: link }]);
+	let togglePlay = () => {
+		video.paused ? video.play() : video.pause();
+		video.paused
+			? playPause.innerText = "play"
+			: playPause.innerText = "pause";
+	};
+	let playPause = dom(["button", {
+		onclick: togglePlay,
+	}, "play"]);
 
-		video.ontimeupdate = () => {
-			seeker.value = video.currentTime / video.duration;
-		};
+	video.ontimeupdate = () => {
+		seeker.value = video.currentTime / video.duration;
+	};
 
-		let seeker = dom([
-			"input",
-			{
-				oninput: (e) =>
-					video.currentTime = parseFloat(e.target.value) * video.duration,
-				type: "range",
-				min: 0,
-				max: 1,
-				step: 0.01,
-				value: 0,
-			},
-		]);
+	let seeker = dom([
+		"input",
+		{
+			oninput: (e) =>
+				video.currentTime = parseFloat(e.target.value) * video.duration,
+			type: "range",
+			min: 0,
+			max: 1,
+			step: 0.01,
+			value: 0,
+		},
+	]);
 
-		let controls = [
-			".controls",
-			playPause,
-			seeker,
-		];
-		return {
-			body: [".block.image", video],
-			topBar: [],
-			bottomBar: [controls],
-			attributes: { ondblclick: togglePlay },
-		};
-	} else if (fileExtension == "mp3") {
-		let audio = dom(["audio", {
-			src: block.attachment.url,
-			controls: true,
-		}]);
-		return {
-			body: [".block.image", audio],
-			topBar: [],
-			bottomBar: [],
-			attributes: {},
-		};
-	} else if (fileExtension == "pdf") {
-		let link = block.image?.large?.src || block.image?.large?.url;
-		let pdflink = block.attachment.url;
-		let d = dom([".block.image", ["img", { src: link }]]);
-		let mountPdf = () => {
-			d.innerHTML = "";
-			let iframe = ["iframe", { src: pdflink }];
-			d.appendChild(dom(iframe));
-		};
-		return {
-			body: d,
-			topBar: [],
-			bottomBar: [button("view pdf", mountPdf)],
-			attributes: {},
-		};
-	} else {
-		let link = block.image?.large?.src || block.image?.large?.url;
-		return {
-			body: [".block.image", ["img", { src: link }]],
-			topBar: [],
-			bottomBar: [],
-			attributes: {},
-		};
-	}
+	let controls = [
+		".controls",
+		playPause,
+		seeker,
+	];
+	return {
+		body: [".block.image", video],
+		topBar: [],
+		bottomBar: [controls],
+		attributes: { ondblclick: togglePlay },
+	};
+};
+
+const MP3Block = (block) => {
+	let audio = dom(["audio", {
+		src: block.attachment.url,
+		controls: true,
+	}]);
+	return {
+		body: [".block.image", audio],
+		topBar: [],
+		bottomBar: [],
+		attributes: {},
+	};
+};
+
+const PDFBlock = (block) => {
+	let link = block.image?.large?.src || block.image?.large?.url;
+	let pdflink = block.attachment.url;
+	let d = dom([".block.image", ["img", { src: link }]]);
+	let mountPdf = () => {
+		d.innerHTML = "";
+		let iframe = ["iframe", { src: pdflink }];
+		d.appendChild(dom(iframe));
+	};
+	return {
+		body: d,
+		topBar: [],
+		bottomBar: [button("view pdf", mountPdf)],
+		attributes: {},
+	};
 };
 
 const Channel = (block) => ({
@@ -281,16 +273,21 @@ const Channel = (block) => ({
 
 const builtinRenderers = [
 	{ match: (block) => block.state == "processing", render: ProcessingBlock },
+	// { match: (block) => block.type == "Text" && block.title == 'dog', 
+	// 	render: (block) => ({ body: ['h1', "this was titled dog.", TextBlock(block).body] }) },
 	{ match: (block) => block.type == "Text", render: TextBlock },
 	{ match: (block) => block.type == "Image", render: ImageBlock },
 	{ match: (block) => block.type == "Embed", render: EmbedBlock },
-	{ match: (block) => block.type == "Attachment", render: AttachmentBlock },
+	{ match: (block) => block.type == "Attachment" && block.attachment?.file_extension?.toLowerCase() == "mp4", render: MP4Block },
+	{ match: (block) => block.type == "Attachment" && block.attachment?.file_extension?.toLowerCase() == "mp3", render: MP3Block },
+	{ match: (block) => block.type == "Attachment" && block.attachment?.file_extension?.toLowerCase() == "pdf", render: PDFBlock },
 	{ match: (block) => block.type == "Link", render: LinkBlock },
 	{ match: (block) => block.type == "Media", render: MediaBlock },
 	{ match: (block) => block.type == "Channel", render: Channel },
 ];
 
-register({
+export default {
+
 	id: "builtin-block-renderers",
 	setup: (controller) => {
 		let unregister = builtinRenderers.map((renderer) =>
@@ -298,4 +295,5 @@ register({
 		);
 		return () => unregister.forEach((removeRenderer) => removeRenderer());
 	},
-});
+}
+
