@@ -1,12 +1,14 @@
 /* A deliberately small PDF renderer for Arena blocks.
  *
- * There is no virtualisation, text layer, sidebar, or cache here. The viewer
- * keeps one canvas and renders one page at a time. This makes the renderer
- * useful as a dependable baseline before adding more PDF features.
+ * There is no virtualisation, sidebar, or cache here. The viewer keeps one
+ * canvas and one selectable text layer, and renders one page at a time. This
+ * makes the renderer useful as a dependable baseline before adding more PDF
+ * features.
  */
 import {
 	getDocument,
 	GlobalWorkerOptions,
+	TextLayer,
 } from "../pdfjs/build/pdf.mjs";
 import { dom } from "../dom.js";
 
@@ -39,15 +41,32 @@ export class PDFViewer {
 		this.pdf = null;
 		this.loadingTask = null;
 		this.renderTask = null;
+		this.textLayerTask = null;
+		this.textContentItems = [];
 		this.pageNumber = 1;
 		this.request = 0;
 		this.destroyed = false;
 
 		this.canvas = dom(["canvas.pdf-simple-canvas"]);
+		this.textLayer = dom([
+			"div.pdf-simple-text-layer.textLayer",
+			{
+				// Let the browser perform normal text selection, but do not let
+				// Arena's draggable block consume the pointer gesture.
+				onpointerdown: (event) => event.stopPropagation(),
+			},
+		]);
+		this.selectionChange = () => this.logSelection();
+		document.addEventListener("selectionchange", this.selectionChange);
 		this.status = dom(["span.pdf-simple-status", "Loading PDF…"]);
 		this.pageLabel = dom(["span.pdf-simple-page-label", "Page 1 / —"]);
 		this.previous = button("previous", () => this.showPage(this.pageNumber - 1), "Previous page");
 		this.next = button("next", () => this.showPage(this.pageNumber + 1), "Next page");
+		this.rerender = button(
+			"re-render",
+			() => this.rerenderCurrentPage(),
+			"Re-render current page",
+		);
 		this.retry = button("retry", () => this.load(), "Retry loading PDF");
 		this.retry.hidden = true;
 
@@ -57,11 +76,12 @@ export class PDFViewer {
 				".pdf-simple-toolbar",
 				this.previous,
 				this.next,
+				this.rerender,
 				this.pageLabel,
 				this.status,
 				this.retry,
 			],
-			[".pdf-simple-page", this.canvas],
+			[".pdf-simple-page", this.canvas, this.textLayer],
 		]);
 		this.root.pdfViewer = this;
 
@@ -79,10 +99,13 @@ export class PDFViewer {
 			this.loadingTask = null;
 		}
 		this.pdf = null;
+		this.textContentItems = [];
+		this.textLayer.replaceChildren();
 		this.pageNumber = 1;
 		this.retry.hidden = true;
 		this.previous.disabled = true;
 		this.next.disabled = true;
+		this.rerender.disabled = true;
 		this.pageLabel.textContent = "Page 1 / —";
 		this.status.textContent = "Loading PDF…";
 
@@ -128,12 +151,21 @@ export class PDFViewer {
 		this.pageLabel.textContent = `Page ${number} / ${this.pdf.numPages}`;
 		this.previous.disabled = number == 1;
 		this.next.disabled = number == this.pdf.numPages;
+		this.rerender.disabled = false;
 
 		let page;
 		let renderTask;
+		let textLayerTask;
 		try {
 			page = await this.pdf.getPage(number);
 			if (pageRequest != this.request || this.destroyed) return;
+
+			const textContent = await page.getTextContent({
+				includeMarkedContent: true,
+				disableNormalization: true,
+			});
+			if (pageRequest != this.request || this.destroyed) return;
+			this.textContentItems = textContent.items.filter((item) => item.str !== undefined);
 
 			const naturalViewport = page.getViewport({ scale: 1 });
 			const pageContainer = this.canvas.parentElement;
@@ -150,6 +182,20 @@ export class PDFViewer {
 			this.canvas.height = Math.ceil(viewport.height * outputScale);
 			this.canvas.style.width = `${viewport.width}px`;
 			this.canvas.style.height = `${viewport.height}px`;
+			this.textLayer.replaceChildren();
+			this.textLayer.style.setProperty("--pdf-text-layer-width", `${viewport.width}px`);
+			this.textLayer.style.setProperty("--pdf-text-layer-height", `${viewport.height}px`);
+			this.textLayer.style.setProperty("--total-scale-factor", String(scale));
+			textLayerTask = new TextLayer({
+				textContentSource: textContent,
+				container: this.textLayer,
+				viewport,
+			});
+			this.textLayerTask = textLayerTask;
+			// pdf.js sets these dimensions with CSS round(), which is not
+			// supported by every browser. Use the same values without rounding.
+			this.textLayer.style.width = "calc(var(--pdf-text-layer-width))";
+			this.textLayer.style.height = "calc(var(--pdf-text-layer-height))";
 			const context = this.canvas.getContext("2d", { alpha: false });
 			renderTask = page.render({
 				canvasContext: context,
@@ -160,8 +206,12 @@ export class PDFViewer {
 				background: "white",
 			});
 			this.renderTask = renderTask;
-			await renderTask.promise;
+			await Promise.all([
+				renderTask.promise,
+				textLayerTask.render(),
+			]);
 			if (pageRequest != this.request || this.destroyed) return;
+			this.decorateTextLayer(textLayerTask);
 			this.status.textContent = "";
 		} catch (error) {
 			if (this.isCancellation(error) || pageRequest != this.request || this.destroyed) return;
@@ -169,8 +219,99 @@ export class PDFViewer {
 			this.status.textContent = error?.message || "Could not render page";
 		} finally {
 			if (this.renderTask === renderTask) this.renderTask = null;
+			if (this.textLayerTask === textLayerTask) this.textLayerTask = null;
 			page?.cleanup();
 		}
+	}
+
+	decorateTextLayer(textLayerTask) {
+		// TextLayer keeps textDivs in the same order as the text items passed
+		// to it. Empty items have no DOM span, but their index is still kept.
+		for (const [index, textDiv] of textLayerTask.textDivs.entries()) {
+			if (!textDiv.isConnected) continue;
+			textDiv.classList.add("pdf-text-layer-node");
+			textDiv.dataset.idx = String(index);
+		}
+	}
+
+	getTextLayerNode(node) {
+		if (!node || !this.textLayer.contains(node)) return null;
+		const element = node.nodeType == Node.ELEMENT_NODE
+			? node
+			: node.parentElement;
+		const textDiv = element?.closest(".pdf-text-layer-node");
+		return textDiv && this.textLayer.contains(textDiv) ? textDiv : null;
+	}
+
+	getOffsetInTextLayerNode(textDiv, node, offset) {
+		if (!textDiv || !textDiv.contains(node)) return null;
+		if (node == textDiv) {
+			return Array.from(node.childNodes)
+				.slice(0, offset)
+				.reduce((total, child) => total + (child.textContent?.length || 0), 0);
+		}
+
+		const iterator = document.createNodeIterator(textDiv, NodeFilter.SHOW_ALL);
+		let current;
+		let result = 0;
+		while ((current = iterator.nextNode())) {
+			if (current == node) {
+				if (node.nodeType == Node.TEXT_NODE) result += offset;
+				else {
+					result += Array.from(node.childNodes)
+						.slice(0, offset)
+						.reduce((total, child) => total + (child.textContent?.length || 0), 0);
+				}
+				return result;
+			}
+			if (current.nodeType == Node.TEXT_NODE) {
+				result += current.textContent?.length || 0;
+			}
+		}
+		return null;
+	}
+
+	logSelection() {
+		const selection = window.getSelection();
+		if (!selection || selection.isCollapsed || !selection.rangeCount) return;
+		const range = selection.getRangeAt(0);
+		if (!this.textLayer.contains(range.startContainer) ||
+			!this.textLayer.contains(range.endContainer)) return;
+
+		const startTextDiv = this.getTextLayerNode(range.startContainer);
+		const endTextDiv = this.getTextLayerNode(range.endContainer);
+		if (!startTextDiv || !endTextDiv) return;
+
+		const beginOffset = this.getOffsetInTextLayerNode(
+			startTextDiv,
+			range.startContainer,
+			range.startOffset,
+		);
+		const endOffset = this.getOffsetInTextLayerNode(
+			endTextDiv,
+			range.endContainer,
+			range.endOffset,
+		);
+		if (beginOffset == null || endOffset == null) return;
+
+		const result = {
+			page: this.pageNumber,
+			selection: {
+				beginIndex: Number(startTextDiv.dataset.idx),
+				beginOffset,
+				endIndex: Number(endTextDiv.dataset.idx),
+				endOffset,
+			},
+			text: selection.toString(),
+		};
+		console.log("PDF selection", result);
+	}
+
+	rerenderCurrentPage() {
+		// This deliberately calls showPage rather than load: the existing PDF
+		// document and worker stay alive, while the current page gets a new
+		// viewport based on the viewer's current size.
+		if (this.pdf) this.showPage(this.pageNumber);
 	}
 
 	isCancellation(error) {
@@ -180,9 +321,15 @@ export class PDFViewer {
 	}
 
 	cancelRender() {
-		if (!this.renderTask) return;
-		this.renderTask.cancel();
-		this.renderTask = null;
+		if (this.renderTask) {
+			this.renderTask.cancel();
+			this.renderTask = null;
+		}
+		if (this.textLayerTask) {
+			this.textLayerTask.cancel();
+			this.textLayerTask = null;
+		}
+		this.textLayer?.replaceChildren();
 	}
 
 	destroy() {
@@ -192,16 +339,34 @@ export class PDFViewer {
 		this.cancelRender();
 		this.loadingTask?.destroy().catch(() => {});
 		this.loadingTask = null;
+		document.removeEventListener("selectionchange", this.selectionChange);
 		this.pdf = null;
 	}
 }
 
-export const PDFBlock = (block) => ({
-	body: new PDFViewer(block.attachment?.url).root,
-	topBar: [],
-	bottomBar: [],
-	attributes: {},
-});
+export const PDFBlock = (block) => {
+	const imageUrl = block.image?.large?.src || block.image?.large?.url;
+	let viewer;
+
+	const preview = dom([
+		".pdf-simple-preview",
+		imageUrl
+			? ["img", { src: imageUrl, alt: block.title || "PDF preview" }]
+			: ["p", "PDF preview unavailable"],
+		button("load PDF", () => {
+			if (viewer) return;
+			viewer = new PDFViewer(block.attachment?.url);
+			preview.replaceWith(viewer.root);
+		}, "Load PDF"),
+	]);
+
+	return {
+		body: preview,
+		topBar: [],
+		bottomBar: [],
+		attributes: {},
+	};
+};
 
 const pdfRenderer = {
 	match: (block) =>
