@@ -20,6 +20,7 @@ import { extract_block_id, link_is_block } from "./md.js";
 import blockRenderers from "./plugins/builtin-block-renderers.js";
 import jumpLink  from "./plugins/jump-link.js";
 import PreviewBlockLink from "./plugins/preview-images.js";
+import pdfViewer from "./plugins/pdf-viewer.js";
 
 // first order of business
 // 1. Get canvas showing and moving like before
@@ -806,6 +807,7 @@ window.onhashchange = (event) => {
 // -------------------
 register(jumpLink);
 register(PreviewBlockLink);
-register(blockRenderers)
+register(blockRenderers);
+register(pdfViewer);
 
 mount()

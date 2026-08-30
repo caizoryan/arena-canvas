@@ -246,23 +246,6 @@ const MP3Block = (block) => {
 	};
 };
 
-const PDFBlock = (block) => {
-	let link = block.image?.large?.src || block.image?.large?.url;
-	let pdflink = block.attachment.url;
-	let d = dom([".block.image", ["img", { src: link }]]);
-	let mountPdf = () => {
-		d.innerHTML = "";
-		let iframe = ["iframe", { src: pdflink }];
-		d.appendChild(dom(iframe));
-	};
-	return {
-		body: d,
-		topBar: [],
-		bottomBar: [button("view pdf", mountPdf)],
-		attributes: {},
-	};
-};
-
 const Channel = (block) => ({
 	body: [
 		".block.channel",
@@ -289,7 +272,6 @@ const builtinRenderers = [
 	{ match: (block) => block.type == "Embed", render: EmbedBlock },
 	{ match: (block) => block.type == "Attachment" && block.attachment?.file_extension?.toLowerCase() == "mp4", render: MP4Block },
 	{ match: (block) => block.type == "Attachment" && block.attachment?.file_extension?.toLowerCase() == "mp3", render: MP3Block },
-	{ match: (block) => block.type == "Attachment" && block.attachment?.file_extension?.toLowerCase() == "pdf", render: PDFBlock },
 	{ match: (block) => block.type == "Link", render: LinkBlock },
 	{ match: (block) => block.type == "Media", render: MediaBlock },
 	{ match: (block) => block.type == "Channel", render: Channel },

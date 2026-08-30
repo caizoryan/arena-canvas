@@ -240,20 +240,24 @@ export function BlockElement(block) {
 	};
 
 	let onend = () => {
+		// Pointer-up can bubble from controls (or from an embedded renderer)
+		// without a matching pointer-down on the draggable node.
+		if (!copy) return;
+
 		// TODO: figure out how to do this in a simpler way...
-		if (
-			copy &&
-			left.value() != copy.left
-			|| height.value() != copy.height
-			|| width.value() != copy.width
-			|| top.value() != copy.top
-		) {
+		let changed =
+			left.value() != copy.left ||
+			height.value() != copy.height ||
+			width.value() != copy.width ||
+			top.value() != copy.top;
+
+		if (changed) {
 			let tobe = {
-			left: left.value(),
-			top: top.value(),
-			width: width.value(),
-			height: height.value(),
-		}
+				left: left.value(),
+				top: top.value(),
+				width: width.value(),
+				height: height.value(),
+			};
 			store.startBatch();
 			left.next(copy.left);
 			top.next(copy.top);
@@ -268,12 +272,10 @@ export function BlockElement(block) {
 			width.next(tobe.width);
 			height.next(tobe.height);
 			store.endBatch();
-		}
-
-		else {
-			copy = null
+		} else {
 			store.resumeTracking();
 		}
+		copy = null;
 	}
 
 	let edges = resizers(left, top, width, height, { onstart, onend });
