@@ -54,7 +54,7 @@ export const extract_block_id = (link) => {
 	return link?.split("/").pop().split(/[?#]/)[0].trim();
 };
 
-function eat(tree, context = {}) {
+function eat(tree) {
 	let ret = [];
 
 	if (!tree) return "";
@@ -63,33 +63,23 @@ function eat(tree, context = {}) {
 		let item = tree.shift();
 		if (item.nesting === 1) {
 			let at = attrs(item);
-			let children = eat(tree, context);
+			let children = eat(tree);
 
 			if (at.href) {
 				let hookResult = controller.dispatchHook("markdown:link", {
-					...context,
 					controller,
 					children,
 					attributes: { ...at },
 				});
 
-				console.log(hookResult, at.href)
-
 				if (hookResult?.handled) {
 					let body = hookResult.body;
-					if (body === undefined) {
-						body = [
-							hookResult.tag || item.tag,
-							{ ...at, ...hookResult.attributes },
-							...children,
-						];
+					if (Array.isArray(body) && typeof body[0] == "string") {
+						ret.push(body);
+					} else {
+						body = [ item.tag, { ...at}, ...children, ];
 					}
-					ret.push(body);
 					continue;
-				}
-
-				if (hookResult?.attributes) {
-					at = { ...at, ...hookResult.attributes };
 				}
 			}
 
@@ -108,7 +98,7 @@ function eat(tree, context = {}) {
 							: item.content;
 				ret.push(p);
 			} else {
-				let children = eat(item.children, context);
+				let children = eat(item.children);
 				children.forEach((e) => ret.push(e));
 			}
 		}
@@ -128,10 +118,10 @@ let safe_parse = (content) => {
 };
 
 let debug_print = false;
-export const MD = (content, context = {}) => {
+export const MD = (content) => {
 	let tree, body;
 	tree = safe_parse(content);
-	if (tree) body = eat(tree, context);
+	if (tree) body = eat(tree);
 	else body = content;
 	return body;
 };
