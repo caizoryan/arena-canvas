@@ -205,7 +205,9 @@ function load_local_storage() {
 	let a = localStorage.getItem("auth");
 	if (a) {
 		state.authKey = a;
-		try_auth();
+		// arena.js imports state.js as well. Defer authentication until the
+		// circular module initialization has completed.
+		setTimeout(() => try_auth());
 	}
 
 	let s = localStorage.getItem("recent-slugs");
