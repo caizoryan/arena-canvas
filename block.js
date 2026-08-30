@@ -236,12 +236,11 @@ export function BlockElement(block) {
 			height: height.value(),
 		}
 
-		console.log('started', copy)
 		store.pauseTracking();
 	};
 
 	let onend = () => {
-		console.log('ending', copy)
+		// TODO: figure out how to do this in a simpler way...
 		if (
 			copy &&
 			left.value() != copy.left
