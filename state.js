@@ -3,6 +3,7 @@ import { memo, reactive } from "./chowk.js";
 import { get_block, get_channel, try_auth } from "./arena.js";
 import { notificationpopup } from "./notification.js";
 import { mountContainer, moveToBlock, saveCanvasToArena } from "./script.js";
+import { controller } from "./plugin.js";
 import {
 	BlockElement,
 	constructBlockData,
@@ -299,6 +300,7 @@ export let try_set_channel = (slugOrURL) => {
 	set_channel(slug);
 };
 let renderChannel = (blocks) => {
+	controller.setChannelBlocks(blocks);
 	updateData(blocks);
 	// A channel with a .canvas block is already saved. Without one, saving
 	// will create the initial .canvas block.
