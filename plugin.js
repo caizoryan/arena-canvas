@@ -1,9 +1,13 @@
+import { focusBlock } from "./script.js";
+
 // Plugin registry and the small controller surface currently exposed to
 // plugins. Built-in plugins are loaded by the application entry point.
 export const registeredRenderers = [];
 export const registeredPlugins = [];
+export const registeredHooks = new Map();
 
 let activeRegistration;
+let hookSequence = 0;
 
 const remove = (items, item) => {
 	let index = items.indexOf(item);
@@ -17,6 +21,14 @@ const runCleanup = (cleanup) => {
 	} catch (error) {
 		console.error("Plugin cleanup failed", error);
 	}
+};
+
+const removeHook = (hookName, hook) => {
+	let hooks = registeredHooks.get(hookName);
+	if (!hooks) return;
+
+	remove(hooks, hook);
+	if (hooks.length == 0) registeredHooks.delete(hookName);
 };
 
 export const controller = {
@@ -34,6 +46,70 @@ export const controller = {
 		if (activeRegistration) activeRegistration.cleanups.push(unregister);
 		return unregister;
 	},
+
+	registerHook: (hookName, callback, options = {}) => {
+		if (typeof hookName != "string" || !hookName) {
+			throw new TypeError("A hook must have a name");
+		}
+		if (typeof callback != "function") {
+			throw new TypeError("A hook callback must be a function");
+		}
+
+		let hook = {
+			callback,
+			priority: Number(options.priority) || 0,
+			sequence: hookSequence++,
+		};
+		let hooks = registeredHooks.get(hookName);
+		if (!hooks) {
+			hooks = [];
+			registeredHooks.set(hookName, hooks);
+		}
+		hooks.push(hook);
+		hooks.sort((a, b) =>
+			b.priority - a.priority || a.sequence - b.sequence
+		);
+
+		let unregister = () => removeHook(hookName, hook);
+		if (activeRegistration) activeRegistration.cleanups.push(unregister);
+		return unregister;
+	},
+
+	dispatchHook: (hookName, context = {}) => {
+		let hooks = registeredHooks.get(hookName) || [];
+		let result = { attributes: {} };
+
+		for (let hook of [...hooks]) {
+			try {
+				let response = hook.callback(context, controller);
+				if (!response) continue;
+
+				if (response.attributes) {
+					result.attributes = {
+						...result.attributes,
+						...response.attributes,
+					};
+				}
+
+				if (response.handled) {
+					return {
+						...result,
+						...response,
+						attributes: {
+							...result.attributes,
+							...(response.attributes || {}),
+						},
+					};
+				}
+			} catch (error) {
+				console.error(`Plugin hook failed: ${hookName}`, error);
+			}
+		}
+
+		return Object.keys(result.attributes).length ? result : undefined;
+	},
+
+	focusBlock: (...args) => focusBlock(...args),
 };
 
 // Register a plugin for the lifetime of the returned function. Renderer
