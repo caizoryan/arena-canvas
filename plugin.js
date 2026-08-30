@@ -1,4 +1,5 @@
 import { focusBlock } from "./script.js";
+import { get_block } from "./arena.js";
 
 // Plugin registry and the small controller surface currently exposed to
 // plugins. Built-in plugins are loaded by the application entry point.
@@ -57,8 +58,6 @@ export const controller = {
 	getBlock: async (id) => {
 		let block = channelBlocks.find((item) => String(item.id) == String(id));
 		if (block) return block;
-
-		let { get_block } = await import("./arena.js");
 		return get_block(id);
 	},
 
