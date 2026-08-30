@@ -17,7 +17,8 @@ import {
 import { helpbar } from "./help.js";
 import { history } from "./history.js";
 import { extract_block_id, link_is_block } from "./md.js";
-import blockRenderers from "./plugins/builtin-block-renderers.js"
+import blockRenderers from "./plugins/builtin-block-renderers.js";
+import jumpLink from "./plugins/jump-link.js";
 
 // first order of business
 // 1. Get canvas showing and moving like before
@@ -486,7 +487,7 @@ let bottomButtons = [
 // --------------------
 // Move this somewhere
 // xxxxxxxxxxxxxxxxxxxxx
-export function moveToBlock(id) {
+export function focusBlock(id) {
 	let found = document.querySelector("*[block-id='" + id + "']");
 	if (found) {
 		if (state.moving_timeout) clearTimeout(state.moving_timeout);
@@ -533,6 +534,9 @@ export function moveToBlock(id) {
 		);
 	}
 }
+
+// Keep the previous name available to existing callers.
+export const moveToBlock = focusBlock;
 
 // --------------
 // Animation
@@ -810,7 +814,7 @@ window.onhashchange = (event) => {
 // Load built-in renderers after the application module graph has initialized.
 // The renderer plugin imports state and the Arena API, so loading it statically
 // would create a circular initialization path.
-
+register(jumpLink);
 register(blockRenderers)
 
 mount()
