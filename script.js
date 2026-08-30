@@ -1,5 +1,6 @@
 import { memo, reactive } from "./chowk.js";
 import { dom } from "./dom.js";
+import { register } from "./plugin.js";
 import { addNode, removeEdge, state, store, try_set_channel } from "./state.js";
 import { Keymanager } from "./keymanager.js";
 import { sidebar } from "./sidebar.js";
@@ -16,6 +17,7 @@ import {
 import { helpbar } from "./help.js";
 import { history } from "./history.js";
 import { extract_block_id, link_is_block } from "./md.js";
+import blockRenderers from "./plugins/builtin-block-renderers.js"
 
 // first order of business
 // 1. Get canvas showing and moving like before
@@ -805,4 +807,10 @@ window.onhashchange = (event) => {
 // -------------------
 // Initialization FN
 // -------------------
-mount();
+// Load built-in renderers after the application module graph has initialized.
+// The renderer plugin imports state and the Arena API, so loading it statically
+// would create a circular initialization path.
+
+register(blockRenderers)
+
+mount()
