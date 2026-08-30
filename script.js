@@ -805,7 +805,7 @@ window.onhashchange = (event) => {
 // Initialization FN
 // -------------------
 register(jumpLink);
-// register(PreviewBlockLink);
+register(PreviewBlockLink);
 register(blockRenderers)
 
 mount()
