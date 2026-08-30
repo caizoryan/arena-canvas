@@ -1,9 +1,9 @@
-import { add_block, update_block } from "./arena.js";
+import { add_block } from "./arena.js";
 import { memo, reactive } from "./chowk.js";
 import { dom } from "./dom.js";
 import { drag } from "./drag.js";
-import { MD } from "./md.js";
 import { notificationpopup } from "./notification.js";
+import { registeredRenderers } from "./plugin.js";
 import { round } from "./script.js";
 import {
 	addEdge,
@@ -174,47 +174,38 @@ export function BlockElement(block) {
 		CSSTransform(left, top, width, height) +
 		Color(color.value()), [left, top, width, height, color]);
 
-	let el, components, attributes;
+	let renderer = registeredRenderers.find((renderer) => renderer.match(block));
+	let result;
 
-	if (block.state == "processing") {
-		[el, components, attributes] = ProcessingBlock(block);
-	} else switch (block.type) {
-		case "Text":
-			[el, components, attributes] = TextBlock(block);
-			break;
-		case "Image":
-			[el, components, attributes] = ImageBlock(block);
-			break;
-		case "Embed":
-			[el, components, attributes] = EmbedBlock(block);
-			break;
-		case "Attachment":
-			[el, components, attributes] = AttachmentBlock(block);
-			break;
-		case "Link":
-			[el, components, attributes] = LinkBlock(block);
-			break;
-		case "Media":
-			[el, components, attributes] = MediaBlock(block);
-			break;
-		case "Channel":
-			[el, components, attributes] = Channel(block);
-			break;
+	if (renderer) {
+		result = renderer.render(block);
+	} else {
+		// Keep an unknown block from preventing the rest of the canvas from
+		// rendering. A plugin can claim it later by registering a renderer.
+		console.warn("No renderer registered for block", block);
+		result = {
+			body: [".block", block.title || ""],
+			topBar: [],
+			bottomBar: [],
+			attributes: {},
+		};
 	}
 
-	let t = [".top-bar", colorBars(block)];
+	let {
+		body,
+		topBar = [],
+		bottomBar = [],
+		attributes = {},
+	} = result;
 
-	if (components && components["edit-controls"]) {
-		t.push(components["edit-controls"]);
-	}
+	let t = [".top-bar", colorBars(block), ...topBar];
+	let b = [
+		".bottom-bar",
+		...Object.values(BasicComponents(block)),
+		...bottomBar,
+	];
 
-	let b = [".bottom-bar", ...Object.values(BasicComponents(block))];
-	if (components) {
-		if (components["view-pdf"]) b.push(components["view-pdf"]);
-		if (components["word-count"]) b.push(components["word-count"]);
-		if (components["controls"]) b.push(components["controls"]);
-		if (components["load-embed"]) b.push(components["load-embed"]);
-	}
+	let copy = null
 
 	let onstart = (e) => {
 		if (e.altKey) {
@@ -238,23 +229,59 @@ export function BlockElement(block) {
 		}
 
 		addToSelection(e);
-		store.startBatch();
-		left.next(left.value());
-		top.next(top.value());
-		width.next(width.value());
-		height.next(height.value());
-		store.endBatch();
+		copy = {
+			left: left.value(),
+			top: top.value(),
+			width: width.value(),
+			height: height.value(),
+		}
 
+		console.log('started', copy)
 		store.pauseTracking();
 	};
 
-	let onend = () => store.resumeTracking();
+	let onend = () => {
+		console.log('ending', copy)
+		if (
+			copy &&
+			left.value() != copy.left
+			|| height.value() != copy.height
+			|| width.value() != copy.width
+			|| top.value() != copy.top
+		) {
+			let tobe = {
+			left: left.value(),
+			top: top.value(),
+			width: width.value(),
+			height: height.value(),
+		}
+			store.startBatch();
+			left.next(copy.left);
+			top.next(copy.top);
+			width.next(copy.width);
+			height.next(copy.height);
+			store.endBatch();
+
+			store.resumeTracking();
+			store.startBatch();
+			left.next(tobe.left);
+			top.next(tobe.top);
+			width.next(tobe.width);
+			height.next(tobe.height);
+			store.endBatch();
+		}
+
+		else {
+			copy = null
+			store.resumeTracking();
+		}
+	}
 
 	let edges = resizers(left, top, width, height, { onstart, onend });
 
 	let connectionEdges = connectors(block, left, top, width, height);
 
-	el = dom(
+	let el = dom(
 		".draggable.node",
 		{
 			style,
@@ -265,7 +292,7 @@ export function BlockElement(block) {
 			// onclick: addToSelection,
 		},
 		t,
-		el,
+		body,
 		...edges,
 		...connectionEdges,
 		b,
@@ -532,216 +559,7 @@ const connectors = (block, left, top, width, height, opts = {}) => {
 	return connectionPoints;
 };
 
-const TextBlock = (block) => {
-	let root = dom(".block");
-	let child = dom([".block.text", ...MD(block.content.markdown)]);
-	root.appendChild(child);
-
-	let attributes = {
-		edit: reactive(false),
-	};
-
-	let owned = memo(() => state.authSlug.value() == block.user?.slug, [
-		state.authSlug,
-	]);
-
-	let value = block.content?.markdown;
-	let old = "";
-	let wc = reactive(value?.split(" ").length);
-	let wordCount = dom(["button", "words: ", wc]);
-	let reset = () => root.innerHTML = "";
-
-	let editBlock = (e) => {
-		e.stopImmediatePropagation();
-		e.stopPropagation();
-		if (attributes.edit.value()) return;
-		attributes.edit.next(true);
-		reset();
-		child = dom([".block.text", textarea(value)]);
-		root.appendChild(child);
-	};
-	attributes.ondblclick = editBlock;
-	let editButton = button("edit", editBlock);
-
-	let saveBlock = () => {
-		attributes.edit.next(false);
-		update_block(block.id, { content: value })
-			.then((res) => {
-				if (res.ok) {
-					notificationpopup("Updated 👍");
-					store.apply(getNodeLocation(block.id), "set", ["text", value], false);
-					console.log(
-						"Updated",
-						store.get(getNodeLocation(block.id).concat(["text"])),
-					);
-				} else if (res.status == 401) {
-					notificationpopup("Failed: Unauthorized :( ", true);
-				} else {
-					console.log(res)
-					notificationpopup("Failed :( status: " + res.status, true);
-				}
-			});
-		reset();
-
-		child = dom([".block.text", ...MD(value)]);
-		root.appendChild(child);
-	};
-	let saveButton = dom(button("save", saveBlock));
-
-	let cancelEdit = () => {
-		setValue(old);
-		attributes.edit.next(false);
-		reset();
-		root.appendChild(dom([".block.text", ...MD(value)]));
-	};
-	let cancelButton = dom(button("cancel", cancelEdit));
-
-	let blockUserTag = ["p.tag", block.user?.slug];
-
-	let editOrTagOrSave = memo(
-		() =>
-			attributes.edit.value()
-				? owned ? [saveButton, cancelButton] : [cancelButton]
-				: owned && block.type == "Text"
-					? [editButton]
-					: [blockUserTag],
-		[state.authSlug, attributes.edit],
-	);
-
-	let setValue = (t) => {
-		wc.next(t.split(" ").length);
-		value = t;
-	};
-
-	let textarea = (md) => {
-		old = value;
-		return dom(["textarea", {
-			oninput: (e) => setValue(e.target.value),
-			onkeydown: (e) => {
-				if (e.key == "s" && (e.metaKey || e.ctrlKey)) saveBlock();
-			},
-		}, md]);
-	};
-
-	let comps = {
-		"edit-controls": editOrTagOrSave,
-		"word-count": wordCount,
-	};
-
-	return [root, comps, attributes];
-};
-const ProcessingBlock = () => [
-	[".block.processing", ["p.processing-animation", "Processing…"]],
-	{},
-	{},
-];
-
-const ImageBlock = (block) => {
-	let link = block.image?.large?.src || block.image?.large?.url;
-	return [[".block.image", ["img", { src: link }]], {}, {}];
-};
-const LinkBlock = (block) => {
-	let imgLink = block.image?.large?.src || block.image?.large?.url;
-	let link = block.source?.url;
-	let element = dom(
-		[".block.image", ["img", { src: imgLink }]],
-	);
-	let load = button("load", () => {
-		if (!link) return;
-		element.innerHTML = `<iframe src="${link}"></iframe>`;
-	});
-	return [[".block.embed", element], { "load-embed": load }, {}];
-};
-
-const MediaBlock = ImageBlock;
-const EmbedBlock = (block) => {
-	let link = block.image?.large?.src || block.image?.large?.url;
-	let element = dom(
-		[".block.image", ["img", { src: link }]],
-	);
-	let load = button("load", () => {
-		element.innerHTML = block?.embed?.html;
-	});
-	return [[".block.embed", element], { "load-embed": load }, {}];
-};
-const AttachmentBlock = (block) => {
-	let fileExtension = block.attachment?.file_extension?.toLowerCase();
-	if (fileExtension == "mp4") {
-		let link = block.attachment.url;
-		let video = dom(["video", { src: link }]);
-		let togglePlay = () => {
-			video.paused ? video.play() : video.pause();
-			video.paused
-				? playPause.innerText = "play"
-				: playPause.innerText = "pause";
-		};
-		let playPause = dom(["button", {
-			onclick: togglePlay,
-		}, "play"]);
-
-		video.ontimeupdate = (e) => {
-			seeker.value = video.currentTime / video.duration;
-		};
-
-		let seeker = dom([
-			"input",
-			{
-				oninput: (e) =>
-					video.currentTime = parseFloat(e.target.value) * video.duration,
-				type: "range",
-				min: 0,
-				max: 1,
-				step: 0.01,
-				value: 0,
-			},
-		]);
-
-		let controls = [
-			".controls",
-			playPause,
-			seeker,
-		];
-		return [
-			[".block.image", video],
-			{ controls },
-			{ ondblclick: togglePlay },
-		];
-	} else if (fileExtension == "mp3") {
-		let audio = dom(["audio", {
-			src: block.attachment.url,
-			controls: true,
-		}]);
-		return [[".block.image", audio], {}, {}];
-	} else if (fileExtension == "pdf") {
-		let link = block.image?.large?.src || block.image?.large?.url;
-		let pdflink = block.attachment.url;
-		let d = dom([".block.image", ["img", { src: link }]]);
-		let mountPdf = () => {
-			d.innerHTML = "";
-			let iframe = ["iframe", { src: pdflink }];
-			d.appendChild(dom(iframe));
-		};
-		return [d, { "view-pdf": button("view pdf", mountPdf) }, {}];
-	} else {
-		let link = block.image?.large?.src || block.image?.large?.url;
-		return [[".block.image", ["img", { src: link }]], {}, {}];
-	}
-};
-const Channel = (block) => {
-	return [[
-		".block.channel",
-		["h2", block.title],
-		["h4", ["strong", block.slug]],
-		["p", ["a", { href: "#" + block.slug }, button("Open in Canvas")]],
-		["p", [
-			"a",
-			{ href: "https://are.na/channel/" + block.slug },
-			button("View on Are.na"),
-		]],
-		{},
-		{},
-	]];
-};
+// ----------------------------------------
 
 const BasicComponents = (block) => {
 	let components = {};

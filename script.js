@@ -186,8 +186,7 @@ let refetchProcessingFile = (blockId, element) => {
 // --------------------
 // ACTIONS
 // --------------------
-let toggleTrackingMode = () =>
-	state.trackpad_movement = !state.trackpad_movement;
+let toggleTrackingMode = () => state.trackpad_movement = !state.trackpad_movement;
 let toggleSidebar = () => state.sidebarOpen.next((e) => !e);
 let toggleHelpbar = () => state.helpOpen.next((e) => !e);
 let removeCurrentEdge = () =>
@@ -292,21 +291,6 @@ let savebtn = button(["span", "SAVE ", ["code", "⌘S"]], saveCanvasToArena, {
 let helpbtn = button(
 	["span", "HELP ", ["code", "?"]],
 	() => state.helpOpen.next((e) => !e),
-);
-
-let incSpan = button(
-	["span", "+ ", ["code", "⇧+]"]],
-	increaseSnapSize,
-);
-
-let san = button(
-	["span", "snapping: ", ["code", state.snapSize]],
-	() => null,
-);
-
-let decSpan = button(
-	["span", "- ", ["code", "⇧+["]],
-	decreaseSnapSize,
 );
 
 let snappingSliderOpen = reactive(false);
