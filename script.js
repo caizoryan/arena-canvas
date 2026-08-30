@@ -1,6 +1,6 @@
 import { memo, reactive } from "./chowk.js";
 import { dom } from "./dom.js";
-import { register } from "./plugin.js";
+import { controller, register } from "./plugin.js";
 import { addNode, removeEdge, state, store, try_set_channel } from "./state.js";
 import { Keymanager } from "./keymanager.js";
 import { sidebar } from "./sidebar.js";
@@ -18,7 +18,8 @@ import { helpbar } from "./help.js";
 import { history } from "./history.js";
 import { extract_block_id, link_is_block } from "./md.js";
 import blockRenderers from "./plugins/builtin-block-renderers.js";
-import jumpLink from "./plugins/jump-link.js";
+import jumpLink  from "./plugins/jump-link.js";
+import PreviewBlockLink from "./plugins/preview-images.js";
 
 // first order of business
 // 1. Get canvas showing and moving like before
@@ -51,7 +52,6 @@ let downloadData = () => {
 		let a = document.createElement("a");
 
 		json = JSON.stringify(json);
-		console.log(json);
 		let blob = new Blob([json], { type: "octet/stream" });
 		let url = window.URL.createObjectURL(blob);
 
@@ -128,7 +128,6 @@ let copySelection = () => {
 	let text = state.selected.value().map((e) => "https://are.na/block/" + e)
 		.join("\n");
 
-	console.log(text);
 	navigator.clipboard.writeText(text);
 };
 
@@ -366,8 +365,6 @@ let timer = () => {
 		let elapsed = startedAt - Date.now();
 		let total = timerTime.value() * 60 * 1000;
 		let left = total + elapsed;
-
-		console.log("LEFT:", left);
 
 		if (left < 0) {
 			if (!playingAudio) {
@@ -633,12 +630,6 @@ export let mountContainer = (children) => {
 		if (state.block_connection_buffer) {
 			state.connectionToY.next(e.offsetY);
 			state.connectionToX.next(e.offsetX);
-			console.log(
-				state.connectionFromX.value(),
-				state.connectionFromY.value(),
-				state.connectionToX.value(),
-				state.connectionToY.value(),
-			);
 		}
 	};
 
@@ -808,13 +799,13 @@ window.onhashchange = (event) => {
 	let slug = checkSlugUrl(event.newURL);
 	if (slug) try_set_channel(slug);
 };
+
+
 // -------------------
 // Initialization FN
 // -------------------
-// Load built-in renderers after the application module graph has initialized.
-// The renderer plugin imports state and the Arena API, so loading it statically
-// would create a circular initialization path.
 register(jumpLink);
+// register(PreviewBlockLink);
 register(blockRenderers)
 
 mount()
