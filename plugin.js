@@ -8,6 +8,7 @@ export const registeredHooks = new Map();
 
 let activeRegistration;
 let hookSequence = 0;
+let channelBlocks = [];
 
 const remove = (items, item) => {
 	let index = items.indexOf(item);
@@ -45,6 +46,20 @@ export const controller = {
 		const unregister = () => remove(registeredRenderers, renderer);
 		if (activeRegistration) activeRegistration.cleanups.push(unregister);
 		return unregister;
+	},
+
+	setChannelBlocks: (blocks) => {
+		channelBlocks = Array.isArray(blocks) ? blocks : [];
+	},
+
+	getChannelBlocks: () => [...channelBlocks],
+
+	getBlock: async (id) => {
+		let block = channelBlocks.find((item) => String(item.id) == String(id));
+		if (block) return block;
+
+		let { get_block } = await import("./arena.js");
+		return get_block(id);
 	},
 
 	registerHook: (hookName, callback, options = {}) => {
