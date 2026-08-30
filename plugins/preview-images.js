@@ -1,5 +1,6 @@
-import { parse_arena_block_url } from "../md.js";
+import { parse_arena_block_url, MD } from "../md.js";
 import { dom } from "../dom.js";
+import { controller } from "../plugin.js";
 
 const PreviewBlockLink = {
 	id: "builtin-preview-block-links",
@@ -100,7 +101,22 @@ const previewBody = (block) => {
 	if (block.type == "Text" && block.content?.markdown) {
 		let text = block.content.markdown;
 		if (text.length > 240) text = text.slice(0, 240) + "…";
-		return ["span", text];
+
+		let rendered = dom(["div", {
+			style: `padding: 1em;
+					background: white;
+					border: 1px solid black;
+					box-shadow: 2px 2px 0 rgba(0, 0, 0, .13);`
+			},
+			...MD(text),
+			['p', {style: 'color: #aaa;padding-top: 1em;margin-top: 1em;border-top: 1px solid #eee;'}, new Date(block.created_at).toString().slice(0,16)],
+		]
+		);
+		controller.dispatchHook("markdown:after-rendered", {
+			block,
+			element: rendered,
+		});
+		return rendered;
 	}
 
 	if (block.title) return ["span", block.title];
