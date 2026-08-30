@@ -35,7 +35,10 @@ const R = (location, id) => (key) => ({
 
 const TextBlock = (block) => {
 	let root = dom(".block");
-	let child = dom([".block.text", ...MD(block.content.markdown)]);
+	let child = dom([
+		".block.text",
+		...MD(block.content.markdown),
+	]);
 	root.appendChild(child);
 
 	let attributes = {
