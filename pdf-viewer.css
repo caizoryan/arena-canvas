@@ -61,6 +61,15 @@
 	white-space: nowrap;
 }
 
+.pdf-selection-input {
+	width: 125px;
+	min-width: 0;
+	padding: 2px 4px;
+	border: 1px solid var(--color);
+	background: var(--background);
+	font: 11px Areal, sans-serif;
+}
+
 .pdf-simple-status {
 	min-width: 0;
 	margin-left: auto;
@@ -80,11 +89,27 @@
 }
 
 .pdf-simple-canvas,
+.pdf-simple-annotation-layer,
 .pdf-simple-text-layer {
 	position: absolute;
 	left: 50%;
 	top: 50%;
 	transform: translate(-50%, -50%);
+}
+
+.pdf-simple-annotation-layer {
+	width: 0;
+	height: 0;
+	overflow: hidden;
+	z-index: 1;
+	pointer-events: none;
+}
+
+.pdf-simple-highlight {
+	position: absolute;
+	background: rgb(255 220 0);
+	opacity: 0.1;
+	border-radius: 2px;
 }
 
 .pdf-simple-canvas {
@@ -107,7 +132,7 @@
 	-webkit-text-size-adjust: none;
 	text-size-adjust: none;
 	transform-origin: 0 0;
-	z-index: 1;
+	z-index: 2;
 	pointer-events: auto;
 	user-select: text;
 	width: calc(var(--pdf-text-layer-width, 0px));

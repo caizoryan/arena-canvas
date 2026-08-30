@@ -48,6 +48,8 @@ export class PDFViewer {
 		this.destroyed = false;
 
 		this.canvas = dom(["canvas.pdf-simple-canvas"]);
+		this.annotationLayer = dom(["div.pdf-simple-annotation-layer"]);
+		this.highlightedSelection = null;
 		this.textLayer = dom([
 			"div.pdf-simple-text-layer.textLayer",
 			{
@@ -60,6 +62,22 @@ export class PDFViewer {
 		document.addEventListener("selectionchange", this.selectionChange);
 		this.status = dom(["span.pdf-simple-status", "Loading PDF…"]);
 		this.pageLabel = dom(["span.pdf-simple-page-label", "Page 1 / —"]);
+		this.selectionInput = dom([
+			"input.pdf-selection-input",
+			{
+				type: "text",
+				placeholder: "start,end,start,end",
+				title: "Enter text selection offsets and press Enter",
+				"aria-label": "PDF text selection offsets",
+				onkeydown: (event) => {
+					if (event.key == "Enter") {
+						event.preventDefault();
+						this.highlightSelection(this.selectionInput.value);
+					}
+				},
+			},
+		]);
+		this.selectionInput.disabled = true;
 		this.previous = button("previous", () => this.showPage(this.pageNumber - 1), "Previous page");
 		this.next = button("next", () => this.showPage(this.pageNumber + 1), "Next page");
 		this.rerender = button(
@@ -70,6 +88,12 @@ export class PDFViewer {
 		this.retry = button("retry", () => this.load(), "Retry loading PDF");
 		this.retry.hidden = true;
 
+		this.page = dom([
+			".pdf-simple-page",
+			this.canvas,
+			this.annotationLayer,
+			this.textLayer,
+		]);
 		this.root = dom([
 			".pdf-simple-viewer",
 			[
@@ -78,10 +102,11 @@ export class PDFViewer {
 				this.next,
 				this.rerender,
 				this.pageLabel,
+				this.selectionInput,
 				this.status,
 				this.retry,
 			],
-			[".pdf-simple-page", this.canvas, this.textLayer],
+			this.page,
 		]);
 		this.root.pdfViewer = this;
 
@@ -100,6 +125,8 @@ export class PDFViewer {
 		}
 		this.pdf = null;
 		this.textContentItems = [];
+		this.highlightedSelection = null;
+		this.selectionInput.value = "";
 		this.textLayer.replaceChildren();
 		this.pageNumber = 1;
 		this.retry.hidden = true;
@@ -107,6 +134,7 @@ export class PDFViewer {
 		this.next.disabled = true;
 		this.rerender.disabled = true;
 		this.pageLabel.textContent = "Page 1 / —";
+		this.selectionInput.disabled = true;
 		this.status.textContent = "Loading PDF…";
 
 		try {
@@ -147,7 +175,10 @@ export class PDFViewer {
 		const pageRequest = ++this.request;
 		this.cancelRender();
 		this.pageNumber = number;
+		this.highlightedSelection = null;
+		this.selectionInput.value = "";
 		this.status.textContent = "Rendering…";
+		this.selectionInput.disabled = true;
 		this.pageLabel.textContent = `Page ${number} / ${this.pdf.numPages}`;
 		this.previous.disabled = number == 1;
 		this.next.disabled = number == this.pdf.numPages;
@@ -168,7 +199,7 @@ export class PDFViewer {
 			this.textContentItems = textContent.items.filter((item) => item.str !== undefined);
 
 			const naturalViewport = page.getViewport({ scale: 1 });
-			const pageContainer = this.canvas.parentElement;
+			const pageContainer = this.page;
 			const availableWidth = Math.max(1, pageContainer.clientWidth - 16);
 			const availableHeight = Math.max(1, pageContainer.clientHeight - 16);
 			const scale = Math.min(
@@ -186,6 +217,8 @@ export class PDFViewer {
 			this.textLayer.style.setProperty("--pdf-text-layer-width", `${viewport.width}px`);
 			this.textLayer.style.setProperty("--pdf-text-layer-height", `${viewport.height}px`);
 			this.textLayer.style.setProperty("--total-scale-factor", String(scale));
+			this.annotationLayer.style.width = `${viewport.width}px`;
+			this.annotationLayer.style.height = `${viewport.height}px`;
 			textLayerTask = new TextLayer({
 				textContentSource: textContent,
 				container: this.textLayer,
@@ -212,7 +245,9 @@ export class PDFViewer {
 			]);
 			if (pageRequest != this.request || this.destroyed) return;
 			this.decorateTextLayer(textLayerTask);
+			this.selectionInput.disabled = false;
 			this.status.textContent = "";
+			return true;
 		} catch (error) {
 			if (this.isCancellation(error) || pageRequest != this.request || this.destroyed) return;
 			console.error(`Could not render PDF page ${number}`, error);
@@ -294,24 +329,100 @@ export class PDFViewer {
 		);
 		if (beginOffset == null || endOffset == null) return;
 
-		const result = {
-			page: this.pageNumber,
-			selection: {
-				beginIndex: Number(startTextDiv.dataset.idx),
-				beginOffset,
-				endIndex: Number(endTextDiv.dataset.idx),
-				endOffset,
-			},
-			text: selection.toString(),
-		};
-		console.log("PDF selection", result);
+		const selectionString = [
+			Number(startTextDiv.dataset.idx),
+			beginOffset,
+			Number(endTextDiv.dataset.idx),
+			endOffset,
+		].join(",");
+		this.selectionInput.value = selectionString;
+		console.log(selectionString);
+	}
+
+	textNodeIn(textDiv, last = false) {
+		const iterator = document.createNodeIterator(textDiv, NodeFilter.SHOW_TEXT);
+		const nodes = [];
+		let node;
+		while ((node = iterator.nextNode())) nodes.push(node);
+		return last ? nodes.at(-1) : nodes[0];
+	}
+
+	highlightSelection(value) {
+		const offsets = value.split(",").map((part) => Number(part.trim()));
+		if (offsets.length != 4 || offsets.some((offset) => !Number.isInteger(offset) || offset < 0)) {
+			this.status.textContent = "Use start,end,start,end";
+			return;
+		}
+
+		const [beginIndex, beginOffset, endIndex, endOffset] = offsets;
+		const textDivs = Array.from(
+			this.textLayer.querySelectorAll(".pdf-text-layer-node[data-idx]"),
+		);
+		const startTextDiv = textDivs.find(
+			(textDiv) => Number(textDiv.dataset.idx) == beginIndex,
+		);
+		const endTextDiv = textDivs.find(
+			(textDiv) => Number(textDiv.dataset.idx) == endIndex,
+		);
+		const startNode = startTextDiv ? this.textNodeIn(startTextDiv) : null;
+		const endNode = endTextDiv ? this.textNodeIn(endTextDiv, true) : null;
+		if (!startNode || !endNode ||
+			beginOffset > startNode.textContent.length ||
+			endOffset > endNode.textContent.length) {
+			this.status.textContent = "Selection is not available on this page";
+			return;
+		}
+
+		try {
+			const range = document.createRange();
+			range.setStart(startNode, beginOffset);
+			range.setEnd(endNode, endOffset);
+			this.createHighlight(range);
+			window.getSelection()?.removeAllRanges();
+			this.highlightedSelection = offsets.join(",");
+			this.selectionInput.value = this.highlightedSelection;
+		} catch (error) {
+			console.warn("Could not restore PDF text selection", error);
+			this.status.textContent = "Could not highlight selection";
+		}
+	}
+
+	createHighlight(range) {
+		this.annotationLayer.replaceChildren();
+		const annotationLayerRect = this.annotationLayer.getBoundingClientRect();
+		const annotationScaleX = this.annotationLayer.offsetWidth
+			? annotationLayerRect.width / this.annotationLayer.offsetWidth
+			: 1;
+		const annotationScaleY = this.annotationLayer.offsetHeight
+			? annotationLayerRect.height / this.annotationLayer.offsetHeight
+			: 1;
+
+		for (const rect of range.getClientRects()) {
+			if (!rect.width || !rect.height) continue;
+
+			// Range rectangles are in viewport pixels. The annotation layer is
+			// transformed, so convert them to its untransformed local pixels.
+			const highlight = dom(["div.pdf-simple-highlight"]);
+			highlight.style.left = `${(rect.left - annotationLayerRect.left) / annotationScaleX}px`;
+			highlight.style.top = `${(rect.top - annotationLayerRect.top) / annotationScaleY}px`;
+			highlight.style.width = `${rect.width / annotationScaleX}px`;
+			highlight.style.height = `${rect.height / annotationScaleY}px`;
+			this.annotationLayer.append(highlight);
+		}
 	}
 
 	rerenderCurrentPage() {
 		// This deliberately calls showPage rather than load: the existing PDF
 		// document and worker stay alive, while the current page gets a new
 		// viewport based on the viewer's current size.
-		if (this.pdf) this.showPage(this.pageNumber);
+		const selection = this.highlightedSelection;
+		if (this.pdf) {
+			this.showPage(this.pageNumber).then((rendered) => {
+				if (rendered && selection && !this.destroyed) {
+					this.highlightSelection(selection);
+				}
+			});
+		}
 	}
 
 	isCancellation(error) {
@@ -330,6 +441,7 @@ export class PDFViewer {
 			this.textLayerTask = null;
 		}
 		this.textLayer?.replaceChildren();
+		this.annotationLayer?.replaceChildren();
 	}
 
 	destroy() {
@@ -353,17 +465,17 @@ export const PDFBlock = (block) => {
 		imageUrl
 			? ["img", { src: imageUrl, alt: block.title || "PDF preview" }]
 			: ["p", "PDF preview unavailable"],
-		button("load PDF", () => {
-			if (viewer) return;
-			viewer = new PDFViewer(block.attachment?.url);
-			preview.replaceWith(viewer.root);
-		}, "Load PDF"),
+		,
 	]);
 
 	return {
 		body: preview,
 		topBar: [],
-		bottomBar: [],
+		bottomBar: [button("load PDF", () => {
+			if (viewer) return;
+			viewer = new PDFViewer(block.attachment?.url);
+			preview.replaceWith(viewer.root);
+		}, "Load PDF")],
 		attributes: {},
 	};
 };
