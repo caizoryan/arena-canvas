@@ -3,6 +3,7 @@ import { memo, reactive } from "../chowk.js";
 import { dom } from "../dom.js";
 import { MD } from "../md.js";
 import { notificationpopup } from "../notification.js";
+import { controller } from "../plugin.js";
 import {
 	getNodeLocation,
 	state,
@@ -35,10 +36,15 @@ const R = (location, id) => (key) => ({
 
 const TextBlock = (block) => {
 	let root = dom(".block");
-	let child = dom([
-		".block.text",
-		...MD(block.content.markdown),
-	]);
+	let renderMarkdown = (markdown) => {
+		let rendered = dom([".block.text", ...MD(markdown)]);
+		controller.dispatchHook("markdown:after-rendered", {
+			block,
+			element: rendered,
+		});
+		return rendered;
+	};
+	let child = renderMarkdown(block.content.markdown);
 	root.appendChild(child);
 
 	let attributes = {
@@ -87,7 +93,7 @@ const TextBlock = (block) => {
 			});
 		reset();
 
-		child = dom([".block.text", ...MD(value)]);
+		child = renderMarkdown(value);
 		root.appendChild(child);
 	};
 	let saveButton = dom(button("save", saveBlock));
@@ -96,7 +102,7 @@ const TextBlock = (block) => {
 		setValue(old);
 		attributes.edit.next(false);
 		reset();
-		root.appendChild(dom([".block.text", ...MD(value)]));
+		root.appendChild(renderMarkdown(value));
 	};
 	let cancelButton = dom(button("cancel", cancelEdit));
 

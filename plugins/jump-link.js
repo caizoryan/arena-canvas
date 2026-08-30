@@ -12,9 +12,6 @@ const JumpLink = {
 
 				let linkAttributes = {
 					...attributes,
-					class: attributes.class
-						? attributes.class + " jump"
-						: "jump",
 					onclick: (event) => {
 						event.preventDefault();
 						controller.focusBlock(blockId);
@@ -23,7 +20,11 @@ const JumpLink = {
 
 				return {
 					handled: true,
-					body: ["button", linkAttributes, ...children],
+					body: [
+						"button.jump",
+						linkAttributes,
+						...children,
+					],
 				};
 			},
 			{ priority: 0 },
