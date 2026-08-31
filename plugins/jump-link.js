@@ -17,15 +17,11 @@ const JumpLink = {
 							onclick: (event) => {
 								event.preventDefault();
 								controller.focusBlock(blockId);
-							},
-						},
-						...children,
-					],
+							}},
+						...children, ],
 				};
 			},
-			{ priority: 0 },
-		);
-	},
+			{ priority: 0 })},
 };
 
 export default JumpLink;
