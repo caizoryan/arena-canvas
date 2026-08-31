@@ -123,23 +123,17 @@ export class PDFViewer {
 			this.selectionMenu.remove();
 			this.selectionMenu = null;
 		};
-		this.dispatchSelectionMenuDismiss = () => {
-			this.root.dispatchEvent(new Event("pdf-selection-menu-dismiss"));
-		};
-		this.root.addEventListener(
-			"pdf-selection-menu-dismiss",
-			this.dismissSelectionMenu,
-		);
-		this.dismissSelectionMenuOnKeydown = () => this.dispatchSelectionMenuDismiss();
+
+		this.dismissSelectionMenuOnKeydown = () => this.dismissSelectionMenu();
 		this.dismissSelectionMenuOnPointerdown = (event) => {
-			if (!this.selectionMenu?.contains(event.target)) this.dispatchSelectionMenuDismiss();
+			if (!this.selectionMenu?.contains(event.target)) this.dismissSelectionMenu();
 		};
-		this.dismissSelectionMenuOnFocusin = (event) => {
-			if (!this.selectionMenu?.contains(event.target)) this.dispatchSelectionMenuDismiss();
-		};
+		// this.dismissSelectionMenuOnFocusin = (event) => {
+		// 	if (!this.selectionMenu?.contains(event.target)) this.dismissSelectionMenu();
+		// };
 		document.addEventListener("keydown", this.dismissSelectionMenuOnKeydown);
 		document.addEventListener("pointerdown", this.dismissSelectionMenuOnPointerdown, true);
-		document.addEventListener("focusin", this.dismissSelectionMenuOnFocusin, true);
+		// document.addEventListener("focusin", this.dismissSelectionMenuOnFocusin, true);
 
 		// block.js mounts renderer bodies synchronously. Wait one turn so the
 		// canvas has its real block dimensions before calculating its scale.
@@ -482,7 +476,7 @@ export class PDFViewer {
 
 		event.preventDefault();
 		event.stopPropagation();
-		this.dispatchSelectionMenuDismiss();
+		this.dismissSelectionMenu();
 
 		const page = this.currentSelection.page;
 		const selectionString = this.currentSelection.value;
@@ -491,7 +485,7 @@ export class PDFViewer {
 		const copy = (value) => {
 			navigator.clipboard.writeText(value)
 				.catch((error) => console.warn("Could not copy PDF link", error));
-			this.dispatchSelectionMenuDismiss();
+			this.dismissSelectionMenu();
 		};
 		const menu = dom([
 			"div.pdf-selection-menu",
@@ -569,7 +563,7 @@ export class PDFViewer {
 	}
 
 	cancelRender() {
-		this.dispatchSelectionMenuDismiss?.();
+		this.dismissSelectionMenu?.();
 		if (this.renderTask) {
 			this.renderTask.cancel();
 			this.renderTask = null;
@@ -593,7 +587,7 @@ export class PDFViewer {
 		document.removeEventListener("keydown", this.dismissSelectionMenuOnKeydown);
 		document.removeEventListener("pointerdown", this.dismissSelectionMenuOnPointerdown, true);
 		document.removeEventListener("focusin", this.dismissSelectionMenuOnFocusin, true);
-		this.dispatchSelectionMenuDismiss();
+		this.dismissSelectionMenu();
 		this.root.removeEventListener(
 			"pdf-selection-menu-dismiss",
 			this.dismissSelectionMenu,
