@@ -484,23 +484,37 @@ export class PDFViewer {
 		event.stopPropagation();
 		this.dispatchSelectionMenuDismiss();
 
+		const page = this.currentSelection.page;
+		const selectionString = this.currentSelection.value;
+		const link = `https://are.na/block/${encodeURIComponent(this.blockId)}?page=${page}&selection=${selectionString}`;
+		const selectedText = selection.toString().trim();
+		const copy = (value) => {
+			navigator.clipboard.writeText(value)
+				.catch((error) => console.warn("Could not copy PDF link", error));
+			this.dispatchSelectionMenuDismiss();
+		};
 		const menu = dom([
 			"div.pdf-selection-menu",
 			{
-				role: "menuitem",
+				role: "menu",
 				tabIndex: 0,
-				onclick: (clickEvent) => {
-					clickEvent.preventDefault();
-					clickEvent.stopPropagation();
-					const page = this.currentSelection.page;
-					const selectionString = this.currentSelection.value;
-					const markdown = `[pg, ${page}](https://are.na/block/${encodeURIComponent(this.blockId)}?page=${page}&selection=${selectionString})`;
-					navigator.clipboard.writeText(markdown)
-						.catch((error) => console.warn("Could not copy PDF link", error));
-					this.dispatchSelectionMenuDismiss();
-				},
 			},
-			"copy as markdown link",
+			button(
+				"copy as markdown link",
+				(event) => {
+					event.preventDefault();
+					event.stopPropagation();
+					copy(`[pg, ${page}](${link})`);
+				},
+			),
+			button(
+				"copy link and text",
+				(event) => {
+					event.preventDefault();
+					event.stopPropagation();
+					copy(`${selectedText}\n[pg, ${page}](${link})`);
+				},
+			),
 		]);
 		menu.style.position = "fixed";
 		menu.style.left = `${event.clientX}px`;
