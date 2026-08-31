@@ -28,7 +28,7 @@ export const add_block = async (slug, title, content) => {
 			value: content,
 			channel_ids : [slug],
 			title,
-			insert_at: 4
+			// insert_at: 4
 		}),
 	})
 		.then((response) =>{
