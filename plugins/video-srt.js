@@ -1,132 +1,182 @@
-var Srt = function(srtContent) {
-    if (!srtContent) return;
-    this.srtContent = srtContent;
-    this.lines = [];
-    this.init();
+import { dom } from "../dom.js";
+
+const timestampPattern = /^(\d+):(\d{2}):(\d{2}),(\d{3})$/;
+const timestampPatternSource = `(\\d+):(\\d{2}):(\\d{2}),(\\d{3})`;
+const timingPattern = new RegExp(
+	`^${timestampPatternSource}\\s+-->\\s+${timestampPatternSource}$`,
+);
+
+const timestampToSeconds = (timestamp) => {
+	let match = timestamp.match(timestampPattern);
+	if (!match) return;
+
+	let [, hours, minutes, seconds, milliseconds] = match;
+	return Number(hours) * 60 * 60 +
+		Number(minutes) * 60 +
+		Number(seconds) +
+		Number(milliseconds) / 1000;
 };
 
-Srt.prototype = {
-    init: function() {
-        this.parse();
-    },
-    parse: function() {
-        var lines = this.srtContent.split('\n\r\n');
-        for (var i = 0; i < lines.length; i++) {
-            var line = lines[i];
-            var origin = line.split('\n');
-            if (origin.length >= 3) {
-                // counter
-                var counter = origin[0];
-                // time
-                var timeLine = origin[1];
-                var startText = timeLine.match(/^[0-9][0-9]:[0-9][0-9]:[0-9][0-9],[0-9][0-9][0-9]/)[0];
-                var endText = timeLine.match(/\s[0-9][0-9]:[0-9][0-9]:[0-9][0-9],[0-9][0-9][0-9]/)[0].replace(' ', '');
-                var startDate = this.stringToDate(startText);
-                var endDate = this.stringToDate(endText);
-                // subtitle 
-                var subtitle = '';
-                for (var j = 2; j < origin.length; j++) {
-                    subtitle = subtitle + origin[j] + '\n';
-                }
-                // push to list
-                this.lines.push({
-                    counter: counter,
-                    subtitle: subtitle,
-                    start: this.dateToObject(startDate),
-                    end: this.dateToObject(endDate)
-                });
-            }
-        }
-    },
-    shift: function(delta, unit) {
-        var time, get;
-        switch (unit) {
-            case 'hours':
-                {
-                    time = 1000 * 60 * 60;
-                    break;
-                }
-            case 'minutes':
-                {
-                    time = 1000 * 60;
-                    break;
-                }
-            case 'seconds':
-                {
-                    time = 1000;
-                    break;
-                }
-            case 'milliseconds':
-                {
-                    time = 1;
-                    break;
-                }
-        }
-        for (var i = 0; i < this.lines.length; i++) {
-            var line = this.lines[i];
-            var newStartTime = new Date(line.start.time.getTime() + delta * time);
-            var newEndTime = new Date(line.end.time.getTime() + delta * time);
-            this.updateLineTime(i, newStartTime, newEndTime);
-        }
-        // update content
-        this.updateSrtContent();
-    },
-    updateLineTime: function(n, newStartTime, newEndTime) {
-        var line = this.lines[n];
-        this.lines[n] = {
-            counter: line.counter,
-            subtitle: line.subtitle,
-            start: this.dateToObject(newStartTime),
-            end: this.dateToObject(newEndTime)
-        }
-    },
-    updateSrtContent: function() {
-    	var srt = '';
-    	for (var i = 0; i < this.lines.length; i++) {
-    		var line = this.lines[i];
-    		srt += line.counter + '\n' + 
-    			line.start.text + ' --> ' + line.end.text + '\n' + 
-    			line.subtitle + '\n\r\n';
-    	};
-    	this.srtContent = srt;
-    },
-    getSrtContent: function() {
-    	return this.srtContent;
-    },
-    // helper functions
-    // not main methods
-    // used to make everything simple
-    stringToDate: function(string) {
-        // turn string format like "00:12:42,321" to date
-        var firstColonIndex = string.indexOf(':');
-        var secondColonIndex = this.nthChar(string, ':', 2);
-        var commaIndex = string.indexOf(',');
-        var hour = string.substring(0, firstColonIndex);
-        var minute = string.substring(firstColonIndex + 1, secondColonIndex);
-        var second = string.substring(secondColonIndex + 1, commaIndex);
-        var msecond = string.substring(commaIndex + 1);
-        return new Date(1970, 1, 1, hour, minute, second, msecond);
-    },
-    dateToObject: function(date) {
-        return {
-            text: (date.getHours() < 10 ? '0' : '') + date.getHours() + ':' + (date.getMinutes() < 10 ? '0' : '') + date.getMinutes() + ':' + (date.getSeconds() < 10 ? '0' : '') + date.getSeconds() + ',' + (date.getMilliseconds() < 10 ? '00' : '') + ((date.getMilliseconds() < 100 && date.getMilliseconds() >= 10) ? '0' : '') + date.getMilliseconds(),
-            time: date,
-            hours: date.getHours(),
-            minutes: date.getMinutes(),
-            seconds: date.getSeconds(),
-            milliseconds: date.getMilliseconds()
-        }
-    },
-    nthChar: function(string, character, n) {
-        // find the index of the nth char in string
-        var count = 0,
-            i = 0;
-        while (count < n && (i = string.indexOf(character, i) + 1)) {
-            count++;
-        }
-        if (count == n) return i - 1;
-        return NaN;
-    }
+const secondsToTimestamp = (seconds) => {
+	let date = new Date(seconds * 1000);
+	let hours = Math.floor(seconds / (60 * 60));
+	let minutes = date.getUTCMinutes();
+	let remainingSeconds = date.getUTCSeconds();
+	let milliseconds = date.getUTCMilliseconds();
+
+	return [hours, minutes, remainingSeconds]
+		.map((value) => value.toString().padStart(2, "0"))
+		.join(":") + "," + milliseconds.toString().padStart(3, "0");
 };
 
-module.exports = Srt;
+export class Srt {
+	constructor(srtContent) {
+		this.srtContent = srtContent;
+		this.lines = [];
+		this.valid = this.parse();
+	}
+
+	parse() {
+		if (typeof this.srtContent != "string" || !this.srtContent.trim()) {
+			return false;
+		}
+
+		let sourceLines = this.srtContent.trim().replace(/\r/g, "").split("\n");
+		let lines = [];
+		let index = 0;
+
+		while (index < sourceLines.length) {
+			while (sourceLines[index]?.trim() == "") index++;
+			if (index >= sourceLines.length) break;
+
+			let counter = sourceLines[index++].trim();
+			let timing = sourceLines[index++]?.trim().match(timingPattern);
+			if (!timing) return false;
+
+			let start = timestampToSeconds(timing[1] + ":" + timing[2] + ":" + timing[3] + "," + timing[4]);
+			let end = timestampToSeconds(timing[5] + ":" + timing[6] + ":" + timing[7] + "," + timing[8]);
+			if (start == undefined || end == undefined || end < start) return false;
+
+			let subtitleLines = [];
+			while (index < sourceLines.length) {
+				if (sourceLines[index].trim() == "") {
+					index++;
+					break;
+				}
+
+				let nextTiming = sourceLines[index + 1]?.trim().match(timingPattern);
+				if (nextTiming) break;
+				subtitleLines.push(sourceLines[index++]);
+			}
+
+			if (!subtitleLines.length) return false;
+			lines.push({
+				counter,
+				subtitle: subtitleLines.join("\n").trim(),
+				start,
+				end,
+			});
+		}
+
+		this.lines = lines;
+		return lines.length > 0;
+	}
+
+	shift(delta, unit = "milliseconds") {
+		let multipliers = {
+			hours: 60 * 60,
+			minutes: 60,
+			seconds: 1,
+			milliseconds: 1 / 1000,
+		};
+		let multiplier = multipliers[unit];
+		if (multiplier == undefined) return;
+
+		let offset = delta * multiplier;
+		this.lines = this.lines.map((line, index) => {
+			let start = Math.max(0, line.start + offset);
+			let end = Math.max(start, line.end + offset);
+			return this.updateLineTime(index, start, end);
+		});
+		this.updateSrtContent();
+	}
+
+	updateLineTime(index, start, end) {
+		let line = this.lines[index];
+		return {
+			counter: line.counter,
+			subtitle: line.subtitle,
+			start,
+			end,
+		};
+	}
+
+	updateSrtContent() {
+		this.srtContent = this.lines.map((line) =>
+			line.counter + "\n" +
+			secondsToTimestamp(line.start) + " --> " + secondsToTimestamp(line.end) + "\n" +
+			line.subtitle
+		).join("\n\n");
+	}
+
+	getSrtContent() {
+		return this.srtContent;
+	}
+}
+
+export const MP4Block = (block) => {
+	let link = block.attachment.url;
+	let video = dom(["video", { src: link }]);
+	let srt = new Srt(block.description.plain);
+	console.log(srt)
+	let subtitle = srt.valid ? dom([".video-subtitle"]) : null;
+
+	let togglePlay = () => {
+		video.paused ? video.play() : video.pause();
+		video.paused
+			? playPause.innerText = "play"
+			: playPause.innerText = "pause";
+	};
+	let playPause = dom(["button", {
+		onclick: togglePlay,
+	}, "play"]);
+
+	video.ontimeupdate = () => {
+		if (video.duration) seeker.value = video.currentTime / video.duration;
+
+		if (subtitle) {
+			let line = srt.lines.find((line) =>
+				video.currentTime >= line.start && video.currentTime <= line.end
+			);
+			subtitle.textContent = line ? line.subtitle : "";
+		}
+	};
+
+	let seeker = dom([
+		"input",
+		{
+			oninput: (e) =>
+				video.currentTime = parseFloat(e.target.value) * video.duration,
+			type: "range",
+			min: 0,
+			max: 1,
+			step: 0.01,
+			value: 0,
+		},
+	]);
+
+	let controls = [
+		".controls",
+		playPause,
+		seeker,
+	];
+	let body = [".block.image.video", video];
+	if (subtitle) body.push(subtitle);
+
+	return {
+		body,
+		topBar: [["button", block.title]],
+		bottomBar: [controls],
+		attributes: { ondblclick: togglePlay },
+	};
+};

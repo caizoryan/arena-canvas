@@ -10,6 +10,7 @@ import {
 	store,
 	subscribeToId,
 } from "../state.js";
+import { MP4Block } from "./video-srt.js";
 
 // A renderer returns an object with this shape:
 // {
@@ -187,49 +188,6 @@ const EmbedBlock = (block) => {
 		topBar: [],
 		bottomBar: [load],
 		attributes: {},
-	};
-};
-
-const MP4Block = (block) => {
-	let link = block.attachment.url;
-	let video = dom(["video", { src: link }]);
-	let togglePlay = () => {
-		video.paused ? video.play() : video.pause();
-		video.paused
-			? playPause.innerText = "play"
-			: playPause.innerText = "pause";
-	};
-	let playPause = dom(["button", {
-		onclick: togglePlay,
-	}, "play"]);
-
-	video.ontimeupdate = () => {
-		seeker.value = video.currentTime / video.duration;
-	};
-
-	let seeker = dom([
-		"input",
-		{
-			oninput: (e) =>
-				video.currentTime = parseFloat(e.target.value) * video.duration,
-			type: "range",
-			min: 0,
-			max: 1,
-			step: 0.01,
-			value: 0,
-		},
-	]);
-
-	let controls = [
-		".controls",
-		playPause,
-		seeker,
-	];
-	return {
-		body: [".block.image", video],
-		topBar: [['button', block.title]],
-		bottomBar: [controls],
-		attributes: { ondblclick: togglePlay },
 	};
 };
 
