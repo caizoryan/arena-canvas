@@ -248,10 +248,15 @@ export const MP4Block = (block) => {
 		if (!subtitle) return;
 
 		let time = video.currentTime + offset.value();
+		let lineIndex = srt.lines.findIndex(line => time >= line.start && time <= line.end)
 		let line = srt.lines.find((line) =>
 			time >= line.start && time <= line.end
 		);
-		subtitle.textContent = line ? line.subtitle : "";
+
+		// let nextLine = srt.lines[lineIndex+1]
+		// if (nextLine && line) subtitle.textContent = line.subtitle + " " +nextLine.subtitle
+		// else 
+			subtitle.textContent = line ? line.subtitle : "";
 	};
 	if (subtitle) offset.subscribe(syncVideoSubtitle);
 
