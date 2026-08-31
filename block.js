@@ -278,7 +278,27 @@ export function BlockElement(block) {
 		copy = null;
 	}
 
-	let edges = resizers(left, top, width, height, { onstart, onend });
+	let onDoubleClickResize = () => {
+		let aspectRatio = block.image?.aspect_ratio;
+
+		// Some GIFs have an image object but Are.na does not provide its
+		// dimensions or aspect ratio. Fall back to the rendered image's
+		// intrinsic dimensions in that case.
+		if (!aspectRatio) {
+			let image = el.querySelector("img");
+			if (image?.naturalWidth && image?.naturalHeight) {
+				aspectRatio = image.naturalWidth / image.naturalHeight;
+			}
+		}
+
+		if (!aspectRatio) return;
+		height.next(width.value() / aspectRatio);
+	};
+	let edges = resizers(left, top, width, height, {
+		onstart,
+		onend,
+		onDoubleClick: onDoubleClickResize,
+	});
 
 	let connectionEdges = connectors(block, left, top, width, height);
 
@@ -442,6 +462,7 @@ const resizers = (left, top, width, height, opts = {}) => {
 				30,
 				30,
 			), [width, height]),
+		ondblclick: opts.onDoubleClick,
 	}, svgx(30));
 
 	let WidthMiddle = dom(".absolute.flex-center.box.cur-e", {

@@ -96,7 +96,12 @@ const previewBody = (block) => {
 	if (!block) return ["span", "Preview unavailable"];
 
 	let image = block.image?.large?.src || block.image?.large?.url;
-	if (image) return ["img", { src: image, alt: block.title || "" }];
+	if (image) return ["img", { 
+			style: `padding: .25em;
+					background: white;
+					border: 1px solid black;
+					box-shadow: 2px 2px 0 rgba(0, 0, 0, .13);`,
+		src: image, alt: block.title || "" }];
 
 	if (block.type == "Text" && block.content?.markdown) {
 		let text = block.content.markdown;

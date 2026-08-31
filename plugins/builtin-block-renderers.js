@@ -152,7 +152,7 @@ const ImageBlock = (block) => {
 	let link = block.image?.large?.src || block.image?.large?.url;
 	return {
 		body: [".block.image", ["img", { src: link }]],
-		topBar: [],
+		topBar: [['button', block.title]],
 		bottomBar: [],
 		attributes: {},
 	};
@@ -227,7 +227,7 @@ const MP4Block = (block) => {
 	];
 	return {
 		body: [".block.image", video],
-		topBar: [],
+		topBar: [['button', block.title]],
 		bottomBar: [controls],
 		attributes: { ondblclick: togglePlay },
 	};

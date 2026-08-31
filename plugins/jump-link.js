@@ -10,19 +10,15 @@ const JumpLink = {
 				let blockId = parse_arena_block_url(attributes.href)?.id;
 				if (!blockId) return;
 
-				let linkAttributes = {
-					...attributes,
-					onclick: (event) => {
-						event.preventDefault();
-						controller.focusBlock(blockId);
-					},
-				};
-
 				return {
 					handled: true,
-					body: [
-						"button.jump",
-						linkAttributes,
+					body: [ "button.jump", {
+							...attributes,
+							onclick: (event) => {
+								event.preventDefault();
+								controller.focusBlock(blockId);
+							},
+						},
 						...children,
 					],
 				};

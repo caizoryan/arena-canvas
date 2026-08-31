@@ -11,6 +11,7 @@ import {
 	TextLayer,
 } from "../pdfjs/build/pdf.mjs";
 import { dom } from "../dom.js";
+import { parse_arena_block_url } from "../md.js";
 
 GlobalWorkerOptions.workerSrc = new URL(
 	"../pdfjs/build/pdf.worker.mjs",
@@ -24,6 +25,10 @@ const STANDARD_FONT_URL = new URL(
 ).href;
 const WASM_URL = new URL("../pdfjs/web/wasm/", import.meta.url).href;
 
+// Persistent for the lifetime of this plugin module.
+const pdfHighlightTable = {};
+const pdfBlockInstances = new Map();
+
 const button = (label, onclick, title = label) => dom([
 	"button",
 	{
@@ -36,8 +41,9 @@ const button = (label, onclick, title = label) => dom([
 ]);
 
 export class PDFViewer {
-	constructor(url) {
+	constructor(url, blockId) {
 		this.url = url;
+		this.blockId = String(blockId);
 		this.pdf = null;
 		this.loadingTask = null;
 		this.renderTask = null;
@@ -49,17 +55,20 @@ export class PDFViewer {
 
 		this.canvas = dom(["canvas.pdf-simple-canvas"]);
 		this.annotationLayer = dom(["div.pdf-simple-annotation-layer"]);
-		this.highlightedSelection = null;
 		this.textLayer = dom([
 			"div.pdf-simple-text-layer.textLayer",
 			{
 				// Let the browser perform normal text selection, but do not let
 				// Arena's draggable block consume the pointer gesture.
 				onpointerdown: (event) => event.stopPropagation(),
+				oncontextmenu: (event) => this.showSelectionMenu(event),
 			},
 		]);
 		this.selectionChange = () => this.logSelection();
 		document.addEventListener("selectionchange", this.selectionChange);
+		this.currentSelection = null;
+		this.selectionMenu = null;
+		this.pendingNavigation = null;
 		this.status = dom(["span.pdf-simple-status", "Loading PDF…"]);
 		this.pageLabel = dom(["span.pdf-simple-page-label", "Page 1 / —"]);
 		this.selectionInput = dom([
@@ -72,7 +81,7 @@ export class PDFViewer {
 				onkeydown: (event) => {
 					if (event.key == "Enter") {
 						event.preventDefault();
-						this.highlightSelection(this.selectionInput.value);
+						this.addSelection(this.selectionInput.value);
 					}
 				},
 			},
@@ -109,6 +118,28 @@ export class PDFViewer {
 			this.page,
 		]);
 		this.root.pdfViewer = this;
+		this.dismissSelectionMenu = () => {
+			if (!this.selectionMenu) return;
+			this.selectionMenu.remove();
+			this.selectionMenu = null;
+		};
+		this.dispatchSelectionMenuDismiss = () => {
+			this.root.dispatchEvent(new Event("pdf-selection-menu-dismiss"));
+		};
+		this.root.addEventListener(
+			"pdf-selection-menu-dismiss",
+			this.dismissSelectionMenu,
+		);
+		this.dismissSelectionMenuOnKeydown = () => this.dispatchSelectionMenuDismiss();
+		this.dismissSelectionMenuOnPointerdown = (event) => {
+			if (!this.selectionMenu?.contains(event.target)) this.dispatchSelectionMenuDismiss();
+		};
+		this.dismissSelectionMenuOnFocusin = (event) => {
+			if (!this.selectionMenu?.contains(event.target)) this.dispatchSelectionMenuDismiss();
+		};
+		document.addEventListener("keydown", this.dismissSelectionMenuOnKeydown);
+		document.addEventListener("pointerdown", this.dismissSelectionMenuOnPointerdown, true);
+		document.addEventListener("focusin", this.dismissSelectionMenuOnFocusin, true);
 
 		// block.js mounts renderer bodies synchronously. Wait one turn so the
 		// canvas has its real block dimensions before calculating its scale.
@@ -125,7 +156,7 @@ export class PDFViewer {
 		}
 		this.pdf = null;
 		this.textContentItems = [];
-		this.highlightedSelection = null;
+		this.currentSelection = null;
 		this.selectionInput.value = "";
 		this.textLayer.replaceChildren();
 		this.pageNumber = 1;
@@ -161,6 +192,26 @@ export class PDFViewer {
 			this.pdf = pdf;
 			this.pageLabel.textContent = `Page 1 / ${pdf.numPages}`;
 			await this.showPage(1, request);
+			const pendingNavigation = this.pendingNavigation;
+			this.pendingNavigation = null;
+			if (pendingNavigation) {
+				if (pendingNavigation.page == 1) {
+					this.currentSelection = {
+						page: pendingNavigation.page,
+						value: pendingNavigation.selection,
+					};
+					this.selectionInput.value = pendingNavigation.selection;
+				} else {
+					const rendered = await this.showPage(pendingNavigation.page);
+					if (rendered && !this.destroyed) {
+						this.currentSelection = {
+							page: pendingNavigation.page,
+							value: pendingNavigation.selection,
+						};
+						this.selectionInput.value = pendingNavigation.selection;
+					}
+				}
+			}
 		} catch (error) {
 			if (request != this.request || this.destroyed) return;
 			console.error("Could not load PDF", error);
@@ -175,7 +226,7 @@ export class PDFViewer {
 		const pageRequest = ++this.request;
 		this.cancelRender();
 		this.pageNumber = number;
-		this.highlightedSelection = null;
+		this.currentSelection = null;
 		this.selectionInput.value = "";
 		this.status.textContent = "Rendering…";
 		this.selectionInput.disabled = true;
@@ -245,6 +296,7 @@ export class PDFViewer {
 			]);
 			if (pageRequest != this.request || this.destroyed) return;
 			this.decorateTextLayer(textLayerTask);
+			this.renderHighlights();
 			this.selectionInput.disabled = false;
 			this.status.textContent = "";
 			return true;
@@ -335,8 +387,13 @@ export class PDFViewer {
 			Number(endTextDiv.dataset.idx),
 			endOffset,
 		].join(",");
+		this.currentSelection = {
+			page: this.pageNumber,
+			value: selectionString,
+		};
 		this.selectionInput.value = selectionString;
 		console.log(selectionString);
+		return selectionString;
 	}
 
 	textNodeIn(textDiv, last = false) {
@@ -347,14 +404,20 @@ export class PDFViewer {
 		return last ? nodes.at(-1) : nodes[0];
 	}
 
-	highlightSelection(value) {
+	getSelectionRange(value, showError = true) {
+		const fail = (message) => {
+			if (showError) this.status.textContent = message;
+			return null;
+		};
 		const offsets = value.split(",").map((part) => Number(part.trim()));
 		if (offsets.length != 4 || offsets.some((offset) => !Number.isInteger(offset) || offset < 0)) {
-			this.status.textContent = "Use start,end,start,end";
-			return;
+			return fail("Use start,end,start,end");
 		}
 
 		const [beginIndex, beginOffset, endIndex, endOffset] = offsets;
+		if (beginIndex > endIndex || beginIndex == endIndex && beginOffset > endOffset) {
+			return fail("Selection start must come before its end");
+		}
 		const textDivs = Array.from(
 			this.textLayer.querySelectorAll(".pdf-text-layer-node[data-idx]"),
 		);
@@ -369,26 +432,93 @@ export class PDFViewer {
 		if (!startNode || !endNode ||
 			beginOffset > startNode.textContent.length ||
 			endOffset > endNode.textContent.length) {
-			this.status.textContent = "Selection is not available on this page";
-			return;
+			return fail("Selection is not available on this page");
 		}
 
 		try {
 			const range = document.createRange();
 			range.setStart(startNode, beginOffset);
 			range.setEnd(endNode, endOffset);
-			this.createHighlight(range);
-			window.getSelection()?.removeAllRanges();
-			this.highlightedSelection = offsets.join(",");
-			this.selectionInput.value = this.highlightedSelection;
+			return { offsets, range };
 		} catch (error) {
-			console.warn("Could not restore PDF text selection", error);
-			this.status.textContent = "Could not highlight selection";
+			console.warn("Could not create PDF text selection", error);
+			return fail("Could not highlight selection");
+		}
+	}
+
+	openSelection(page, selection) {
+		const navigation = { page: Number(page), selection };
+		if (!this.pdf) {
+			this.pendingNavigation = navigation;
+			return;
+		}
+		this.showPage(navigation.page).then((rendered) => {
+			if (rendered && !this.destroyed) {
+				this.currentSelection = { page: navigation.page, value: selection };
+				this.selectionInput.value = selection;
+			}
+		});
+	}
+
+	addSelection(value) {
+		const parsed = this.getSelectionRange(value);
+		if (!parsed) return;
+		const selectionString = parsed.offsets.join(",");
+		const blockSelections = pdfHighlightTable[this.blockId] ||= {};
+		const pageSelections = blockSelections[this.pageNumber] ||= [];
+		if (!pageSelections.includes(selectionString)) pageSelections.push(selectionString);
+		this.currentSelection = { page: this.pageNumber, value: selectionString };
+		this.selectionInput.value = selectionString;
+		this.renderHighlights();
+	}
+
+	showSelectionMenu(event) {
+		const selection = window.getSelection();
+		if (!selection || selection.isCollapsed || !selection.rangeCount) return;
+		if (!this.currentSelection || this.currentSelection.page != this.pageNumber) {
+			this.logSelection();
+		}
+		if (!this.currentSelection || this.currentSelection.page != this.pageNumber) return;
+
+		event.preventDefault();
+		event.stopPropagation();
+		this.dispatchSelectionMenuDismiss();
+
+		const menu = dom([
+			"div.pdf-selection-menu",
+			{
+				role: "menuitem",
+				tabIndex: 0,
+				onclick: (clickEvent) => {
+					clickEvent.preventDefault();
+					clickEvent.stopPropagation();
+					const page = this.currentSelection.page;
+					const selectionString = this.currentSelection.value;
+					const markdown = `[pg, ${page}](https://are.na/block/${encodeURIComponent(this.blockId)}?page=${page}&selection=${selectionString})`;
+					navigator.clipboard.writeText(markdown)
+						.catch((error) => console.warn("Could not copy PDF link", error));
+					this.dispatchSelectionMenuDismiss();
+				},
+			},
+			"copy as markdown link",
+		]);
+		menu.style.position = "fixed";
+		menu.style.left = `${event.clientX}px`;
+		menu.style.top = `${event.clientY}px`;
+		document.body.append(menu);
+		this.selectionMenu = menu;
+	}
+
+	renderHighlights() {
+		this.annotationLayer.replaceChildren();
+		const selections = pdfHighlightTable[this.blockId]?.[this.pageNumber] || [];
+		for (const selection of selections) {
+			const parsed = this.getSelectionRange(selection, false);
+			if (parsed) this.createHighlight(parsed.range);
 		}
 	}
 
 	createHighlight(range) {
-		this.annotationLayer.replaceChildren();
 		const annotationLayerRect = this.annotationLayer.getBoundingClientRect();
 		const annotationScaleX = this.annotationLayer.offsetWidth
 			? annotationLayerRect.width / this.annotationLayer.offsetWidth
@@ -415,14 +545,7 @@ export class PDFViewer {
 		// This deliberately calls showPage rather than load: the existing PDF
 		// document and worker stay alive, while the current page gets a new
 		// viewport based on the viewer's current size.
-		const selection = this.highlightedSelection;
-		if (this.pdf) {
-			this.showPage(this.pageNumber).then((rendered) => {
-				if (rendered && selection && !this.destroyed) {
-					this.highlightSelection(selection);
-				}
-			});
-		}
+		if (this.pdf) this.showPage(this.pageNumber);
 	}
 
 	isCancellation(error) {
@@ -432,6 +555,7 @@ export class PDFViewer {
 	}
 
 	cancelRender() {
+		this.dispatchSelectionMenuDismiss?.();
 		if (this.renderTask) {
 			this.renderTask.cancel();
 			this.renderTask = null;
@@ -452,6 +576,14 @@ export class PDFViewer {
 		this.loadingTask?.destroy().catch(() => {});
 		this.loadingTask = null;
 		document.removeEventListener("selectionchange", this.selectionChange);
+		document.removeEventListener("keydown", this.dismissSelectionMenuOnKeydown);
+		document.removeEventListener("pointerdown", this.dismissSelectionMenuOnPointerdown, true);
+		document.removeEventListener("focusin", this.dismissSelectionMenuOnFocusin, true);
+		this.dispatchSelectionMenuDismiss();
+		this.root.removeEventListener(
+			"pdf-selection-menu-dismiss",
+			this.dismissSelectionMenu,
+		);
 		this.pdf = null;
 	}
 }
@@ -468,14 +600,18 @@ export const PDFBlock = (block) => {
 		,
 	]);
 
+	const mountViewer = () => {
+		if (viewer) return viewer;
+		viewer = new PDFViewer(block.attachment?.url, block.id);
+		preview.replaceWith(viewer.root);
+		return viewer;
+	};
+	pdfBlockInstances.set(String(block.id), { mount: mountViewer });
+
 	return {
 		body: preview,
 		topBar: [],
-		bottomBar: [button("load PDF", () => {
-			if (viewer) return;
-			viewer = new PDFViewer(block.attachment?.url);
-			preview.replaceWith(viewer.root);
-		}, "Load PDF")],
+		bottomBar: [button("load PDF", mountViewer, "Load PDF")],
 		attributes: {},
 	};
 };
@@ -489,5 +625,50 @@ const pdfRenderer = {
 
 export default {
 	id: "pdf-viewer",
-	setup: (controller) => controller.registerRenderer(pdfRenderer),
+	setup(controller) {
+		const unregisterRenderer = controller.registerRenderer(pdfRenderer);
+		const unregisterLinkHook = controller.registerHook(
+			"markdown:link",
+			({ children, attributes }) => {
+				const parsed = parse_arena_block_url(attributes.href);
+				if (!parsed) return;
+
+				const page = Number(parsed.url.searchParams.get("page"));
+				const selection = parsed.url.searchParams.get("selection");
+				if (!Number.isInteger(page) || page < 1 || !selection) return;
+
+				const offsets = selection.split(",").map((part) => Number(part.trim()));
+				if (offsets.length != 4 ||
+					offsets.some((offset) => !Number.isInteger(offset) || offset < 0)) return;
+				const selectionString = offsets.join(",");
+				const blockSelections = pdfHighlightTable[parsed.id] ||= {};
+				const pageSelections = blockSelections[page] ||= [];
+				if (!pageSelections.includes(selectionString)) pageSelections.push(selectionString);
+
+				return {
+					handled: true,
+					body: [
+						"button.pdf-selection-link",
+						{
+							type: "button",
+							onclick: (event) => {
+								event.preventDefault();
+								controller.focusBlock(parsed.id);
+								const instance = pdfBlockInstances.get(String(parsed.id));
+								const viewer = instance?.mount();
+								viewer?.openSelection(page, selectionString);
+							},
+						},
+						...children,
+					],
+				};
+			},
+			{ priority: 10 },
+		);
+
+		return () => {
+			unregisterLinkHook();
+			unregisterRenderer();
+		};
+	},
 };
