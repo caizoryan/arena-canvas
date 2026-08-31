@@ -77,7 +77,7 @@ const convertBlockToV3 = (block) => {
 // Reactive interface:
 // ~> (to plug into the store)
 // ~~~~~~~~~~~~~~~~~~~
-let R = (location, id) => (key) => ({
+export let R = (location, id) => (key) => ({
 	isReactive: true,
 	value: () => store.get(location.concat([key])),
 	next: (v) => store.tr(location, "set", [key, v]),

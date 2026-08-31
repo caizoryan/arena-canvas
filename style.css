@@ -211,6 +211,7 @@ body {
 	opacity: 0;
 	transition: all 350ms;
 	padding: .3em;
+	z-index: 999;
 }
 
 .bottom-bar {
@@ -222,6 +223,7 @@ body {
 	transition: all 350ms;
 	padding: .3em;
 	display: flex;
+	z-index: 999;
 }
 
 .bottom-bar > * {
@@ -230,6 +232,10 @@ body {
 
 .controls {
 	display: flex;
+}
+
+.video-current-time {
+	padding: .3em;
 }
 
 .top-bar p {
@@ -406,15 +412,90 @@ svg.background {
 
 .video-subtitle {
 	position: absolute;
-	left: 1em;
-	right: 1em;
+	/* left: 1em; */
+	/* right: 1em; */
 	bottom: 2em;
 	padding: .2em .4em;
+	width: max-content;
+	max-width: 95%;
 	color: white;
 	background: #000b;
 	text-align: center;
 	white-space: pre-line;
-	pointer-events: none;
+	/* pointer-events: none; */
+}
+
+.srt-scroll {
+	z-index: 100;
+	display: flex;
+	flex-direction: column;
+	padding: .75em ;
+	background: black;
+	color: #777;
+	overflow: hidden;
+}
+
+.srt-scroll-controls {
+	display: flex;
+	justify-content: center;
+	flex: 0 0 auto;
+}
+
+.srt-scroll-controls button {
+	color: white;
+	background: black;
+}
+
+.srt-scroll-line:hover {
+  background: #3c3c3c;
+}
+
+.srt-scroll-lines {
+	flex: 1;
+	min-height: 0;
+	overflow-y: auto;
+}
+
+.srt-scroll-line {
+	margin: .5em 0;
+	color: #777;
+	white-space: pre-line;
+	cursor: pointer;
+}
+
+.srt-scroll-time {
+  overflow: hidden;
+  transition: all 650ms ease;
+  white-space: nowrap;
+  background: #eee;
+  color: black;
+  vertical-align: baseline;
+  width: max-content;
+  max-height: 0;
+	max-width: 0;
+  opacity: 0;
+}
+
+.srt-scroll-line.active .srt-scroll-time {
+	max-width: 260px;
+  padding: 0 .2em;
+  max-height: 2em;
+  opacity: 1;
+  margin-bottom: .15em;
+}
+
+.srt-scroll-line.active {
+  color: white;
+  margin: 1em 0;
+}
+
+
+.srt-scroll-close {
+	position: absolute;
+	top: .5em;
+	right: .5em;
+	color: white;
+	background: black;
 }
 
 

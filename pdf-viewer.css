@@ -87,6 +87,18 @@
 	background: var(--background1);
 }
 
+.pdf-selection-menu button {
+	display: block;
+	width: 100%;
+	padding: 3px 4px;
+	border: 0;
+	background: transparent;
+	color: inherit;
+	font: inherit;
+	text-align: left;
+	cursor: pointer;
+}
+
 .pdf-simple-status {
 	min-width: 0;
 	margin-left: auto;

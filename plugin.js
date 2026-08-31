@@ -55,6 +55,14 @@ export const controller = {
 
 	getChannelBlocks: () => [...channelBlocks],
 
+	mountToCanvas: (element) => {
+		let canvas = document.querySelector(".container");
+		if (!canvas || !element) return;
+
+		canvas.appendChild(element);
+		return element;
+	},
+
 	getBlock: async (id) => {
 		let block = channelBlocks.find((item) => String(item.id) == String(id));
 		if (block) return block;
