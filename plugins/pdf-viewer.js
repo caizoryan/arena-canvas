@@ -128,13 +128,8 @@ export class PDFViewer {
 		this.dismissSelectionMenuOnPointerdown = (event) => {
 			if (!this.selectionMenu?.contains(event.target)) this.dismissSelectionMenu();
 		};
-		// this.dismissSelectionMenuOnFocusin = (event) => {
-		// 	if (!this.selectionMenu?.contains(event.target)) this.dismissSelectionMenu();
-		// };
 		document.addEventListener("keydown", this.dismissSelectionMenuOnKeydown);
 		document.addEventListener("pointerdown", this.dismissSelectionMenuOnPointerdown, true);
-		// document.addEventListener("focusin", this.dismissSelectionMenuOnFocusin, true);
-
 		// block.js mounts renderer bodies synchronously. Wait one turn so the
 		// canvas has its real block dimensions before calculating its scale.
 		setTimeout(() => this.load(), 0);
