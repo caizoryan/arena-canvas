@@ -4,6 +4,8 @@ import { controller } from "../plugin.js";
 
 const PreviewBlockLink = {
 	id: "builtin-preview-block-links",
+	name: "Block link previews",
+	description: "Adds inline image, video, and clip previews for supported Markdown block links.",
 
 	setup(controller) {
 		// --------------------------------

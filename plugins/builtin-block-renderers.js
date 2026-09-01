@@ -238,6 +238,8 @@ const builtinRenderers = [
 export default {
 
 	id: "builtin-block-renderers",
+	name: "Block renderers",
+	description: "Provides the default renderers for text, image, link, embed, media, audio, video, and channel blocks.",
 	setup: (controller) => {
 		let unregister = builtinRenderers.map((renderer) =>
 			controller.registerRenderer(renderer)

@@ -628,6 +628,8 @@ const pdfRenderer = {
 
 export default {
 	id: "pdf-viewer",
+	name: "PDF viewer",
+	description: "Renders PDF attachments with page navigation, selectable text, highlights, and shareable selection links.",
 	setup(controller) {
 		const unregisterRenderer = controller.registerRenderer(pdfRenderer);
 		const unregisterLinkHook = controller.registerHook(
