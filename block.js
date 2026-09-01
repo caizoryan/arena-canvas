@@ -60,18 +60,14 @@ export const isRectIntersecting = (rect1, rect2) => {
 	);
 };
 
-const convertBlockToV3 = (block) => {
-	if (block.class) {
-		block.type = block.class;
-		if (block.type == "Text") {
-			block.content = { markdown: block.content };
-		}
-		// if has image the change url to src or whatever
-	}
+// Canvas nodes prefix channel IDs so they cannot collide with block IDs.
+const tagChannelID = (block) => {
+	if (block.type != "Channel") return block;
 
-	if (block.type == "Channel") block.id = "c" + block.id;
+	let id = String(block.id);
+	if (id.startsWith("c")) return block;
 
-	return block;
+	return { ...block, id: "c" + id };
 };
 
 // Reactive interface:
@@ -135,8 +131,7 @@ let colorBars = (node, btn = ["span"]) => {
 // Block and Group El
 // ------------------
 export function BlockElement(block) {
-	// Convert From  v3 to v2 incase
-	block = convertBlockToV3(block);
+	block = tagChannelID(block);
 	let location = getNodeLocation(block.id);
 
 	if (!location) {
@@ -334,7 +329,6 @@ export function BlockElement(block) {
 	return el;
 }
 export function GroupElement(group) {
-	// Convert From  v3 to v2 incase
 	let r = R(getNodeLocation(group.id), group.id);
 	let anchored = [];
 
