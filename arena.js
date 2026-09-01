@@ -144,7 +144,17 @@ export const connect_block = async (slug, id, connectable_type = 'Block') => {
 export const me = async () => {
 	return fetch(host3 + `me`, {headers: headers()}).then((res) => res);
 };
-export const get_channel = async (slug, page = 1) => {
+export const get_channel = async (slug) => {
+	return fetch(host3 + "channels/" + encodeURIComponent(slug), { headers: headers() })
+		.then(async (res) => {
+			if (!res.ok) return undefined;
+			let json = await res.json();
+			return json.data || json;
+		})
+		.catch(() => undefined);
+};
+
+export const get_channel_contents = async (slug, page = 1) => {
 	return fetch(host3 + "channels/" + slug + `/contents?per=100&page=${page}&sort=position_desc`, { headers:headers() })
 		.then(async (res) => {
 			if (res.status != 200) {
@@ -157,7 +167,7 @@ export const get_channel = async (slug, page = 1) => {
 			let json = await res.json()
 			if (json.meta.has_more_pages) {
 				let nextPage = json.meta.next_page
-				if (nextPage <= 5) await get_channel(slug, nextPage).then(res => json.data = json.data.concat(res.data))
+				if (nextPage <= 5) await get_channel_contents(slug, nextPage).then(res => json.data = json.data.concat(res.data))
 			}
 
 			notificationpopup('Loaded '+json.data.length+ ' blocks' )

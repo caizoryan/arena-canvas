@@ -1,6 +1,6 @@
 import { dom } from "./dom.js";
 import { memo, reactive } from "./chowk.js";
-import { get_block, get_channel, try_auth } from "./arena.js";
+import { get_block, get_channel, get_channel_contents, try_auth } from "./arena.js";
 import { notificationpopup } from "./notification.js";
 import { mountContainer, moveToBlock, saveCanvasToArena } from "./script.js";
 import { controller } from "./plugin.js";
@@ -15,18 +15,52 @@ import { pixelatedLine, svgline, svgrect, svgrectnormal } from "./svg.js";
 import { dragTransforms } from "./dragOperations.js";
 import { mountBoundingBox } from "./bigBoundingBox.js";
 
-export let addToRecents = (slug) => {
-	// load recents
-	let s = localStorage.getItem("recent-slugs");
-	if (s) {
-		s = JSON.parse(s);
-		let newS = Array.from(new Set([slug, ...s]));
-		localStorage.setItem("recent-slugs", JSON.stringify(newS));
-		state.recentSlugs.next(newS);
-	} else {
-		localStorage.setItem("recent-slugs", JSON.stringify([slug]));
-		state.recentSlugs.next([slug]);
+let normalizeRecent = (entry) => {
+	if (typeof entry == "string" && entry) {
+		return { title: entry, slug: entry };
 	}
+	if (!entry || typeof entry.slug != "string" || !entry.slug) return undefined;
+
+	return {
+		title: typeof entry.title == "string" && entry.title
+			? entry.title
+			: entry.slug,
+		slug: entry.slug,
+	};
+};
+
+let normalizeRecents = (entries) => {
+	let seen = new Set();
+	return (Array.isArray(entries) ? entries : [])
+		.map(normalizeRecent)
+		.filter((entry) => {
+			if (!entry || seen.has(entry.slug)) return false;
+			seen.add(entry.slug);
+			return true;
+		});
+};
+
+export let addToRecents = (slug, title = slug) => {
+	if (typeof slug != "string" || !slug) return;
+
+	let stored;
+	try {
+		stored = JSON.parse(localStorage.getItem("recent-slugs") || "[]");
+	} catch {
+		stored = [];
+	}
+
+	let recents = normalizeRecents(stored);
+	let old = recents.find((entry) => entry.slug == slug);
+	let recent = {
+		title: typeof title == "string" && title && title != slug
+			? title
+			: (old?.title || slug),
+		slug,
+	};
+	let newRecents = normalizeRecents([recent, ...recents]);
+	localStorage.setItem("recent-slugs", JSON.stringify(newRecents));
+	state.recentSlugs.next(newRecents);
 };
 
 let stringify = JSON.stringify;
@@ -212,7 +246,18 @@ function load_local_storage() {
 	}
 
 	let s = localStorage.getItem("recent-slugs");
-	if (s) state.recentSlugs.next(JSON.parse(s));
+	if (s) {
+		try {
+			let recents = normalizeRecents(JSON.parse(s));
+			state.recentSlugs.next(recents);
+			// Persist the normalized representation so legacy string entries are
+			// migrated even if the user never visits another channel.
+			localStorage.setItem("recent-slugs", JSON.stringify(recents));
+		} catch {
+			// Ignore malformed localStorage data and start with an empty history.
+			state.recentSlugs.next([]);
+		}
+	}
 
 	let t = localStorage.getItem("transform");
 	if (t) {
@@ -320,8 +365,8 @@ let renderChannel = (blocks) => {
 
 let set_channel = (slug) => {
 	notificationpopup("Loading " + slug + "...");
-	get_channel(slug)
-		.then((res) => {
+	Promise.all([get_channel_contents(slug), get_channel(slug)])
+		.then(([res, channel]) => {
 			if (!res.data) {
 				notificationpopup([
 					"span",
@@ -336,6 +381,15 @@ let set_channel = (slug) => {
 				notificationpopup("Total Blocks: " + blocks.length);
 
 				state.currentSlug.next(slug);
+				// Some API responses include channel metadata. Keep the slug as a
+				// fallback for older responses and for legacy/local channels.
+				let channelTitle = channel?.title
+					|| res.channel?.title
+					|| res.title
+					|| res.data?.channel?.title
+					|| res.data?.[0]?.channel?.title
+					|| slug;
+				addToRecents(slug, channelTitle);
 				renderChannel(blocks);
 
 				// The channel contents endpoint can return a stale .canvas block.

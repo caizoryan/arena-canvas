@@ -1,11 +1,61 @@
 import { focusBlock } from "./script.js";
 import { get_block } from "./arena.js";
+import { dom } from "./dom.js";
+import { memo, reactive } from "./chowk.js";
 
 // Plugin registry and the small controller surface currently exposed to
 // plugins. Built-in plugins are loaded by the application entry point.
 export const registeredRenderers = [];
 export const registeredPlugins = [];
 export const registeredHooks = new Map();
+export const availablePlugins = [];
+
+const ENABLED_PLUGIN_IDS_KEY = "arena-canvas-enabled-plugin-ids";
+
+const readEnabledPluginIds = () => {
+	if (typeof localStorage == "undefined") return null;
+
+	try {
+		let value = localStorage.getItem(ENABLED_PLUGIN_IDS_KEY);
+		if (value == null) return null;
+
+		let ids = JSON.parse(value);
+		if (!Array.isArray(ids)) return null;
+		return new Set(ids.filter((id) => typeof id == "string"));
+	} catch (error) {
+		console.warn("Could not read enabled plugins", error);
+		return null;
+	}
+};
+
+let enabledPluginIds = readEnabledPluginIds();
+let pluginPane;
+
+const isPluginEnabled = (plugin) =>
+	enabledPluginIds == null || enabledPluginIds.has(plugin.id);
+
+const saveEnabledPluginIds = () => {
+	if (typeof localStorage == "undefined") return;
+
+	try {
+		localStorage.setItem(
+			ENABLED_PLUGIN_IDS_KEY,
+			JSON.stringify([...enabledPluginIds]),
+		);
+	} catch (error) {
+		console.warn("Could not save enabled plugins", error);
+	}
+};
+
+const setPluginEnabled = (plugin, enabled) => {
+	if (enabledPluginIds == null) {
+		enabledPluginIds = new Set(availablePlugins.map(({ id }) => id));
+	}
+
+	if (enabled) enabledPluginIds.add(plugin.id);
+	else enabledPluginIds.delete(plugin.id);
+	saveEnabledPluginIds();
+};
 
 let activeRegistration;
 let hookSequence = 0;
@@ -141,9 +191,15 @@ export function register(plugin) {
 	if (!plugin || typeof plugin !== "object") {
 		throw new TypeError("A plugin must be an object");
 	}
+	if (typeof plugin.id != "string" || !plugin.id) {
+		throw new TypeError("A plugin must have an id");
+	}
 	if (plugin.setup !== undefined && typeof plugin.setup !== "function") {
 		throw new TypeError("A plugin setup must be a function");
 	}
+
+	if (!availablePlugins.includes(plugin)) availablePlugins.push(plugin);
+	if (!isPluginEnabled(plugin)) return () => {};
 
 	const registration = { plugin, cleanups: [] };
 	registeredPlugins.push(plugin);
@@ -171,3 +227,76 @@ export function register(plugin) {
 		remove(registeredPlugins, plugin);
 	};
 }
+
+const pluginCard = (plugin) => {
+	let enabled = reactive(isPluginEnabled(plugin));
+	let toggle = () => {
+		let next = !enabled.value();
+		setPluginEnabled(plugin, next);
+		enabled.next(next);
+	};
+
+	return dom([
+		".experimental-plugin-card",
+		[".experimental-plugin-card-details",
+			["h3", plugin.name || plugin.id],
+			["p", plugin.description || "No description provided."],
+		],
+		["button.experimental-plugin-toggle", {
+			type: "button",
+			role: "switch",
+			"aria-checked": enabled,
+			onclick: toggle,
+		}, memo(() => enabled.value() ? "enabled" : "disabled", [enabled])],
+	]);
+};
+
+export const experimentalPlugins = () => {
+	if (pluginPane?.isConnected) return pluginPane;
+
+	let changes = reactive(false);
+	let close = () => {
+		pluginPane?.remove();
+		pluginPane = undefined;
+	};
+	let reload = () => window.location.reload();
+	let overlay;
+
+	overlay = dom([
+		".modal-overlay",
+		{
+			onclick: (event) => {
+				if (event.target == overlay) close();
+			},
+		},
+		[".popup.experimental-plugins", {
+			onclick: (event) => event.stopPropagation(),
+		},
+			["button.experimental-plugins-close", {
+				type: "button",
+				onclick: close,
+			}, "close"],
+			["h2", "Experimental plugins"],
+			["p", "Enable or disable plugins. Changes take effect after refreshing."],
+			[".experimental-plugin-list", ...availablePlugins.map(pluginCard)],
+			[".experimental-plugins-actions",
+				["button", { type: "button", onclick: reload }, "refresh to apply"],
+				memo(() => changes.value() ? "Changes saved." : "", [changes]),
+			],
+		],
+	]);
+
+	// Mark the pane as changed after its controls have been created. Each card
+	// persists immediately; this reactive value only updates the helper text.
+	overlay.querySelectorAll(".experimental-plugin-toggle").forEach((button) => {
+		let onclick = button.onclick;
+		button.onclick = (event) => {
+			onclick(event);
+			changes.next(true);
+		};
+	});
+
+	pluginPane = overlay;
+	document.body.appendChild(pluginPane);
+	return pluginPane;
+};
