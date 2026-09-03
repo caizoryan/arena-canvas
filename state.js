@@ -97,6 +97,7 @@ export let state = {
 	dimensions: reactive(100000),
 	holdingCanvas: reactive(false),
 	canceled: reactive(false),
+	dragMode: reactive(""),
 
 	trackpad_movement: true,
 	last_history: [],
@@ -430,11 +431,12 @@ let dragMarker = dom(svgrectnormal(
 	rectwidth,
 	rectheight,
 	memo(
-		() =>
-			(state.holdingCanvas.value() || state.canceled.value())
-				? "#fff1"
-				: "#0008",
-		[state.holdingCanvas, state.canceled],
+		() => {
+			if (state.dragMode.value() == "zoom") return "#E3CFF5";
+			if (state.holdingCanvas.value() || state.canceled.value()) return "#fff1";
+			return "#0008";
+		},
+		[state.holdingCanvas, state.canceled, state.dragMode],
 	),
 ));
 
@@ -496,7 +498,7 @@ let edges = memo(() => {
 			onmouseenter: () => {
 				state.selected_connection = e;
 			},
-			onmouseexit: () => {
+			onmouseleave: () => {
 				state.selected_connection = undefined;
 			},
 
@@ -684,6 +686,11 @@ let updateData = (blocks) => {
 	state.dot_canvas = blocks.find((e) => e.title == ".canvas");
 	if (state.dot_canvas) {
 		let parsed = JSON.parse(state.dot_canvas.content.plain);
+		controller.dispatchHook("canvas:deserialize", {
+			data: parsed,
+			hasCanvas: true,
+			blocks,
+		});
 		if (parsed.transform) {
 			state.canvasX.next(parsed.transform.x);
 			state.canvasY.next(parsed.transform.y);
@@ -748,6 +755,11 @@ let updateData = (blocks) => {
 		}
 	} else {
 		console.log("DIDNT FIND DOT CANVAS");
+		controller.dispatchHook("canvas:deserialize", {
+			data: {},
+			hasCanvas: false,
+			blocks,
+		});
 		let nodes = blocks.filter((e) => e.title != ".canvas")
 			.map(constructBlockData);
 
