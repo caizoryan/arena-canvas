@@ -32,16 +32,22 @@ export let dragOperations = {
 		state.canceled.next(false);
 		state.selected.next([]);
 
-		startX.next(e.offsetX);
-		startY.next(e.offsetY);
-		endX.next(e.offsetX);
-		endY.next(e.offsetY);
+		let rect = target.getBoundingClientRect();
+		let localX = (e.clientX - rect.left) / state.canvasScale.value();
+		let localY = (e.clientY - rect.top) / state.canvasScale.value();
+		startX.next(localX);
+		startY.next(localY);
+		endX.next(localX);
+		endY.next(localY);
 
 		target.setPointerCapture(e.pointerId);
 
-		if ((e.metaKey || e.ctrlKey) && e.shiftKey) dragAction = "making-group";
-		else if (e.shiftKey) {
+		if (e.altKey) {
 			dragAction = "zoom";
+			state.dragMode.next("zoom");
+		} else if ((e.metaKey || e.ctrlKey) && e.shiftKey) {
+			dragAction = "making-group";
+		} else if (e.shiftKey) {
 			dragAction = "select";
 		} else if (e.metaKey || e.ctrlKey) {
 			dragAction = "making-block";
@@ -119,15 +125,26 @@ export let dragOperations = {
 			addNode(d);
 			document.querySelector(".container").appendChild(GroupElement(d));
 		} else if (dragAction == "zoom") {
-			let heightRatio = 1 +
-				((window.innerHeight - height) / window.innerHeight);
-			let widthRatio = 1 + ((window.innerWidth - width) / window.innerWidth);
-			let scale = Math.max(widthRatio, heightRatio);
+			dragAction = "pan";
+			state.dragMode.next("");
+			if (width < 50 || height < 50) return;
 
-			state.canvasScale.next(scale);
-			state.canvasX.next(x);
-			state.canvasY.next(y);
+			let newScale = Math.min(
+				window.innerWidth / width,
+				window.innerHeight / height,
+			);
+			newScale = Math.max(0.2, Math.min(2.3, newScale));
+
+			let rectCenterX = x + width / 2;
+			let rectCenterY = y + height / 2;
+			let newCanvasX = rectCenterX - (window.innerWidth / 2) / newScale;
+			let newCanvasY = rectCenterY - (window.innerHeight / 2) / newScale;
+
+			state.canvasScale.next(newScale);
+			state.canvasX.next(newCanvasX);
+			state.canvasY.next(newCanvasY);
 		} else if (dragAction == "select") {
+			dragAction = "pan";
 			let nodes = store.get(["data", "nodes"]);
 			let selection = [];
 			nodes.forEach((node) => {
