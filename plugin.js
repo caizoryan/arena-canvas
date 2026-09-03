@@ -60,6 +60,9 @@ const setPluginEnabled = (plugin, enabled) => {
 let activeRegistration;
 let hookSequence = 0;
 let channelBlocks = [];
+let keymanager;
+let canvasStateAdapter = {};
+let registeredUI = new Map();
 
 const remove = (items, item) => {
 	let index = items.indexOf(item);
@@ -104,6 +107,53 @@ export const controller = {
 	},
 
 	getChannelBlocks: () => [...channelBlocks],
+
+	setKeymanager: (manager) => {
+		keymanager = manager;
+	},
+
+	// Register keyboard shortcuts using the same signature as Keymanager.on.
+	on: (...args) => {
+		if (!keymanager) throw new Error("A keymanager has not been attached");
+		let unregister = keymanager.on(...args);
+		if (activeRegistration && unregister) {
+			activeRegistration.cleanups.push(unregister);
+		}
+		return unregister;
+	},
+
+	setCanvasStateAdapter: (adapter = {}) => {
+		canvasStateAdapter = adapter;
+	},
+
+	getCanvasTransform: () => canvasStateAdapter.getTransform?.(),
+	setCanvasTransform: (transform) => canvasStateAdapter.setTransform?.(transform),
+	markDirty: () => canvasStateAdapter.markDirty?.(),
+
+	registerUI: (region, component) => {
+		if (typeof region != "string" || !region) {
+			throw new TypeError("A UI region must have a name");
+		}
+
+		let components = registeredUI.get(region);
+		if (!components) {
+			components = [];
+			registeredUI.set(region, components);
+		}
+		components.push(component);
+
+		let unregistered = false;
+		let unregister = () => {
+			if (unregistered) return;
+			unregistered = true;
+			remove(components, component);
+			if (components.length == 0) registeredUI.delete(region);
+		};
+		if (activeRegistration) activeRegistration.cleanups.push(unregister);
+		return unregister;
+	},
+
+	getUI: (region) => [...(registeredUI.get(region) || [])],
 
 	mountToCanvas: (element) => {
 		let canvas = document.querySelector(".container");
@@ -181,6 +231,27 @@ export const controller = {
 		return Object.keys(result.attributes).length ? result : undefined;
 	},
 
+	// Data hooks are reducers: each plugin receives the data returned by the
+	// previous plugin. This is used for serialization without exposing store
+	// internals to plugins.
+	dispatchDataHook: (hookName, data, context = {}) => {
+		let nextData = data;
+		let hooks = registeredHooks.get(hookName) || [];
+
+		for (let hook of [...hooks]) {
+			try {
+				let response = hook.callback({ ...context, data: nextData }, controller);
+				if (response && Object.prototype.hasOwnProperty.call(response, "data")) {
+					nextData = response.data;
+				}
+			} catch (error) {
+				console.error(`Plugin data hook failed: ${hookName}`, error);
+			}
+		}
+
+		return nextData;
+	},
+
 	focusBlock: (...args) => focusBlock(...args),
 };
 
@@ -239,7 +310,7 @@ const pluginCard = (plugin) => {
 	return dom([
 		".experimental-plugin-card",
 		[".experimental-plugin-card-details",
-			["h3", plugin.name || plugin.id],
+			["h4", plugin.name || plugin.id],
 			["p", plugin.description || "No description provided."],
 		],
 		["button.experimental-plugin-toggle", {
