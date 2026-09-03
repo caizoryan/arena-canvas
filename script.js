@@ -1,7 +1,13 @@
 import { memo, reactive } from "./chowk.js";
 import { dom } from "./dom.js";
 import { controller, register } from "./plugin.js";
-import { addNode, removeEdge, state, store, try_set_channel } from "./state.js";
+import {
+	addNode,
+	removeEdge,
+	state,
+	store,
+	try_set_channel,
+} from "./state.js";
 import { Keymanager } from "./keymanager.js";
 import { sidebar } from "./sidebar.js";
 import { dragOperations } from "./dragOperations.js";
@@ -21,6 +27,8 @@ import blockRenderers from "./plugins/builtin-block-renderers.js";
 import jumpLink  from "./plugins/jump-link.js";
 import PreviewBlockLink from "./plugins/preview-images.js";
 import pdfViewer from "./plugins/pdf-viewer.js";
+import channelRenderer from "./plugins/channel-renderer.js";
+import scenesPlugin from "./plugins/scenes.js";
 
 // first order of business
 // 1. Get canvas showing and moving like before
@@ -39,14 +47,20 @@ let checkSlugUrl = (url) => {
 
 export const round = (n, r) => r ? Math.ceil(n / r) * r : n;
 
-let canvasData = () => ({
-	...store.get(["data"]),
-	transform: {
-		x: state.canvasX.value(),
-		y: state.canvasY.value(),
-		scale: state.canvasScale.value(),
-	},
-});
+let canvasData = () => {
+	let data = {
+		...store.get(["data"]),
+		transform: {
+			x: state.canvasX.value(),
+			y: state.canvasY.value(),
+			scale: state.canvasScale.value(),
+		},
+	};
+
+	return controller.dispatchDataHook("canvas:serialize", data, {
+		slug: state.currentSlug.value(),
+	});
+};
 
 let downloadData = () => {
 	let download_json = (json, file = "data") => {
@@ -220,6 +234,7 @@ let vistLast = () => {
 let escape = () => {
 	state.canceled.next(true);
 	state.selected.next([]);
+	state.dragMode.next("");
 
 	// Cancel an in-progress connection.
 	state.block_connection_buffer = undefined;
@@ -471,7 +486,7 @@ button("+", () => state.canvasScale.next(e => e+=.05)),
 let x = ['div', button(memo(() => "X: " + parseFloat(state.canvasX.value()).toFixed(0) + "px", [state.canvasX]))]
 let y = ['div', button(memo(() => "Y: " + parseFloat(state.canvasY.value()).toFixed(0) + "px", [state.canvasY]))]
 
-let bottomButtons = [
+let bottomButtons = () => [
 	".bottom-buttons",
 	// decSpan,
 	// san,
@@ -479,7 +494,8 @@ let bottomButtons = [
 	// zoomMinus,
 	zoom,
 	// zoomPlus,
-	x,y,
+	x, y,
+	...controller.getUI("bottom-bar"),
 ];
 
 // --------------------
@@ -516,7 +532,7 @@ export function focusBlock(id) {
 		}
 
 		let c = found.style.backgroundColor;
-		let z = found.style.zindex;
+		let z = found.style.zIndex;
 		found.style.backgroundColor = "yellow";
 		found.style.zIndex = 99;
 		setTimeout(() => {
@@ -570,7 +586,7 @@ export let mount = () => {
 	document.body.appendChild(dom(helpbar));
 	document.body.appendChild(dom(sidebar));
 	document.body.appendChild(dom(topButtons));
-	document.body.appendChild(dom(bottomButtons));
+	document.body.appendChild(dom(bottomButtons()));
 };
 
 let unmountContainer = () => {
@@ -616,6 +632,7 @@ export let mountContainer = (children) => {
 	// ~~~~
 	let root = dom([".container", {
 		holding: state.holdingCanvas,
+		dragmode: state.dragMode,
 		style: stylemmeo,
 		onpointerdown,
 		onpointermove,
@@ -733,6 +750,22 @@ document.addEventListener("wheel", (e) => {
 }, { passive: false });
 
 let keys = new Keymanager();
+controller.setKeymanager(keys);
+controller.setCanvasStateAdapter({
+	getTransform: () => ({
+		x: state.canvasX.value(),
+		y: state.canvasY.value(),
+		scale: state.canvasScale.value(),
+	}),
+	setTransform: (transform) => {
+		if (!transform) return;
+		state.canvasX.next(transform.x);
+		state.canvasY.next(transform.y);
+		state.canvasScale.next(transform.scale ?? transform.zoom);
+	},
+	markDirty: () => state.updated.next(false),
+});
+
 let prevent = { preventDefault: true };
 let disableInputAndPrevent = {disable_in_input: true, preventDefault: true}
 let disableInput = {disable_in_input: true}
@@ -760,10 +793,10 @@ keys.on("ArrowUp + shift", () => moveUp(inc() * 3), disableInput);
 keys.on("ArrowDown + shift", () => moveDown(inc() * 3), disableInput);
 
 
-keys.on("d", moveRight, disableInput);
-keys.on("a", moveLeft, disableInput);
-keys.on("w", moveUp, disableInput);
-keys.on("s", moveDown, disableInput);
+keys.on("d", () => moveRight(), disableInput);
+keys.on("a", () => moveLeft(), disableInput);
+keys.on("w", () => moveUp(), disableInput);
+keys.on("s", () => moveDown(), disableInput);
 
 keys.on("cmd + e", toggleSidebar, prevent);
 keys.on("ctrl + e", toggleSidebar, prevent);
@@ -805,6 +838,11 @@ window.onhashchange = (event) => {
 // -------------------
 // Initialization FN
 // -------------------
+// Register the channel renderer before the built-in renderer so it can claim
+// Channel blocks while leaving the built-in renderer as the fallback when the
+// plugin is disabled.
+register(channelRenderer);
+register(scenesPlugin);
 register(jumpLink);
 register(PreviewBlockLink);
 register(blockRenderers);

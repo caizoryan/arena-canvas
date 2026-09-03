@@ -208,5 +208,9 @@ export class Keymanager {
 		const check_key = this.create_fn(shortcut, callback, options);
 
 		this.keystrokes.push(check_key);
+		return () => {
+			let index = this.keystrokes.indexOf(check_key);
+			if (index != -1) this.keystrokes.splice(index, 1);
+		};
 	}
 }

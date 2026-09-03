@@ -154,8 +154,8 @@ export const get_channel = async (slug) => {
 		.catch(() => undefined);
 };
 
-export const get_channel_contents = async (slug, page = 1) => {
-	return fetch(host3 + "channels/" + slug + `/contents?per=100&page=${page}&sort=position_desc`, { headers:headers() })
+export const get_channel_contents = async (slug, page = 1, per = 100) => {
+	return fetch(host3 + "channels/" + encodeURIComponent(slug) + `/contents?per=${per}&page=${page}&sort=position_desc`, { headers:headers() })
 		.then(async (res) => {
 			if (res.status != 200) {
 				console.log(res.status)
@@ -165,9 +165,13 @@ export const get_channel_contents = async (slug, page = 1) => {
 			}
 			notificationpopup('Recieved Page ' + page + ' of ' + slug)
 			let json = await res.json()
-			if (json.meta.has_more_pages) {
+			if (json.meta?.has_more_pages && per >= 100) {
 				let nextPage = json.meta.next_page
-				if (nextPage <= 5) await get_channel_contents(slug, nextPage).then(res => json.data = json.data.concat(res.data))
+				if (nextPage <= 5) {
+					await get_channel_contents(slug, nextPage, per).then((res) => {
+						if (Array.isArray(res?.data)) json.data = json.data.concat(res.data);
+					});
+				}
 			}
 
 			notificationpopup('Loaded '+json.data.length+ ' blocks' )
