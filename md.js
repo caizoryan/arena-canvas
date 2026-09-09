@@ -151,6 +151,8 @@ function eat(tree) {
 							todo.sourceRange,
 							nextChecked,
 						);
+
+						console.log(update, block.content.plain, block)
 						if (!block?.id || !update) return;
 
 						todo.updating = true;
@@ -158,15 +160,19 @@ function eat(tree) {
 							let response = await controller.updateBlock(block.id, {
 								content: update.markdown,
 							});
+							console.log(response)
+							response.json().then(res => {
+								console.log(res.content.markdown, todo, todo.updateBlock) 
+								todo.updateBlock?.(res)
+							})
 							if (!response?.ok) {
 								console.error("Could not update todo item", response?.status);
 								return;
 							}
 
-							todo.checked = nextChecked;
-							block.content.markdown = update.markdown;
-							checkbox.checked = nextChecked;
-							todo.onMarkdownUpdated?.(update.markdown);
+							// todo.checked = nextChecked;
+							// block.content.markdown = update.markdown;
+							// checkbox.checked = nextChecked;
 						} catch (error) {
 							console.error("Could not update todo item", error);
 						} finally {

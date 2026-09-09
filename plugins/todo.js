@@ -13,7 +13,7 @@ const Todo = {
 	setup(controller) {
 		return controller.registerHook(
 			"markdown:token",
-			({ token, tokens, index, block, onMarkdownUpdated }) => {
+			({ token, tokens, index, block, updateBlock }) => {
 				if (token?.type != "list_item_open" || token.markup != "-") {
 					return;
 				}
@@ -43,10 +43,12 @@ const Todo = {
 					candidate.todoCheckbox = {
 						checked: match[1].toLowerCase() == "x",
 						block,
-						onMarkdownUpdated,
+						updateBlock,
 						sourceRange: candidate.map ? [...candidate.map] :
 							token.map ? [...token.map] : undefined,
 					};
+
+					console.log("Returingin block", block, candidate)
 					return;
 				}
 			},

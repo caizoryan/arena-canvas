@@ -26,29 +26,23 @@ const button = (text, onclick, options = {}) => [
 	text,
 ];
 
-// Reactive interface used by the text renderer for the canvas node backing an
-// Arena block. This is intentionally local to the renderer plugin for now.
-const R = (location, id) => (key) => ({
-	isReactive: true,
-	value: () => store.get(location.concat([key])),
-	next: (value) => store.tr(location, "set", [key, value]),
-	subscribe: (fn) => subscribeToId(id, [key], fn),
-});
-
 const TextBlock = (block) => {
 	let root = dom(".block");
 	let renderMarkdown = (markdown) => {
 		let rendered = dom([".block.text", ...MD(markdown, {
 			block,
-			onMarkdownUpdated: (updatedMarkdown) => {
-				value = updatedMarkdown;
-				wc.next(updatedMarkdown.split(" ").length);
+			updateBlock: (newBlock) => {
+				console.log("UPDATING", newBlock)
 				store.apply(
-					getNodeLocation(block.id),
+					getNodeLocation(newBlock.id),
 					"set",
-					["text", updatedMarkdown],
+					["text", newBlock.content.markdown],
 					false,
 				);
+				value = newBlock.content.markdown
+				reset();
+				child = renderMarkdown(newBlock.content.markdown);
+				root.appendChild(child);
 			},
 		})]);
 		controller.dispatchHook("markdown:after-rendered", {
