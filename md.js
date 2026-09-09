@@ -18,35 +18,6 @@ const urlBase = () => typeof document != "undefined" && document.baseURI
 	? document.baseURI
 	: "https://are.na/";
 
-const updateTodoMarker = (markdown, sourceRange, checked) => {
-	if (typeof markdown != "string" || !Array.isArray(sourceRange)) return;
-	if (sourceRange.length < 2) return;
-
-	let lines = markdown.split(/\r?\n/);
-	let start = Math.max(0, Number(sourceRange[0]) || 0);
-	let end = Math.min(lines.length, Number(sourceRange[1]) || start);
-	let lineIndex = -1;
-
-	for (let i = start; i < end; i++) {
-		if (/^\s*-\s+\[[ xX]\](?=\s|$)/.test(lines[i])) {
-			lineIndex = i;
-			break;
-		}
-	}
-	if (lineIndex == -1) return;
-
-	let nextLines = [...lines];
-	nextLines[lineIndex] = nextLines[lineIndex].replace(
-		/^((?:\s*-\s+)\[)[ xX](\])(?=\s|$)/,
-		`$1${checked ? "x" : " "}$2`,
-	);
-
-	return {
-		markdown: nextLines.join(markdown.includes("\r\n") ? "\r\n" : "\n"),
-		lineIndex,
-	};
-};
-
 // Return structured information for Are.na block URLs. Keeping query
 // parameters separate is important for plugins that use them as commands or
 // metadata.
@@ -111,7 +82,6 @@ function eat(tree) {
 					continue;
 				}
 			}
-
 			if (at.href && at.target === undefined) at.target = "_blank";
 
 			ret.push([item.tag, at, ...children]);
@@ -131,58 +101,11 @@ function eat(tree) {
 				children = eat(item.children);
 			}
 
-			if (item.todoCheckbox) {
-				let todo = item.todoCheckbox;
-				let checkboxAttributes = {
-					type: "checkbox",
-					"aria-label": "Todo item",
-					onclick: async (event) => {
-						event.preventDefault();
-						event.stopPropagation();
-						let checkbox = event.currentTarget;
-
-						// Prevent two quick clicks from sending conflicting updates.
-						if (todo.updating) return;
-						let block = todo.block;
-						let markdown = block?.content?.markdown;
-						let nextChecked = !todo.checked;
-						let update = updateTodoMarker(
-							markdown,
-							todo.sourceRange,
-							nextChecked,
-						);
-
-						console.log(update, block.content.plain, block)
-						if (!block?.id || !update) return;
-
-						todo.updating = true;
-						try {
-							let response = await controller.updateBlock(block.id, {
-								content: update.markdown,
-							});
-							console.log(response)
-							response.json().then(res => {
-								console.log(res.content.markdown, todo, todo.updateBlock) 
-								todo.updateBlock?.(res)
-							})
-							if (!response?.ok) {
-								console.error("Could not update todo item", response?.status);
-								return;
-							}
-
-							// todo.checked = nextChecked;
-							// block.content.markdown = update.markdown;
-							// checkbox.checked = nextChecked;
-						} catch (error) {
-							console.error("Could not update todo item", error);
-						} finally {
-							todo.updating = false;
-						}
-					},
-				};
-				if (todo.checked) checkboxAttributes.checked = true;
-				children.unshift(["input", checkboxAttributes]);
-			}
+			controller.dispatchHook("markdown:token-render", {
+				controller,
+				token: item,
+				children,
+			});
 
 			children.forEach((e) => ret.push(e));
 		}
@@ -201,7 +124,7 @@ let safe_parse = (content, context = {}) => {
 		// lets plugins inspect and annotate the structured token tree without
 		// having to reimplement Markdown parsing.
 		tokens.forEach((token, index) => {
-			controller.dispatchHook("markdown:token", {
+			controller.dispatchHook("markdown:token-parse", {
 				...context,
 				controller,
 				content,

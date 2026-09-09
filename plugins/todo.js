@@ -1,9 +1,33 @@
-// Turn Markdown task-list markers into checkbox inputs.
-//
-// This plugin deliberately only handles the first, plain-text marker in a
-// hyphen list item. The marker is removed from the rendered text and the
-// metadata is consumed by md.js when it turns tokens into dom.js descriptions.
+import { notificationpopup } from "../notification.js";
+
+// Match a task marker only when it is the first content in a list item.
 const taskMarker = /^\[([ xX])\](?:\s+|$)/;
+
+const updateTodoMarker = (markdown, sourceRange, checked) => {
+	if (typeof markdown != "string" || !Array.isArray(sourceRange)) return;
+	if (sourceRange.length < 2) return;
+
+	let lines = markdown.split(/\r?\n/);
+	let start = Math.max(0, Number(sourceRange[0]) || 0);
+	let end = Math.min(lines.length, Number(sourceRange[1]) || start);
+	let lineIndex = -1;
+
+	for (let i = start; i < end; i++) {
+		if (/^\s*-\s+\[[ xX]\](?=\s|$)/.test(lines[i])) {
+			lineIndex = i;
+			break;
+		}
+	}
+	if (lineIndex == -1) return;
+
+	let nextLines = [...lines];
+	nextLines[lineIndex] = nextLines[lineIndex].replace(
+		/^((?:\s*-\s+)\[)[ xX](\])(?=\s|$)/,
+		`$1${checked ? "x" : " "}$2`,
+	);
+
+	return nextLines.join(markdown.includes("\r\n") ? "\r\n" : "\n");
+};
 
 const Todo = {
 	id: "builtin-todo-items",
@@ -11,33 +35,89 @@ const Todo = {
 	description: "Turns - [ ] Markdown list items into checkboxable items.",
 
 	setup(controller) {
-		return controller.registerHook(
-			"markdown:token",
+		controller.registerHook(
+			"markdown:token-render",
+			({ token, children }) => {
+				if (!token?.todoCheckbox) return;
+				console.log("TOKEN RENDER!!!")
+				let todo = token.todoCheckbox;
+				let checkboxAttributes = {
+					type: "checkbox",
+					"aria-label": "Todo item",
+					onclick: async (event) => {
+						event.preventDefault();
+						event.stopPropagation();
+
+						if (todo.updating) return;
+						let markdown = todo.block?.content?.markdown;
+						let nextChecked = !todo.checked;
+						let nextMarkdown = updateTodoMarker(
+							markdown,
+							todo.sourceRange,
+							nextChecked,
+						);
+						if (!todo.block?.id || !nextMarkdown) return;
+
+						todo.updating = true;
+						try {
+							let response = await controller.updateBlock(todo.block.id, {
+								content: nextMarkdown,
+							});
+							if (!response?.ok) {
+								console.error(
+									"Could not update todo item",
+									response?.status,
+								);
+								return;
+							}
+
+							let body = await response.json();
+							let newBlock = body?.data || body;
+							if (!newBlock?.id ||
+								typeof newBlock.content?.markdown != "string") {
+								newBlock = {
+									...todo.block,
+									content: {
+										...todo.block.content,
+										markdown: nextMarkdown,
+									},
+								};
+							}
+
+							todo.checked = nextChecked;
+							todo.block.content.markdown = newBlock.content.markdown;
+							todo.updateBlock?.(newBlock);
+							notificationpopup("Updated Checkbox");
+						} catch (error) {
+							console.error("Could not update todo item", error);
+						} finally {
+							todo.updating = false;
+						}
+					},
+				};
+				if (todo.checked) checkboxAttributes.checked = true;
+				children.unshift(["input", checkboxAttributes]);
+			},
+		);
+
+		controller.registerHook(
+			"markdown:token-parse",
 			({ token, tokens, index, block, updateBlock }) => {
 				if (token?.type != "list_item_open" || token.markup != "-") {
 					return;
 				}
 
-				// A list item normally contains paragraph_open, inline, and
-				// paragraph_close. Search until its matching close so this also
-				// works when Markdown-it adds another block token in between.
 				for (let i = index + 1; i < tokens.length; i++) {
 					let candidate = tokens[i];
-					// console.log("LIST ITEM", JSON.parse(JSON.stringify(candidate)))
-					if (candidate.type == "list_item_close" && candidate.level == token.level) break;
-					if (candidate.type != "inline" 
-						// || candidate.level != token.level + 1
-					) {
-						continue;
-					}
 
-					console.log("MADE IT#???", JSON.parse(JSON.stringify(candidate)))
+					if (candidate.type == "list_item_close" && candidate.level == token.level) break;
+					if (candidate.type != "inline" ) continue;
+
 					let first = candidate.children?.[0];
 					let match = first?.type == "text"
 						? first.content.match(taskMarker)
 						: undefined;
 					if (!match) return;
-
 
 					first.content = first.content.slice(match[0].length);
 					candidate.todoCheckbox = {
@@ -47,21 +127,11 @@ const Todo = {
 						sourceRange: candidate.map ? [...candidate.map] :
 							token.map ? [...token.map] : undefined,
 					};
-
-					console.log("Returingin block", block, candidate)
 					return;
 				}
 			},
-			{ priority: 0 },
 		);
 	},
 };
 
 export default Todo;
-
-/*
- * The containing block and source range are carried on todoCheckbox so md.js
- * can replace only this task marker, send the new Markdown through the
- * controller's block-update action, and update the local block/store after
- * Are.na accepts the change.
- */
