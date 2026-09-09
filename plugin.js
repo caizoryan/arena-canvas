@@ -1,7 +1,8 @@
 import { focusBlock } from "./script.js";
-import { get_block } from "./arena.js";
+import { get_block, update_block } from "./arena.js";
 import { dom } from "./dom.js";
 import { memo, reactive } from "./chowk.js";
+import { state } from "./state.js";
 
 // Plugin registry and the small controller surface currently exposed to
 // plugins. Built-in plugins are loaded by the application entry point.
@@ -122,13 +123,20 @@ export const controller = {
 		return unregister;
 	},
 
-	setCanvasStateAdapter: (adapter = {}) => {
-		canvasStateAdapter = adapter;
+	getCanvasTransform: () => ({
+		x: state.canvasX.value(),
+		y: state.canvasY.value(),
+		scale: state.canvasScale.value(),
+	}),
+
+	setCanvasTransform: (transform) => {
+		if (!transform) return;
+		state.canvasX.next(transform.x);
+		state.canvasY.next(transform.y);
+		state.canvasScale.next(transform.scale ?? transform.zoom);
 	},
 
-	getCanvasTransform: () => canvasStateAdapter.getTransform?.(),
-	setCanvasTransform: (transform) => canvasStateAdapter.setTransform?.(transform),
-	markDirty: () => canvasStateAdapter.markDirty?.(),
+	markDirty: () => state.updated.next(false),
 
 	registerUI: (region, component) => {
 		if (typeof region != "string" || !region) {
@@ -168,6 +176,8 @@ export const controller = {
 		if (block) return block;
 		return get_block(id);
 	},
+
+	updateBlock: (...args) => update_block(...args),
 
 	registerHook: (hookName, callback, options = {}) => {
 		if (typeof hookName != "string" || !hookName) {

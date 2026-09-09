@@ -29,6 +29,7 @@ import PreviewBlockLink from "./plugins/preview-images.js";
 import pdfViewer from "./plugins/pdf-viewer.js";
 import channelRenderer from "./plugins/channel-renderer.js";
 import scenesPlugin from "./plugins/scenes.js";
+import todoPlugin from "./plugins/todo.js";
 
 // first order of business
 // 1. Get canvas showing and moving like before
@@ -751,20 +752,6 @@ document.addEventListener("wheel", (e) => {
 
 let keys = new Keymanager();
 controller.setKeymanager(keys);
-controller.setCanvasStateAdapter({
-	getTransform: () => ({
-		x: state.canvasX.value(),
-		y: state.canvasY.value(),
-		scale: state.canvasScale.value(),
-	}),
-	setTransform: (transform) => {
-		if (!transform) return;
-		state.canvasX.next(transform.x);
-		state.canvasY.next(transform.y);
-		state.canvasScale.next(transform.scale ?? transform.zoom);
-	},
-	markDirty: () => state.updated.next(false),
-});
 
 let prevent = { preventDefault: true };
 let disableInputAndPrevent = {disable_in_input: true, preventDefault: true}
@@ -843,6 +830,7 @@ window.onhashchange = (event) => {
 // plugin is disabled.
 register(channelRenderer);
 register(scenesPlugin);
+register(todoPlugin);
 register(jumpLink);
 register(PreviewBlockLink);
 register(blockRenderers);

@@ -115,7 +115,7 @@ const previewBody = (block) => {
 					border: 1px solid black;
 					box-shadow: 2px 2px 0 rgba(0, 0, 0, .13);`
 			},
-			...MD(text),
+			...MD(text, { block }),
 			['p', {style: 'color: #aaa;padding-top: 1em;margin-top: 1em;border-top: 1px solid #eee;'}, new Date(block.created_at).toString().slice(0,16)],
 		]
 		);

@@ -38,7 +38,19 @@ const R = (location, id) => (key) => ({
 const TextBlock = (block) => {
 	let root = dom(".block");
 	let renderMarkdown = (markdown) => {
-		let rendered = dom([".block.text", ...MD(markdown)]);
+		let rendered = dom([".block.text", ...MD(markdown, {
+			block,
+			onMarkdownUpdated: (updatedMarkdown) => {
+				value = updatedMarkdown;
+				wc.next(updatedMarkdown.split(" ").length);
+				store.apply(
+					getNodeLocation(block.id),
+					"set",
+					["text", updatedMarkdown],
+					false,
+				);
+			},
+		})]);
 		controller.dispatchHook("markdown:after-rendered", {
 			block,
 			element: rendered,
