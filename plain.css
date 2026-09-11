@@ -36,19 +36,27 @@
 html,
 body {
 	background: #ffffff !important;
-	color: #666666 !important;
+	color: black !important;
 }
+
+* { font-family: "ABC ROM Unlicensed Trial", Areal !important; }
+
+h1 { font-size: 5em; text-transform: uppercase;}
+h2 { font-size: 3.8em; text-transform: uppercase;}
+p {
+	font-size: 1.8em;
+}
+
 
 body *,
 body *::before,
 body *::after {
-	background-color: #ffffff !important;
+	/* background-color: #ffffff !important; */
 	background-image: none !important;
 	border: 0 !important;
 	border-color: transparent !important;
 	box-shadow: none !important;
 	text-shadow: none !important;
-	color: #666666 !important;
 }
 
 /* The canvas has no grid, pattern, or gradient. */
@@ -68,6 +76,7 @@ body *::after {
 	border: 0 !important;
 	box-shadow: none !important;
 }
+
 
 .draggable.node[selected="true"] {
 	border: 2px solid #777777 !important;
@@ -133,7 +142,8 @@ button:hover,
 button:active,
 a.button:hover,
 a.button:active {
-	background: transparent !important;
+	background: black !important;
+	color: white !important;
 	box-shadow: none !important;
 	transform: none !important;
 }
@@ -144,6 +154,14 @@ a.button:focus-visible {
 	outline-offset: 2px;
 }
 
+.group .label {
+	display: none;
+}
+
+.draggable.group {
+	border: 1px solid black !important;
+}
+
 /* PDF text/annotation highlights remain intentionally yellow. */
 .pdf-simple-highlight {
 	background: yellow !important;
@@ -152,4 +170,8 @@ a.button:focus-visible {
 
 .pdf-simple-text-layer span::selection {
 	background: #fff176 !important;
+}
+
+.block.text{
+	border-top: 1px solid black !important;
 }

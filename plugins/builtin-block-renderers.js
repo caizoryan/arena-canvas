@@ -156,7 +156,8 @@ const ProcessingBlock = () => ({
 });
 
 const ImageBlock = (block) => {
-	let link = block.image?.large?.src || block.image?.large?.url;
+	// let link = block.image?.large?.src || block.image?.large?.url;
+	let link = block.image?.src || block.image?.url;
 	return {
 		body: [".block.image", ["img", { src: link }]],
 		topBar: [['button', block.title]],

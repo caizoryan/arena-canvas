@@ -39,7 +39,6 @@ const Todo = {
 			"markdown:token-render",
 			({ token, children }) => {
 				if (!token?.todoCheckbox) return;
-				console.log("TOKEN RENDER!!!")
 				let todo = token.todoCheckbox;
 				let checkboxAttributes = {
 					type: "checkbox",

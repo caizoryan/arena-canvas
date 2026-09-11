@@ -9,12 +9,23 @@ let headers = () => ({
 	Authorization: "Bearer " + state.authKey,
 })
 
+const logRateLimitData = (response) => {
+	console.log(response.headers)
+	const rateLimitData = {
+		limit: response.headers.get("X-RateLimit-Limit"),
+		remaining: response.headers.get("X-RateLimit-Remaining"),
+		reset: response.headers.get("X-RateLimit-Reset"),
+	};
+	console.log("Rate limit data:", rateLimitData);
+};
+
 export const update_block = async (block_id, body) => {
 	return fetch(host3 + `blocks/${block_id}`, {
 		headers: headers(),
 		method: "PUT",
 		body: JSON.stringify(body),
 	}).then((res) => {
+		logRateLimitData(res);
 		return res
 	});
 };
@@ -32,6 +43,7 @@ export const add_block = async (slug, title, content) => {
 		}),
 	})
 		.then((response) =>{
+			logRateLimitData(response)
 			console.log(response)
 			console.log(response.status)
 			let msg = response.status == '401' ? "Unauthorized" : response.status
@@ -103,6 +115,7 @@ export const add_image = add_file;
 export const get_block = async (block_id) => {
 	return fetch(host3 + `blocks/${block_id}`, { headers: headers() })
 		.then(async (res) => {
+			logRateLimitData(res);
 			if (!res.ok) {
 				console.log("Failed to get block:", block_id, res.status);
 				return undefined;
@@ -147,6 +160,7 @@ export const me = async () => {
 export const get_channel = async (slug) => {
 	return fetch(host3 + "channels/" + encodeURIComponent(slug), { headers: headers() })
 		.then(async (res) => {
+			logRateLimitData(res);
 			if (!res.ok) return undefined;
 			let json = await res.json();
 			return json.data || json;
@@ -157,6 +171,7 @@ export const get_channel = async (slug) => {
 export const get_channel_contents = async (slug, page = 1, per = 100) => {
 	return fetch(host3 + "channels/" + encodeURIComponent(slug) + `/contents?per=${per}&page=${page}&sort=position_desc`, { headers:headers() })
 		.then(async (res) => {
+			logRateLimitData(res);
 			if (res.status != 200) {
 				console.log(res.status)
 				console.log(res)
