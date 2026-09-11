@@ -1,0 +1,155 @@
+/*
+ * Plain theme override
+ *
+ * This file is loaded after the normal application styles. Keep the visual
+ * language deliberately limited to white, grey accents, text underlines, and
+ * a border on selected blocks.
+ */
+:root {
+	--background: #ffffff !important;
+	--background1: #ffffff !important;
+	--background2: #ffffff !important;
+	--color: #666666 !important;
+	--highlight: #777777 !important;
+	--error: #999999 !important;
+	--error-highlight: #777777 !important;
+	--b1: #ffffff !important;
+	--b2: #ffffff !important;
+	--b3: #ffffff !important;
+	--b4: #ffffff !important;
+	--b5: #ffffff !important;
+	--b6: #ffffff !important;
+	--g1: #ffffff !important;
+	--g2: #ffffff !important;
+	--g3: #ffffff !important;
+	--g4: #ffffff !important;
+	--g5: #ffffff !important;
+	--g6: #ffffff !important;
+	--bor1: #aaaaaa !important;
+	--bor2: #aaaaaa !important;
+	--bor3: #aaaaaa !important;
+	--bor4: #aaaaaa !important;
+	--bor5: #aaaaaa !important;
+	--bor6: #aaaaaa !important;
+}
+
+html,
+body {
+	background: #ffffff !important;
+	color: #666666 !important;
+}
+
+body *,
+body *::before,
+body *::after {
+	background-color: #ffffff !important;
+	background-image: none !important;
+	border: 0 !important;
+	border-color: transparent !important;
+	box-shadow: none !important;
+	text-shadow: none !important;
+	color: #666666 !important;
+}
+
+/* The canvas has no grid, pattern, or gradient. */
+.container {
+	background: #ffffff !important;
+	background-image: none !important;
+	background-size: auto !important;
+}
+
+/* Blocks remain plain until they are selected. */
+.draggable,
+.draggable.node,
+.draggable.group,
+.draggable .block {
+	background: #ffffff !important;
+	background-image: none !important;
+	border: 0 !important;
+	box-shadow: none !important;
+}
+
+.draggable.node[selected="true"] {
+	border: 2px solid #777777 !important;
+}
+
+/* Keep intentional highlights visible. */
+.draggable[style*="yellow"] {
+	background-color: yellow !important;
+}
+
+strong {
+	background: #fff176 !important;
+}
+
+/* Keep selection/connection graphics grey as well. */
+svg,
+svg * {
+	box-shadow: none !important;
+}
+
+svg line,
+svg polyline {
+	stroke: #999999 !important;
+}
+
+svg path,
+svg circle {
+	fill: #999999 !important;
+	stroke: #999999 !important;
+}
+
+svg rect {
+	fill: #ffffff !important;
+	stroke: #999999 !important;
+}
+
+/* The direct rect in the background SVG is the pan/zoom selection box. */
+svg.background > rect {
+	fill: transparent !important;
+	stroke: transparent !important;
+}
+
+/* Links and buttons are text with an underline, not boxes. */
+a,
+button,
+a.button {
+	color: #666666 !important;
+	text-decoration: underline !important;
+}
+
+button,
+a.button {
+	background: transparent !important;
+	border: 0 !important;
+	box-shadow: none !important;
+	color: #666666 !important;
+	text-decoration: underline !important;
+	text-underline-offset: .15em;
+	transform: none !important;
+}
+
+button:hover,
+button:active,
+a.button:hover,
+a.button:active {
+	background: transparent !important;
+	box-shadow: none !important;
+	transform: none !important;
+}
+
+button:focus-visible,
+a.button:focus-visible {
+	outline: 1px solid #999999 !important;
+	outline-offset: 2px;
+}
+
+/* PDF text/annotation highlights remain intentionally yellow. */
+.pdf-simple-highlight {
+	background: yellow !important;
+	opacity: .35 !important;
+}
+
+.pdf-simple-text-layer span::selection {
+	background: #fff176 !important;
+}
