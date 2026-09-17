@@ -773,8 +773,28 @@ let processBlockForRendering = (blocks) => {
 };
 
 memo(() => {
+	let snapSize = Number(state.snapSize.value());
+	let root = document.documentElement;
+
+	// Keep the major grid at four snap intervals. A zero snap size means
+	// snapping is disabled, so hide the grid without assigning an invalid zero
+	// background size.
+	if (root) {
+		let gridSize = snapSize > 0 ? snapSize * 2 : 1;
+		root.style.setProperty("--grid-size", `${gridSize}px`);
+	}
+
 	state.canvasScale.value() < 0.2 ? state.canvasScale.next(.2) : null;
 	state.canvasScale.value() > 2.3 ? state.canvasScale.next(2.3) : null;
+
+	// The canvas is scaled as a whole, so compensate the connection stroke
+	// width to keep it approximately the same thickness on screen.
+	if (root) {
+		let scale = state.canvasScale.value();
+		let lineWidth = Math.max(1, 1/ scale);
+		root.style.setProperty("--grid-line-size", snapSize > 0 ? `${lineWidth}px` : "0px");
+		root.style.setProperty("--connection-line-width", `${lineWidth}px`);
+	}
 
 	localStorage.setItem(
 		"transform",
@@ -784,4 +804,4 @@ memo(() => {
 			scale: state.canvasScale.value(),
 		}),
 	);
-}, [state.canvasX, state.canvasY, state.canvasScale]);
+}, [state.snapSize, state.canvasX, state.canvasY, state.canvasScale]);
