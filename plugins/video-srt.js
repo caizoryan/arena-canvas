@@ -1,8 +1,11 @@
 import { memo, reactive } from "../chowk.js";
 import { CSSTransform, R } from "../block.js";
 import { dom } from "../dom.js";
+import { parse_arena_block_url } from "../md.js";
 import { controller } from "../plugin.js";
 import { getNodeLocation } from "../state.js";
+
+const videoBlockInstances = new Map();
 
 const timestampPattern = /^(\d+):(\d{2}):(\d{2}),(\d{3})$/;
 const timestampPatternSource = `(\\d+):(\\d{2}):(\\d{2}),(\\d{3})`;
@@ -42,6 +45,13 @@ const formatTime = (time) => {
 	return [minutes, seconds]
 		.map((value) => value.toString().padStart(2, "0"))
 		.join(":");
+};
+
+const parseVideoTime = (value) => {
+	if (typeof value != "string" || !/^\d+(?:\.\d+)?s$/i.test(value)) return;
+
+	let seconds = Number(value.slice(0, -1));
+	return Number.isFinite(seconds) && seconds >= 0 ? seconds : undefined;
 };
 
 export class Srt {
@@ -268,6 +278,37 @@ export const MP4Block = (block) => {
 		if (srtScroll) srtScroll.sync(video.currentTime);
 	};
 
+	let seekAndPlay = (time) => {
+		if (!Number.isFinite(time) || time < 0) return;
+
+		try {
+			video.currentTime = video.duration
+				? Math.min(time, video.duration)
+				: time;
+		} catch (error) {
+			console.warn("Could not seek video", error);
+			return;
+		}
+
+		syncVideoSubtitle();
+		if (srtScroll) srtScroll.sync(video.currentTime);
+
+		let playRequest = video.play();
+		if (playRequest?.then) {
+			playRequest
+				.then(() => playPause.innerText = "pause")
+				.catch(() => {});
+		} else {
+			playPause.innerText = "pause";
+		}
+	};
+
+	videoBlockInstances.set(String(block.id), {
+		video,
+		seekAndPlay,
+		mountSrtScroll,
+	});
+
 	let seeker = dom([
 		"input",
 		{
@@ -300,4 +341,44 @@ export const MP4Block = (block) => {
 		bottomBar: [controls],
 		attributes: { ondblclick: togglePlay },
 	};
+};
+
+export const videoSrtLinks = {
+	id: "video-srt-links",
+	name: "Video timestamp links",
+	description: "Seeks and plays MP4 blocks from timestamp links.",
+	setup(controller) {
+		return controller.registerHook(
+			"markdown:link",
+			({ children, attributes }) => {
+				const parsed = parse_arena_block_url(attributes.href);
+				if (!parsed) return;
+
+				const time = parseVideoTime(parsed.url.searchParams.get("t"));
+				if (time == undefined) return;
+
+				return {
+					handled: true,
+					body: [
+						"button.video-time-link",
+						{
+							type: "button",
+							title: `Play at ${formatTime(time)}`,
+							"aria-label": `Play video at ${formatTime(time)}`,
+							onclick: (event) => {
+								event.preventDefault();
+								event.stopPropagation();
+								controller.focusBlock(parsed.id);
+								videoBlockInstances
+									.get(String(parsed.id))
+									?.seekAndPlay(time);
+							},
+						},
+						...children,
+					],
+				};
+			},
+			{ priority: 10 },
+		);
+	},
 };
