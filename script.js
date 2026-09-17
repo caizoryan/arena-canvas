@@ -24,12 +24,14 @@ import { helpbar } from "./help.js";
 import { history } from "./history.js";
 import { extract_block_id, link_is_block } from "./md.js";
 import blockRenderers from "./plugins/builtin-block-renderers.js";
+import { videoSrtLinks } from "./plugins/video-srt.js";
 import jumpLink  from "./plugins/jump-link.js";
 import PreviewBlockLink from "./plugins/preview-images.js";
 import pdfViewer from "./plugins/pdf-viewer.js";
 import channelRenderer from "./plugins/channel-renderer.js";
 import scenesPlugin from "./plugins/scenes.js";
 import todoPlugin from "./plugins/todo.js";
+import hideUIPlugin from "./plugins/hide-ui.js";
 
 // first order of business
 // 1. Get canvas showing and moving like before
@@ -779,7 +781,6 @@ keys.on("ArrowLeft + shift", () => moveLeft(inc() * 3), disableInput);
 keys.on("ArrowUp + shift", () => moveUp(inc() * 3), disableInput);
 keys.on("ArrowDown + shift", () => moveDown(inc() * 3), disableInput);
 
-
 keys.on("d", () => moveRight(), disableInput);
 keys.on("a", () => moveLeft(), disableInput);
 keys.on("w", () => moveUp(), disableInput);
@@ -830,10 +831,12 @@ window.onhashchange = (event) => {
 // plugin is disabled.
 register(channelRenderer);
 register(scenesPlugin);
-register(todoPlugin);
+register(hideUIPlugin);
 register(jumpLink);
 register(PreviewBlockLink);
 register(blockRenderers);
+register(videoSrtLinks);
 register(pdfViewer);
+register(todoPlugin);
 
 mount()
