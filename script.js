@@ -353,12 +353,18 @@ let snapping = [".snapping-control", snappingToggle, snappingButton, snappingPan
 
 let clock = (() => {
 	let time = reactive(Date.now());
-	let tick = (delta) => {
-		time.next(Date.now());
-		requestAnimationFrame(tick);
-	};
+	let tick = () => time.next(Date.now());
 
-	requestAnimationFrame(tick);
+	// requestAnimationFrame is paused in background tabs. The value is based on
+	// wall-clock time, so a throttled interval is enough and the next tick will
+	// always catch the timer up to the correct value.
+	setInterval(tick, 1000);
+
+	// Update immediately when the page becomes visible again instead of waiting
+	// for the next (possibly throttled) interval.
+	document.addEventListener("visibilitychange", tick);
+	window.addEventListener("pageshow", tick);
+
 	return { time };
 })();
 
