@@ -2,7 +2,7 @@ import { focusBlock } from "./script.js";
 import { get_block, update_block } from "./arena.js";
 import { dom } from "./dom.js";
 import { memo, reactive } from "./chowk.js";
-import { state } from "./state.js";
+import { getNodeLocation, state, store } from "./state.js";
 
 // Plugin registry and the small controller surface currently exposed to
 // plugins. Built-in plugins are loaded by the application entry point.
@@ -108,6 +108,51 @@ export const controller = {
 	},
 
 	getChannelBlocks: () => [...channelBlocks],
+
+	getNodes: () => store.get(["data", "nodes"]).map((node) => ({ ...node })),
+
+	getNode: (id) => {
+		let node = store.get(["data", "nodes"])
+			.find((item) => String(item.id) == String(id));
+		return node ? { ...node } : undefined;
+	},
+
+	// Apply local canvas geometry through one undoable operation. Plugins should
+	// use this instead of reaching into the store directly.
+	updateNodesGeometry: (changes, options = {}) => {
+		if (!Array.isArray(changes) || !changes.length) return false;
+
+		let updates = [];
+		changes.forEach((change) => {
+			if (!change || change.id == undefined) return;
+			let location = getNodeLocation(change.id);
+			if (!location) return;
+
+			let node = store.get(location);
+			["x", "y", "width", "height"].forEach((key) => {
+				if (!Object.prototype.hasOwnProperty.call(change, key)) return;
+				if (node[key] == change[key]) return;
+				updates.push({ location, key, value: change[key] });
+			});
+		});
+
+		if (!updates.length) return false;
+
+		store.startBatch();
+		try {
+			updates.forEach(({ location, key, value }) => {
+				store.tr(location, "set", [key, value]);
+			});
+		} finally {
+			store.endBatch();
+		}
+
+		// The current canvas save button uses this flag to determine whether the
+		// local canvas needs to be persisted. Keep the option for future callers
+		// that may want to perform an internal, non-persistent update.
+		if (options.markDirty !== false) state.updated.next(false);
+		return true;
+	},
 
 	setKeymanager: (manager) => {
 		keymanager = manager;
