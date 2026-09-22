@@ -675,6 +675,12 @@ svg.background {
 	cursor: pointer;
 }
 
+.srt-scroll-line::selection,
+.srt-scroll-line *::selection {
+	background: white;
+	color: black;
+}
+
 .srt-scroll-time {
   overflow: hidden;
   transition: all 650ms ease;
@@ -685,7 +691,8 @@ svg.background {
   width: max-content;
   max-height: 0;
 	max-width: 0;
-  opacity: 0;
+  user-select: none;
+	opacity: 0;
 }
 
 .srt-scroll-line.active .srt-scroll-time {
@@ -708,6 +715,35 @@ svg.background {
 	right: .5em;
 	color: white;
 	background: black;
+}
+
+.video-selection-menu {
+	z-index: 10000;
+	padding: 6px 8px;
+	border: 1px solid var(--color);
+	background: var(--background);
+	box-shadow: 0 2px 8px rgb(0 0 0 / 25%);
+	color: var(--color);
+	font: 12px Areal, sans-serif;
+	cursor: pointer;
+	user-select: none;
+}
+
+.video-selection-menu:hover,
+.video-selection-menu:focus {
+	background: var(--background1);
+}
+
+.video-selection-menu button {
+	display: block;
+	width: 100%;
+	padding: 3px 4px;
+	border: 0;
+	background: transparent;
+	color: inherit;
+	font: inherit;
+	text-align: left;
+	cursor: pointer;
 }
 
 
