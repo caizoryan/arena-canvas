@@ -32,6 +32,7 @@ import channelRenderer from "./plugins/channel-renderer.js";
 import scenesPlugin from "./plugins/scenes.js";
 import todoPlugin from "./plugins/todo.js";
 import hideUIPlugin from "./plugins/hide-ui.js";
+import groupLayoutPlugin from "./plugins/group-layout.js";
 
 // first order of business
 // 1. Get canvas showing and moving like before
@@ -844,5 +845,6 @@ register(blockRenderers);
 register(videoSrtLinks);
 register(pdfViewer);
 register(todoPlugin);
+register(groupLayoutPlugin);
 
 mount()
