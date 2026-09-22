@@ -2,6 +2,7 @@ import { memo, reactive } from "./chowk.js";
 import { dom } from "./dom.js";
 import { drag } from "./drag.js";
 import { round } from "./script.js";
+import { controller } from "./plugin.js";
 import { getNodeLocation, state, store } from "./state.js";
 import { svgx } from "./svg.js";
 
@@ -152,9 +153,15 @@ export let mountBoundingBox = () => {
 		dimChanged.next((e) => e + 1);
 	};
 
-	let onend = () => {
+	let onend = (event) => {
 		store.resumeTracking();
 		resetAnchors();
+		controller.dispatchHook("canvas:drag-end", {
+			event,
+			kind: "selection",
+			phase: "move",
+			changed: true,
+		});
 	};
 
 	let onresizestart = () => {
@@ -205,10 +212,16 @@ export let mountBoundingBox = () => {
 		dimChanged.next((e) => e + 1);
 	};
 
-	let onresizeend = () => {
+	let onresizeend = (event) => {
 		store.resumeTracking();
 		resetAnchors();
 		resizeAnchor = undefined;
+		controller.dispatchHook("canvas:drag-end", {
+			event,
+			kind: "selection",
+			phase: "resize",
+			changed: true,
+		});
 	};
 
 	let set_position = (x, y) => {

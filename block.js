@@ -3,7 +3,7 @@ import { memo, reactive } from "./chowk.js";
 import { dom } from "./dom.js";
 import { drag } from "./drag.js";
 import { notificationpopup } from "./notification.js";
-import { registeredRenderers } from "./plugin.js";
+import { controller, registeredRenderers } from "./plugin.js";
 import { round } from "./script.js";
 import {
 	addEdge,
@@ -234,7 +234,7 @@ export function BlockElement(block) {
 		store.pauseTracking();
 	};
 
-	let onend = () => {
+	let onend = (event) => {
 		// Pointer-up can bubble from controls (or from an embedded renderer)
 		// without a matching pointer-down on the draggable node.
 		if (!copy) return;
@@ -271,6 +271,13 @@ export function BlockElement(block) {
 			store.resumeTracking();
 		}
 		copy = null;
+
+		controller.dispatchHook("canvas:drag-end", {
+			event,
+			kind: "block",
+			nodeId: block.id,
+			changed,
+		});
 	}
 
 	let onDoubleClickResize = () => {
@@ -391,9 +398,16 @@ export function GroupElement(group) {
 		store.endBatch();
 		store.pauseTracking();
 	};
-	let onend = () => {
+	let onend = (event) => {
 		store.resumeTracking();
 		anchored = [];
+
+		controller.dispatchHook("canvas:drag-end", {
+			event,
+			kind: "group",
+			nodeId: group.id,
+			changed: true,
+		});
 	};
 
 	let remove = () => {

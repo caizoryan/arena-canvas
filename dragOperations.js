@@ -8,6 +8,7 @@ import {
 	isRectIntersecting,
 	Transform,
 } from "./block.js";
+import { controller } from "./plugin.js";
 import { addNode, state, store } from "./state.js";
 import { add_block } from "./arena.js";
 
@@ -117,6 +118,12 @@ export let dragOperations = {
 					let newBlock = constructBlockData(res, { x, y, width, height });
 					addNode(newBlock);
 					document.querySelector(".container").appendChild(BlockElement(res));
+					controller.dispatchHook("canvas:drag-end", {
+						event: e,
+						kind: "create-block",
+						nodeId: newBlock.id,
+						changed: true,
+					});
 				});
 		} else if (dragAction == "making-group") {
 			dragAction = "pan";
@@ -124,6 +131,12 @@ export let dragOperations = {
 			let d = constructGroupData(x, y, width, height);
 			addNode(d);
 			document.querySelector(".container").appendChild(GroupElement(d));
+			controller.dispatchHook("canvas:drag-end", {
+				event: e,
+				kind: "create-group",
+				nodeId: d.id,
+				changed: true,
+			});
 		} else if (dragAction == "zoom") {
 			dragAction = "pan";
 			state.dragMode.next("");
