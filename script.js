@@ -16,6 +16,7 @@ import { add_block, add_file, add_link, connect_block, get_block,
 	update_block } from "./arena.js";
 import {
 	BlockElement,
+	blockContextMenuItems,
 	button,
 	constructBlockData,
 	CSSTransform,
@@ -603,8 +604,40 @@ let unmountContainer = () => {
 	let exists = document.querySelector(".container");
 	if (exists) exists.remove();
 };
+
+// Right-clicks inside the canvas are captured before any nested plugin handler
+// can stop propagation. The menu is scheduled here so those handlers can still
+// contribute items to the same menu in this turn.
+const onContextMenu = (event) => {
+	// Keep the browser menu while the user is editing text.
+	if (event.target?.closest?.("input, textarea, [contenteditable='true']")) {
+		return;
+	}
+
+	let nodeElement = event.target?.closest?.(".draggable.node");
+	let blockId = nodeElement?.getAttribute("block-id");
+
+	let menu = controller.scheduleContextMenu({ event, blockId });
+
+	controller.dispatchHook(
+		blockId ? "contextmenu:block" : "contextmenu:canvas",
+		{
+			event,
+			blockId,
+			node: blockId ? controller.getNode(blockId) : undefined,
+			menu,
+		},
+	);
+
+	if (blockId) menu.add(blockContextMenuItems({ id: blockId }));
+
+	// The canvas owns the context menu for its contents.
+	event.preventDefault();
+};
+
 export let mountContainer = (children) => {
 	unmountContainer();
+	controller.dismissContextMenu();
 
 	// CSS transforms
 	// ~~~~~~~~~~~~~~~~~~~~
@@ -649,6 +682,8 @@ export let mountContainer = (children) => {
 		onpointerup,
 		...dragOperations,
 	}, ...children]);
+
+	root.addEventListener("contextmenu", onContextMenu, true);
 
 	root.onmousemove = (e) => {
 		if (e.target != root) return;

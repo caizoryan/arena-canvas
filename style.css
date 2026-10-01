@@ -717,9 +717,10 @@ svg.background {
 	background: black;
 }
 
-.video-selection-menu {
+.context-menu {
 	z-index: 10000;
-	padding: 6px 8px;
+	min-width: 160px;
+	padding: 4px;
 	border: 1px solid var(--color);
 	background: var(--background);
 	box-shadow: 0 2px 8px rgb(0 0 0 / 25%);
@@ -727,23 +728,46 @@ svg.background {
 	font: 12px Areal, sans-serif;
 	cursor: pointer;
 	user-select: none;
+	outline: none;
 }
 
-.video-selection-menu:hover,
-.video-selection-menu:focus {
-	background: var(--background1);
-}
-
-.video-selection-menu button {
+.context-menu-item {
 	display: block;
 	width: 100%;
-	padding: 3px 4px;
+	padding: 4px 6px;
 	border: 0;
 	background: transparent;
 	color: inherit;
 	font: inherit;
 	text-align: left;
 	cursor: pointer;
+}
+
+.context-menu-item:hover,
+.context-menu-item:focus {
+	background: var(--background1);
+	outline: none;
+}
+
+.context-menu-item:disabled {
+	opacity: .4;
+	cursor: default;
+}
+
+.context-menu-item.danger {
+	color: #d33;
+}
+
+.context-menu-separator {
+	height: 1px;
+	margin: 4px 2px;
+	background: var(--color);
+	opacity: .25;
+}
+
+.context-menu-label {
+	padding: 4px 6px;
+	opacity: .6;
 }
 
 

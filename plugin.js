@@ -3,6 +3,11 @@ import { get_block, update_block } from "./arena.js";
 import { dom } from "./dom.js";
 import { memo, reactive } from "./chowk.js";
 import { getNodeLocation, state, store } from "./state.js";
+import {
+	addContextMenuItem,
+	dismissContextMenu,
+	scheduleContextMenu,
+} from "./context-menu.js";
 
 // Plugin registry and the small controller surface currently exposed to
 // plugins. Built-in plugins are loaded by the application entry point.
@@ -308,6 +313,16 @@ export const controller = {
 	},
 
 	focusBlock: (...args) => focusBlock(...args),
+
+	// Schedule the shared context menu for a right-click and return a session
+	// handle. Plugins that observe the same click add their items through the
+	// handle or through addContextMenuItem.
+	scheduleContextMenu: (context) => scheduleContextMenu(context),
+
+	addContextMenuItem: (itemOrItems, options) =>
+		addContextMenuItem(itemOrItems, options),
+
+	dismissContextMenu: () => dismissContextMenu(),
 };
 
 // Register a plugin for the lifetime of the returned function. Renderer

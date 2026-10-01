@@ -23,6 +23,10 @@ const compareMembers = (a, b) =>
 	geometryValue(a, "x") - geometryValue(b, "x") ||
 	String(a.id).localeCompare(String(b.id));
 
+// GroupElement stores the editable group title as `label`.
+const isListGroup = (group) =>
+	typeof group.label == "string" && group.label.startsWith("list");
+
 const sameGeometry = (node, next) =>
 	["x", "y", "width", "height"].every((key) => node[key] == next[key]);
 
@@ -43,14 +47,15 @@ const layoutGroup = (group, nodes) => {
 	// every block in this group.
 	let blockWidth = geometryValue(members[0], "width");
 	let blockHeight = geometryValue(members[0], "height");
-	let requiredHeight = members.length * blockHeight;
+	let gap = 25
+	let requiredHeight = members.length * (blockHeight + gap) + gap;
 
 	let changes = [];
 	members.forEach((node, index) => {
 		let next = {
 			id: node.id,
-			x: geometryValue(group, "x"),
-			y: geometryValue(group, "y") + index * blockHeight,
+			x: geometryValue(group, "x") + gap,
+			y: geometryValue(group, "y") + gap + index * (blockHeight+gap),
 			width: blockWidth,
 			height: blockHeight,
 		};
@@ -62,7 +67,7 @@ const layoutGroup = (group, nodes) => {
 		id: group.id,
 		x: group.x,
 		y: group.y,
-		width: Math.max(geometryValue(group, "width"), blockWidth),
+		width: Math.max(geometryValue(group, "width"), blockWidth+(gap*2)),
 		height: Math.max(geometryValue(group, "height"), requiredHeight),
 	};
 	if (!sameGeometry(group, nextGroup)) changes.push(nextGroup);
@@ -73,12 +78,14 @@ const layoutGroup = (group, nodes) => {
 const GroupLayout = {
 	id: "group-layout",
 	name: "Group layout",
-	description: "Stacks intersecting blocks vertically and normalizes their size after a drag.",
+	description: "Stacks blocks in groups whose titles start with 'list'.",
 
 	setup(controller) {
 		return controller.registerHook("canvas:drag-end", () => {
 			let nodes = controller.getNodes();
-			let groups = nodes.filter((node) => node.type == "group");
+			let groups = nodes.filter((node) =>
+				node.type == "group" && isListGroup(node)
+			);
 			if (!groups.length) return;
 
 			// Re-evaluate every group. This handles both sides of a move when a
