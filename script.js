@@ -35,6 +35,7 @@ import todoPlugin from "./plugins/todo.js";
 import hideUIPlugin from "./plugins/hide-ui.js";
 import groupLayoutPlugin from "./plugins/group-layout.js";
 import pinPlugin from "./plugins/pin.js";
+import moveBlocksPlugin from "./plugins/move-blocks.js";
 
 // first order of business
 // 1. Get canvas showing and moving like before
@@ -884,5 +885,6 @@ register(pdfViewer);
 	register(todoPlugin);
 	register(groupLayoutPlugin);
 	register(pinPlugin);
+	register(moveBlocksPlugin);
 
 mount()

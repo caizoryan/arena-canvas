@@ -431,7 +431,7 @@ export function GroupElement(group) {
 	let connectionEdges = connectors(group, left, top, width, height);
 	let el = dom(
 		".draggable.group",
-		{ style },
+		{ style, "node-id": group.id },
 		colorBars(group, removeButton()),
 		groupTitleLabel(group),
 		...edges,
