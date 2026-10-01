@@ -2,7 +2,7 @@ import {state} from './state.js'
 import { notificationpopup } from './notification.js';
 
 let host = "https://api.are.na/v2/"
-let host3="https://api.are.na/v3/" 
+let host3="https://api.are.na/v3/"
 
 let headers = () => ({
 	"Content-Type": "application/json",
@@ -210,5 +210,3 @@ export let try_auth = () => {
 			}
 		})
 }
-
-
