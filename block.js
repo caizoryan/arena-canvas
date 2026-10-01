@@ -617,6 +617,23 @@ const BasicComponents = (block) => {
 	return components;
 };
 
+// Items the app contributes to the shared context menu for a block. Plugins
+// add their own items on top of these through the controller.
+export let blockContextMenuItems = (block) => {
+	let link = "https://are.na/block/" + block.id;
+
+	return [{
+		id: "copy-block-link",
+		label: "copy block link",
+		group: "block",
+		priority: 100,
+		onSelect: () => {
+			navigator.clipboard.writeText(link)
+				.catch((error) => console.warn("Could not copy block link", error));
+		},
+	}];
+};
+
 export let constructBlockData = (e, i) => {
 	let padding = 400;
 	let d = {
