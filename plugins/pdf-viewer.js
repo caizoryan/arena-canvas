@@ -12,6 +12,7 @@ import {
 } from "../pdfjs/build/pdf.mjs";
 import { dom } from "../dom.js";
 import { parse_arena_block_url } from "../md.js";
+import { controller } from "../plugin.js";
 
 GlobalWorkerOptions.workerSrc = new URL(
 	"../pdfjs/build/pdf.worker.mjs",
@@ -61,13 +62,12 @@ export class PDFViewer {
 				// Let the browser perform normal text selection, but do not let
 				// Arena's draggable block consume the pointer gesture.
 				onpointerdown: (event) => event.stopPropagation(),
-				oncontextmenu: (event) => this.showSelectionMenu(event),
+				oncontextmenu: (event) => this.addSelectionMenu(event),
 			},
 		]);
 		this.selectionChange = () => this.logSelection();
 		document.addEventListener("selectionchange", this.selectionChange);
 		this.currentSelection = null;
-		this.selectionMenu = null;
 		this.pendingNavigation = null;
 		this.status = dom(["span.pdf-simple-status", "Loading PDF…"]);
 		this.pageLabel = dom(["span.pdf-simple-page-label", "Page 1 / —"]);
@@ -118,18 +118,6 @@ export class PDFViewer {
 			this.page,
 		]);
 		this.root.pdfViewer = this;
-		this.dismissSelectionMenu = () => {
-			if (!this.selectionMenu) return;
-			this.selectionMenu.remove();
-			this.selectionMenu = null;
-		};
-
-		this.dismissSelectionMenuOnKeydown = () => this.dismissSelectionMenu();
-		this.dismissSelectionMenuOnPointerdown = (event) => {
-			if (!this.selectionMenu?.contains(event.target)) this.dismissSelectionMenu();
-		};
-		document.addEventListener("keydown", this.dismissSelectionMenuOnKeydown);
-		document.addEventListener("pointerdown", this.dismissSelectionMenuOnPointerdown, true);
 		// block.js mounts renderer bodies synchronously. Wait one turn so the
 		// canvas has its real block dimensions before calculating its scale.
 		setTimeout(() => this.load(), 0);
@@ -461,7 +449,7 @@ export class PDFViewer {
 		this.renderHighlights();
 	}
 
-	showSelectionMenu(event) {
+	addSelectionMenu(event) {
 		const selection = window.getSelection();
 		if (!selection || selection.isCollapsed || !selection.rangeCount) return;
 		if (!this.currentSelection || this.currentSelection.page != this.pageNumber) {
@@ -471,7 +459,6 @@ export class PDFViewer {
 
 		event.preventDefault();
 		event.stopPropagation();
-		this.dismissSelectionMenu();
 
 		const page = this.currentSelection.page;
 		const selectionString = this.currentSelection.value;
@@ -480,36 +467,24 @@ export class PDFViewer {
 		const copy = (value) => {
 			navigator.clipboard.writeText(value)
 				.catch((error) => console.warn("Could not copy PDF link", error));
-			this.dismissSelectionMenu();
 		};
-		const menu = dom([
-			"div.pdf-selection-menu",
+
+		controller.addContextMenuItem([
 			{
-				role: "menu",
-				tabIndex: 0,
+				id: "pdf-copy-markdown-link",
+				label: "copy as markdown link",
+				group: "selection",
+				priority: 100,
+				onSelect: () => copy(`[pg, ${page}](${link})`),
 			},
-			button(
-				"copy as markdown link",
-				(event) => {
-					event.preventDefault();
-					event.stopPropagation();
-					copy(`[pg, ${page}](${link})`);
-				},
-			),
-			button(
-				"copy link and text",
-				(event) => {
-					event.preventDefault();
-					event.stopPropagation();
-					copy(`${selectedText}\n[pg, ${page}](${link})`);
-				},
-			),
-		]);
-		menu.style.position = "fixed";
-		menu.style.left = `${event.clientX}px`;
-		menu.style.top = `${event.clientY}px`;
-		document.body.append(menu);
-		this.selectionMenu = menu;
+			{
+				id: "pdf-copy-link-and-text",
+				label: "copy link and text",
+				group: "selection",
+				priority: 90,
+				onSelect: () => copy(`${selectedText}\n[pg, ${page}](${link})`),
+			},
+		], { event, blockId: this.blockId });
 	}
 
 	renderHighlights() {
@@ -558,7 +533,6 @@ export class PDFViewer {
 	}
 
 	cancelRender() {
-		this.dismissSelectionMenu?.();
 		if (this.renderTask) {
 			this.renderTask.cancel();
 			this.renderTask = null;
@@ -579,14 +553,6 @@ export class PDFViewer {
 		this.loadingTask?.destroy().catch(() => {});
 		this.loadingTask = null;
 		document.removeEventListener("selectionchange", this.selectionChange);
-		document.removeEventListener("keydown", this.dismissSelectionMenuOnKeydown);
-		document.removeEventListener("pointerdown", this.dismissSelectionMenuOnPointerdown, true);
-		document.removeEventListener("focusin", this.dismissSelectionMenuOnFocusin, true);
-		this.dismissSelectionMenu();
-		this.root.removeEventListener(
-			"pdf-selection-menu-dismiss",
-			this.dismissSelectionMenu,
-		);
 		this.pdf = null;
 	}
 }

@@ -180,18 +180,6 @@ const SrtScroll = (block, srt, video, offset) => {
 	let lines = dom([".srt-scroll-lines", ...subtitleElements]);
 	let panel;
 	let activeIndex = -1;
-	let selectionMenu;
-
-	let dismissSelectionMenu = () => {
-		if (!selectionMenu) return;
-		selectionMenu.remove();
-		selectionMenu = null;
-	};
-
-	let dismissSelectionMenuOnKeydown = () => dismissSelectionMenu();
-	let dismissSelectionMenuOnPointerdown = (event) => {
-		if (!selectionMenu?.contains(event.target)) dismissSelectionMenu();
-	};
 
 	let lineForBoundary = (node, offsetAtBoundary) => {
 		let element = elementForNode(node);
@@ -243,7 +231,6 @@ const SrtScroll = (block, srt, video, offset) => {
 	let copySelection = (value) => {
 		navigator.clipboard.writeText(value)
 			.catch((error) => console.warn("Could not copy video link", error));
-		dismissSelectionMenu();
 	};
 
 	let showSelectionMenu = (event) => {
@@ -252,37 +239,26 @@ const SrtScroll = (block, srt, video, offset) => {
 
 		event.preventDefault();
 		event.stopPropagation();
-		dismissSelectionMenu();
 
 		let markdownLink = `[${formatTime(selected.start)}](${selected.link})`;
-		let menu = dom([
-			"div.video-selection-menu",
+		controller.addContextMenuItem([
 			{
-				role: "menu",
-				tabIndex: 0,
+				id: "srt-copy-markdown-link",
+				label: "copy as markdown link",
+				group: "selection",
+				priority: 100,
+				onSelect: () => copySelection(markdownLink),
 			},
-			dom(["button", {
-				type: "button",
-				onclick: (clickEvent) => {
-					clickEvent.preventDefault();
-					clickEvent.stopPropagation();
-					copySelection(markdownLink);
-				},
-			}, "copy as markdown link"]),
-			dom(["button", {
-				type: "button",
-				onclick: (clickEvent) => {
-					clickEvent.preventDefault();
-					clickEvent.stopPropagation();
-					copySelection(`${selected.text}\n${markdownLink}`);
-				},
-			}, "copy link and text"]),
-		]);
-		menu.style.position = "fixed";
-		menu.style.left = `${event.clientX}px`;
-		menu.style.top = `${event.clientY}px`;
-		document.body.append(menu);
-		selectionMenu = menu;
+			{
+				id: "srt-copy-link-and-text",
+				label: "copy link and text",
+				group: "selection",
+				priority: 90,
+				onSelect: () => copySelection(
+					`${selected.text.split('\n').join(' ')}\n${markdownLink}`,
+				),
+			},
+		], { event, blockId: block.id });
 	};
 
 	let changeOffset = (amount) => {
@@ -299,13 +275,6 @@ const SrtScroll = (block, srt, video, offset) => {
 		dom(["button", { onclick: () => changeOffset(.1) }, "+"]),
 	]);
 	let close = () => {
-		dismissSelectionMenu();
-		document.removeEventListener("keydown", dismissSelectionMenuOnKeydown);
-		document.removeEventListener(
-			"pointerdown",
-			dismissSelectionMenuOnPointerdown,
-			true,
-		);
 		panel.remove();
 	};
 
@@ -322,8 +291,6 @@ const SrtScroll = (block, srt, video, offset) => {
 			), [left, top, width, height]),
 		oncontextmenu: showSelectionMenu,
 	}, offsetControls, closeButton, lines]);
-	document.addEventListener("keydown", dismissSelectionMenuOnKeydown);
-	document.addEventListener("pointerdown", dismissSelectionMenuOnPointerdown, true);
 
 	let sync = (time) => {
 		let adjustedTime = time + offset.value();
