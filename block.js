@@ -333,6 +333,8 @@ export function BlockElement(block) {
 		});
 	}, 50);
 
+	controller.dispatchHook("block:rendered", { block, element: el });
+
 	return el;
 }
 export function GroupElement(group) {

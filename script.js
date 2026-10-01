@@ -34,6 +34,7 @@ import scenesPlugin from "./plugins/scenes.js";
 import todoPlugin from "./plugins/todo.js";
 import hideUIPlugin from "./plugins/hide-ui.js";
 import groupLayoutPlugin from "./plugins/group-layout.js";
+import pinPlugin from "./plugins/pin.js";
 
 // first order of business
 // 1. Get canvas showing and moving like before
@@ -624,6 +625,7 @@ const onContextMenu = (event) => {
 		{
 			event,
 			blockId,
+			element: nodeElement,
 			node: blockId ? controller.getNode(blockId) : undefined,
 			menu,
 		},
@@ -879,7 +881,8 @@ register(PreviewBlockLink);
 register(blockRenderers);
 register(videoSrtLinks);
 register(pdfViewer);
-register(todoPlugin);
-register(groupLayoutPlugin);
+	register(todoPlugin);
+	register(groupLayoutPlugin);
+	register(pinPlugin);
 
 mount()

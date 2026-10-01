@@ -122,6 +122,11 @@ export const controller = {
 		return node ? { ...node } : undefined;
 	},
 
+	// Return the renderer that would handle this block, or undefined. Plugins
+	// can use this to re-render a block's content in another context.
+	getRenderer: (block) =>
+		registeredRenderers.find((renderer) => renderer.match(block)),
+
 	// Apply local canvas geometry through one undoable operation. Plugins should
 	// use this instead of reaching into the store directly.
 	updateNodesGeometry: (changes, options = {}) => {
