@@ -140,6 +140,25 @@ const TextBlock = (block) => {
 		}, markdown]);
 	};
 
+	// The node's text can change from outside this element, for example when the
+	// same block is edited from its pinned panel. Follow the node's text value
+	// and re-render the markdown when it does.
+	if (getNodeLocation(block.id)) {
+  	console.log("Subscribing for edits")
+		subscribeToId(block.id, ["text"], (markdown) => {
+			// A local edit owns the element until it is saved or cancelled.
+			console.log("EDIT WAS MADE", markdown)
+
+			if (attributes.edit.value()) return;
+			if (markdown == undefined || markdown == value) return;
+
+			setValue(markdown);
+			reset();
+			child = renderMarkdown(markdown);
+			root.appendChild(child);
+		});
+	}
+
 	return {
 		body: root,
 		topBar: [editOrTagOrSave],
@@ -230,7 +249,7 @@ const Channel = (block) => ({
 
 const builtinRenderers = [
 	{ match: (block) => block.state == "processing", render: ProcessingBlock },
-	// { match: (block) => block.type == "Text" && block.title == 'dog', 
+	// { match: (block) => block.type == "Text" && block.title == 'dog',
 	// 	render: (block) => ({ body: ['h1', "this was titled dog.", TextBlock(block).body] }) },
 	{ match: (block) => block.type == "Text", render: TextBlock },
 	{ match: (block) => block.type == "Image", render: ImageBlock },
@@ -254,4 +273,3 @@ export default {
 		return () => unregister.forEach((removeRenderer) => removeRenderer());
 	},
 }
-

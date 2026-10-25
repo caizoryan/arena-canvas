@@ -39,6 +39,11 @@ const Pin = {
 
 			const block = controller.getChannelBlocks()
 				.find((item) => String(item.id) == key);
+			let blockNode = controller.getNode(block.id)
+      if (blockNode.text != block.content.markdown) {
+        console.log("mismatch, fixing")
+        block.content.markdown = blockNode.text
+			}
 			if (!block) return;
 
 			const renderer = controller.getRenderer(block);

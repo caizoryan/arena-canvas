@@ -36,6 +36,7 @@ import groupLayoutPlugin from "./plugins/group-layout.js";
 import pinPlugin from "./plugins/pin.js";
 import moveBlocksPlugin from "./plugins/move-blocks.js";
 import roomsPlugin from "./plugins/room/index.js";
+import blockKeyboardNavPlugin from "./plugins/block-keyboard-nav.js";
 
 // first order of business
 // 1. Get canvas showing and moving like before
@@ -476,7 +477,7 @@ let topButtons = [
 	history(),
 ];
 
-let zoom = ['.spaced', 
+let zoom = ['.spaced',
 button("-", () => state.canvasScale.next(e => e-=.05)),
 	button(
 		memo(() => parseFloat(state.canvasScale.value() * 100).toFixed(0) + "%", [state.canvasScale]),
@@ -542,7 +543,7 @@ export function focusBlock(id) {
 		setTimeout(() => {
 			found.style.backgroundColor = c;
 			found.style.zIndex = z;
-		}, 800);
+		}, 500);
 	} else {
 		notificationpopup(
 			["span", "Block not found, ", ["a", {
@@ -569,7 +570,7 @@ let animateMove = (destX, destY) => {
 	let t = 0;
 	let v = 0;
 	let progress = () => {
-		t += .03;
+		t += .08;
 		v = InOutQuad(t);
 		state.canvasX.next(lerp(last.x, destX, v));
 		state.canvasY.next(lerp(last.y, destY, v));
@@ -807,16 +808,6 @@ keys.on("cmd + -", () => zoomOut(), prevent);
 keys.on("cmd + shift + =", () => zoomIn(inc() * 3), prevent);
 keys.on("cmd + shift + -", () => zoomOut(inc() * 3), prevent);
 
-keys.on("ArrowRight", () => moveRight(), disableInput);
-keys.on("ArrowLeft", () => moveLeft(), disableInput);
-keys.on("ArrowUp", () => moveUp(), disableInput);
-keys.on("ArrowDown", () => moveDown(), disableInput);
-
-keys.on("ArrowRight + shift", () => moveRight(inc() * 3), disableInput);
-keys.on("ArrowLeft + shift", () => moveLeft(inc() * 3), disableInput);
-keys.on("ArrowUp + shift", () => moveUp(inc() * 3), disableInput);
-keys.on("ArrowDown + shift", () => moveDown(inc() * 3), disableInput);
-
 keys.on("d", () => moveRight(), disableInput);
 keys.on("a", () => moveLeft(), disableInput);
 keys.on("w", () => moveUp(), disableInput);
@@ -877,6 +868,7 @@ register(pdfViewer);
 	register(groupLayoutPlugin);
 	register(pinPlugin);
 	register(moveBlocksPlugin);
+	register(blockKeyboardNavPlugin);
 register(roomsPlugin);
 
 mount()

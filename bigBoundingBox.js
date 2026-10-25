@@ -5,6 +5,7 @@ import { round } from "./script.js";
 import { controller } from "./plugin.js";
 import { getNodeLocation, state, store } from "./state.js";
 import { svgx } from "./svg.js";
+import { registerSelectionDrag } from "./selection-drag.js";
 
 export let mountBoundingBox = () => {
 	let anchored = [];
@@ -78,7 +79,7 @@ export let mountBoundingBox = () => {
 			width: ${dimension.x2 - dimension.x}px;
 			height: ${dimension.y2 - dimension.y}px;
 			border: 4px solid var(--bor6);`;
-		} else return "";
+		} else return "display: none;";
 	}, [dimsMemo]);
 
 	let handleStyle = (type) => memo(() => {
@@ -132,10 +133,10 @@ export let mountBoundingBox = () => {
 		HeightMiddle,
 	);
 
-	let onstart = () => {
+	let onstart = (items = anchored) => {
 		// Saves this location for undo.
 		store.startBatch();
-		anchored.forEach((e) => {
+		items.forEach((e) => {
 			let x = store.get(e.blockLocation.concat(["x"]));
 			let y = store.get(e.blockLocation.concat(["y"]));
 			store.tr(e.blockLocation, "set", ["x", x]);
@@ -153,14 +154,16 @@ export let mountBoundingBox = () => {
 		dimChanged.next((e) => e + 1);
 	};
 
-	let onend = (event) => {
+	let onend = (event, changed = true) => {
 		store.resumeTracking();
 		resetAnchors();
+		if (!changed) return;
+
 		controller.dispatchHook("canvas:drag-end", {
 			event,
 			kind: "selection",
 			phase: "move",
-			changed: true,
+			changed,
 		});
 	};
 
@@ -224,32 +227,86 @@ export let mountBoundingBox = () => {
 		});
 	};
 
-	let set_position = (x, y) => {
-		x = round(x, state.snapSize.value());
-		y = round(y, state.snapSize.value());
+	let selectionDragAnchor;
+	let selectionMoveAnchored = [];
+	let startSelectionDrag = (nodeId) => {
+		let { dimension, selection } = dimsMemo.value();
+		if (selection.length <= 1) return false;
 
-		let diff = {
-			x: x - boundingAnchor.x,
-			y: y - boundingAnchor.y,
+		// Box drags use the selection's top-left; block drags use that block.
+		let node = nodeId === undefined
+			? dimension
+			: selection.find((item) => item.id == nodeId);
+		if (!node) return false;
+
+		boundingAnchor = {
+			x: dimension.x,
+			y: dimension.y,
+			width: dimension.x2 - dimension.x,
+			height: dimension.y2 - dimension.y,
 		};
 
-		anchored.forEach((e) => {
-			store.tr(e.blockLocation, "set", [
-				"x",
-				e.offset.x + diff.x,
-			]);
-			store.tr(e.blockLocation, "set", [
-				"y",
-				e.offset.y + diff.y,
-			]);
+		let nodes = store.get(["data", "nodes"]);
+		let movable = new Map(selection.map((item) => [item.id, item]));
+		selection.filter((item) => item.type == "group").forEach((group) => {
+			nodes.forEach((item) => {
+				let contains = item.type == "group"
+					? item.x >= group.x && item.y >= group.y &&
+						item.x + item.width <= group.x + group.width &&
+						item.y + item.height <= group.y + group.height
+					: item.x < group.x + group.width &&
+						item.x + item.width > group.x &&
+						item.y < group.y + group.height &&
+						item.y + item.height > group.y;
+				if (contains) movable.set(item.id, item);
+			});
 		});
 
-		bigbox.style.left = x + "px";
-		bigbox.style.top = y + "px";
+		selectionMoveAnchored = [...movable.values()].map((item) => ({
+			blockLocation: getNodeLocation(item.id),
+			offset: { x: item.x, y: item.y },
+		}));
+		selectionDragAnchor = { x: node.x, y: node.y };
+		onstart(selectionMoveAnchored);
+		return true;
 	};
 
+	let setSelectionDragPosition = (x, y) => {
+		if (!selectionDragAnchor) return;
+
+		x = round(x, state.snapSize.value());
+		y = round(y, state.snapSize.value());
+		let diffX = x - selectionDragAnchor.x;
+		let diffY = y - selectionDragAnchor.y;
+
+		selectionMoveAnchored.forEach((item) => {
+			store.tr(item.blockLocation, "set", ["x", item.offset.x + diffX]);
+			store.tr(item.blockLocation, "set", ["y", item.offset.y + diffY]);
+		});
+
+		bigbox.style.left = boundingAnchor.x + diffX + "px";
+		bigbox.style.top = boundingAnchor.y + diffY + "px";
+	};
+
+	let endSelectionDrag = (event, changed) => {
+		if (!selectionDragAnchor) return;
+		selectionDragAnchor = undefined;
+		selectionMoveAnchored = [];
+		onend(event, changed);
+	};
+
+	registerSelectionDrag({
+		start: startSelectionDrag,
+		setPosition: setSelectionDragPosition,
+		end: endSelectionDrag,
+	});
+
 	setTimeout(() => {
-		drag(bigbox, { set_position, onstart, onend });
+		drag(bigbox, {
+			set_position: setSelectionDragPosition,
+			onstart: () => startSelectionDrag(),
+			onend: endSelectionDrag,
+		});
 
 		drag(MainCorner, {
 			set_position: (x, y) => onresizemove(x + 15, y + 15),

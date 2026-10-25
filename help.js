@@ -26,7 +26,7 @@ let commandSections = {
 | __B__ | Jump to location before previous jump when using block links |
 | __T__ | Toggle between trackpad mode and scroll mode  |
 | __WASD__      | Move around the canvas |  
-| __ArrowKeys__ | Move around the canvas |
+| __ArrowKeys__ | Select the nearest block in that direction |
 `,
 
 	misc: `
@@ -37,6 +37,11 @@ let commandSections = {
 | __⌘+⇧+Z__ | redo|
 | __⌘S__ |  Save                   |
 | __⌘D__ |  Download .canvas to open in Obsidian or kinopio                   |
+| __⌘+C__ | Copy selected blocks as Are.na links |
+| __⌘+V__ | Paste Are.na links or other URLs |
+| __⌘+⇧+C__ | Copy blocks with canvas positions and sizing |
+| __⌘+⇧+V__ | Paste block layout here, or move a staged cut |
+| __⌘+X__ | Cut blocks locally, then pan and paste with ⌘+⇧+V |
 `,
 };
 

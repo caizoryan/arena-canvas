@@ -28,10 +28,7 @@ export let dragOperations = {
 	onpointerdown: (e) => {
 		let target = e.target;
 		if (e.target != document.querySelector(".container")) return;
-		// state.selected.next([])
-
 		state.canceled.next(false);
-		state.selected.next([]);
 
 		let rect = target.getBoundingClientRect();
 		let localX = (e.clientX - rect.left) / state.canvasScale.value();
@@ -168,7 +165,9 @@ export let dragOperations = {
 					: null;
 			});
 
-			state.selected.next(selection);
+			state.selected.next((current) => [
+				...new Set([...current, ...selection]),
+			]);
 		}
 	},
 };

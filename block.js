@@ -16,6 +16,7 @@ import {
 	subscribeToId,
 } from "./state.js";
 import { svgx } from "./svg.js";
+import { selectionDrag } from "./selection-drag.js";
 
 // ---------
 // Utilities
@@ -161,7 +162,11 @@ export function BlockElement(block) {
 
 	let addToSelection = (e) => {
 		if (e.shiftKey) {
-			state.selected.next((e) => [...e, block.id]);
+			state.selected.next((selection) =>
+				selection.includes(block.id)
+					? selection.filter((id) => id != block.id)
+					: [...selection, block.id],
+			);
 		} else state.selected.next([block.id]);
 	};
 
@@ -200,9 +205,11 @@ export function BlockElement(block) {
 		...bottomBar,
 	];
 
-	let copy = null
+	let copy = null;
+	let selectionDragActive = false;
 
 	let onstart = (e) => {
+		selectionDragActive = false;
 		if (e.altKey) {
 			stateAdapter().add_block(
 				state.currentSlug.value(),
@@ -223,15 +230,26 @@ export function BlockElement(block) {
 			return;
 		}
 
-		addToSelection(e);
+		let selection = state.selected.value();
+		if (
+			e.currentTarget === el &&
+			selection.length > 1 &&
+			selection.includes(block.id)
+		) {
+			selectionDragActive = selectionDrag.start(block.id);
+		}
+
+		if (!selectionDragActive) {
+			addToSelection(e);
+			store.pauseTracking();
+		}
 		copy = {
 			left: left.value(),
 			top: top.value(),
 			width: width.value(),
 			height: height.value(),
-		}
-
-		store.pauseTracking();
+			shiftKey: e.shiftKey,
+		};
 	};
 
 	let onend = (event) => {
@@ -245,6 +263,15 @@ export function BlockElement(block) {
 			height.value() != copy.height ||
 			width.value() != copy.width ||
 			top.value() != copy.top;
+
+		if (selectionDragActive) {
+			let shiftKey = copy.shiftKey;
+			selectionDrag.end(event, changed);
+			selectionDragActive = false;
+			copy = null;
+			if (!changed) addToSelection({ shiftKey });
+			return;
+		}
 
 		if (changed) {
 			let tobe = {
@@ -327,8 +354,12 @@ export function BlockElement(block) {
 			onend,
 			pan_switch: () => attributes?.edit ? !attributes.edit.value() : true,
 			set_position: (x, y) => {
-				left.next(round(x, state.snapSize.value()));
-				top.next(round(y, state.snapSize.value()));
+				if (selectionDragActive) {
+					selectionDrag.setPosition(x, y);
+				} else {
+					left.next(round(x, state.snapSize.value()));
+					top.next(round(y, state.snapSize.value()));
+				}
 			},
 		});
 	}, 50);
@@ -340,6 +371,8 @@ export function BlockElement(block) {
 export function GroupElement(group) {
 	let r = R(getNodeLocation(group.id), group.id);
 	let anchored = [];
+	let selectionDragActive = false;
+	let selectionDragCopy = null;
 
 	let left = r("x");
 	let top = r("y");
@@ -353,7 +386,23 @@ export function GroupElement(group) {
 	);
 
 	let onstart = (e) => {
-		state.selected.next([]);
+		selectionDragActive = false;
+		let selection = state.selected.value();
+		if (
+			e.currentTarget === el &&
+			selection.length > 1 &&
+			selection.includes(group.id)
+		) {
+			selectionDragActive = selectionDrag.start(group.id);
+			if (selectionDragActive) {
+				selectionDragCopy = {
+					left: left.value(),
+					top: top.value(),
+					shiftKey: e.shiftKey,
+				};
+				return;
+			}
+		}
 
 		// saves this location for undo
 		store.startBatch();
@@ -401,6 +450,26 @@ export function GroupElement(group) {
 		store.pauseTracking();
 	};
 	let onend = (event) => {
+		if (selectionDragActive) {
+			let changed =
+				left.value() != selectionDragCopy.left ||
+				top.value() != selectionDragCopy.top;
+			let shiftKey = selectionDragCopy.shiftKey;
+			selectionDrag.end(event, changed);
+			selectionDragActive = false;
+			selectionDragCopy = null;
+			if (!changed) {
+				state.selected.next((selection) =>
+					shiftKey
+						? selection.includes(group.id)
+							? selection.filter((id) => id != group.id)
+							: [...selection, group.id]
+					: [group.id],
+				);
+			}
+			return;
+		}
+
 		store.resumeTracking();
 		anchored = [];
 
@@ -443,6 +512,11 @@ export function GroupElement(group) {
 			onstart,
 			onend,
 			set_position: (x, y) => {
+				if (selectionDragActive) {
+					selectionDrag.setPosition(x, y);
+					return;
+				}
+
 				x = round(x, state.snapSize.value());
 				y = round(y, state.snapSize.value());
 

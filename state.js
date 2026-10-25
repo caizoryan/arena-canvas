@@ -835,7 +835,7 @@ memo(() => {
 		root.style.setProperty("--grid-size", `${gridSize}px`);
 	}
 
-	state.canvasScale.value() < 0.2 ? state.canvasScale.next(.2) : null;
+	state.canvasScale.value() < 0.1 ? state.canvasScale.next(.1) : null;
 	state.canvasScale.value() > 2.3 ? state.canvasScale.next(2.3) : null;
 
 	// The canvas is scaled as a whole, so compensate the connection stroke

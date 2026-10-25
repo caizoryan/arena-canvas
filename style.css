@@ -44,7 +44,7 @@
 }
 
 * {
-  font-family: "ABC ROM Unlicensed Trial", Areal; 
+  font-family: "ABC ROM Unlicensed Trial", Areal;
 	font-variation-settings: "MONO" var(--monospaceness);
 	box-sizing: border-box;
 	tab-size: 2em;
@@ -516,7 +516,9 @@ body {
 }
 
 .big-box {
-	z-index: 94;
+	/* Keep blocks and groups clickable above the selection's drag surface. */
+	z-index: 90;
+	pointer-events: auto;
 }
 
 .top-buttons {
@@ -802,10 +804,6 @@ button {
 	/* box-shadow: 4px 4px 0 #ee07; */
 }
 
-.node[multi-selected='true'] {
-	pointer-events: none;
-}
-
 
 .connection svg,
 .connection svg line {
@@ -994,7 +992,7 @@ textarea {
 	border: none;
 	height: 95%;
 	padding: .5em;
-	font-size: inherit;
+    font-size: 1.4em;
 }
 
 .help {
