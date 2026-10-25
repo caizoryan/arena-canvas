@@ -33,6 +33,25 @@ export let createStore = (internal) => {
 		tracking = old
 	}
 
+	// Rewrites where recorded undo/redo actions point after the data they
+	// address moved (e.g. a collaborator removed an earlier array element).
+	// fn(action) returns the action to keep, or null to drop it. Batches are
+	// rewritten entry by entry and dropped when empty.
+	let rewriteHistory = (fn) => {
+		let rewrite = (action) => {
+			if (action[0] == 'batch') {
+				let kept = action[1].map(rewrite).filter(Boolean)
+				return kept.length ? ['batch', kept] : null
+			}
+			return fn(action)
+		}
+		for (let stack of [undo, redo]) {
+			let kept = stack.map(rewrite).filter(Boolean)
+			stack.splice(0, stack.length, ...kept)
+		}
+		onHistoryUpdate.forEach(fn => fn())
+	}
+
 	let batch = []
 	let onHistoryUpdate = new Set()
 	let subscribeHistory = (fn) => {
@@ -225,7 +244,7 @@ export let createStore = (internal) => {
 	return {
 		apply, tr: apply, get, subscribe, observe,
 		startBatch, endBatch,
-		doUndo, canUndo, doRedo, canRedo, pauseTracking, resumeTracking, relocate,clearHistory,
+		doUndo, canUndo, doRedo, canRedo, pauseTracking, resumeTracking, relocate,clearHistory, rewriteHistory,
 		undo, redo, subscribeHistory
 	}
 }

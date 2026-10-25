@@ -319,6 +319,58 @@ test("a remote change lands in the store without undo history and isn't echoed b
 	}
 });
 
+test("undo reverses only my own change and leaves a collaborator's move intact", async () => {
+	const h = await harness();
+	try {
+		const { handle, app, stop } = await openRoom(h, { nodes: [node(1, 0, 0), node(2, 200, 0)], edges: [] });
+
+		app.set(1, "x", 500);
+		await eventually(() => handle.doc().canvas.nodes[1].x == 500);
+		handle.change((doc) => { doc.canvas.nodes[2].x = 900; });
+		await eventually(() => app.node(2).x == 900);
+		assert.equal(app.store.undo.length, 1, "only my move is in undo history");
+
+		app.store.doUndo();
+
+		assert.equal(app.node(1).x, 0);
+		assert.equal(app.node(2).x, 900);
+		// the undo is a new change and reaches the other client
+		await eventually(() => handle.doc().canvas.nodes[1].x == 0);
+		assert.equal(handle.doc().canvas.nodes[2].x, 900);
+
+		app.store.doRedo();
+		assert.equal(app.node(1).x, 500);
+		await eventually(() => handle.doc().canvas.nodes[1].x == 500);
+		assert.equal(handle.doc().canvas.nodes[2].x, 900);
+		stop();
+	} finally {
+		await h.close();
+	}
+});
+
+test("undo still targets my block after a collaborator deletes an earlier one", async () => {
+	const h = await harness();
+	try {
+		const { handle, app, stop } = await openRoom(h, { nodes: [node(1, 0, 0), node(2, 200, 0), node(3, 400, 0)], edges: [] });
+
+		app.set(2, "x", 250);
+		app.set(1, "y", 40);
+		await eventually(() => handle.doc().canvas.nodes[2].x == 250 && handle.doc().canvas.nodes[1].y == 40);
+		handle.change((doc) => { delete doc.canvas.nodes[1]; });
+		await eventually(() => app.unmounted.includes(1));
+		assert.equal(app.store.undo.length, 1, "the undo of the deleted block's move is gone");
+
+		app.store.doUndo();
+
+		assert.equal(app.node(2).x, 200);
+		assert.equal(app.node(3).x, 400);
+		await eventually(() => handle.doc().canvas.nodes[2].x == 200);
+		stop();
+	} finally {
+		await h.close();
+	}
+});
+
 test("remote node additions and removals mount and unmount blocks", async () => {
 	const h = await harness();
 	try {
