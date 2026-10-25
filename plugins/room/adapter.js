@@ -183,25 +183,55 @@ export const createRoomAdapter = ({
 		return knownBlocks.get(String(id)) ?? fallback.get_block?.(id);
 	};
 
-	let add_block = async (slug, title, value) => {
-		let roomId = roomIdOf(slug);
-		if (!roomId) return fallback.add_block?.(slug, title, value);
-		let handle = await open(roomId);
+	// A native block (never on Are.na) shaped like an Are.na block, so the
+	// existing renderers show it unchanged.
+	let nativeBlock = ({ title, type, content, source }) => {
 		let now = new Date().toISOString();
 		let block = {
 			id: nativeId(),
 			title: title ?? "",
-			class: "Text",
-			type: "Text",
+			class: type,
+			base_class: "Block",
+			type,
+			state: "available",
 			description: "",
-			content: { plain: value ?? "", markdown: value ?? "" },
+			content,
 			created_at: now,
 			updated_at: now,
 		};
+		if (source) block.source = source;
+		return block;
+	};
+
+	let addNative = async (slug, fields) => {
+		let roomId = roomIdOf(slug);
+		let handle = await open(roomId);
+		let block = nativeBlock(fields);
 		change(handle, (doc) => { doc.blocks[block.id] = block; });
 		return remember(block);
 	};
 
+	let add_block = async (slug, title, value) => {
+		if (!roomIdOf(slug)) return fallback.add_block?.(slug, title, value);
+		return addNative(slug, {
+			title,
+			type: "Text",
+			content: { plain: value ?? "", markdown: value ?? "" },
+		});
+	};
+
+	let add_link = async (slug, url) => {
+		if (!roomIdOf(slug)) return fallback.add_link?.(slug, url);
+		return addNative(slug, {
+			title: "",
+			type: "Link",
+			content: {},
+			source: { url, title: url },
+		});
+	};
+
+	// Text is edited with character-level splices, so concurrent typing in one
+	// block merges. Titles and other fields are last-writer-wins.
 	let update_block = async (id, body = {}) => {
 		let found = roomWith(id);
 		if (!found) return { ok: false, status: 404 };
@@ -210,7 +240,14 @@ export const createRoomAdapter = ({
 			if (body.title !== undefined) block.title = body.title;
 			if (body.description !== undefined) block.description = body.description;
 			if (body.content !== undefined) {
-				block.content = { ...plain(block.content), plain: body.content, markdown: body.content };
+				if (!block.content) block.content = {};
+				let text = String(body.content);
+				// updateText takes a path from the document, so splice in place.
+				for (let key of ["plain", "markdown"]) {
+					if (typeof block.content[key] == "string") {
+						AM.updateText(doc, ["blocks", String(id), "content", key], text);
+					} else block.content[key] = text;
+				}
 			}
 			block.updated_at = new Date().toISOString();
 		});
@@ -299,7 +336,7 @@ export const createRoomAdapter = ({
 		get_channel_contents,
 		get_block,
 		add_block,
-		add_link: (slug, url) => add_block(slug, "", url),
+		add_link,
 		add_file: refuseUpload,
 		add_image: refuseUpload,
 		update_block,
