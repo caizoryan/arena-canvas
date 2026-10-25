@@ -1,5 +1,8 @@
 import { focusBlock } from "./script.js";
+import * as arena from "./arena.js";
 import { get_block, update_block } from "./arena.js";
+import { createArenaAdapter } from "./adapters/arena-adapter.js";
+import { createStateAdapterRegistry } from "./adapters/registry.js";
 import { dom } from "./dom.js";
 import { memo, reactive } from "./chowk.js";
 import { getNodeLocation, state, store } from "./state.js";
@@ -67,8 +70,15 @@ let activeRegistration;
 let hookSequence = 0;
 let channelBlocks = [];
 let keymanager;
-let canvasStateAdapter = {};
 let registeredUI = new Map();
+
+// Core ships the Are.na adapter and keeps it active until routing can pick
+// another one.
+const stateAdapters = createStateAdapterRegistry();
+stateAdapters.register(createArenaAdapter(arena, {
+	getSlug: () => state.currentSlug.value(),
+}));
+stateAdapters.activate("arena");
 
 const remove = (items, item) => {
 	let index = items.indexOf(item);
@@ -233,6 +243,16 @@ export const controller = {
 	},
 
 	updateBlock: (...args) => update_block(...args),
+
+	// Make a state adapter available for the lifetime of the plugin. See
+	// adapters/registry.js for the operations it must provide.
+	registerStateAdapter: (adapter) => {
+		let unregister = stateAdapters.register(adapter);
+		if (activeRegistration) activeRegistration.cleanups.push(unregister);
+		return unregister;
+	},
+
+	getStateAdapter: () => stateAdapters.active(),
 
 	registerHook: (hookName, callback, options = {}) => {
 		if (typeof hookName != "string" || !hookName) {

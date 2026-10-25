@@ -4,10 +4,16 @@
 
 **Blocked by:** None (can start immediately)
 
-**Status:** ready-for-agent
+**Status:** resolved
 
-- [ ] Adapters can be registered via the plugin controller and one is active at a time
-- [ ] The Are.na adapter exposes every operation of the current Are.na module, returning the same Are.na-shaped data, plus `saveCanvas`, `subscribe`, `saveMode: "explicit"`
-- [ ] `saveCanvas` reproduces today's save behaviour for the default canvas (update the `.canvas` block, or create it when missing)
-- [ ] A reusable adapter **contract test suite** (`node --test`, fetch faked, in the style of the existing move-blocks test) passes against the Are.na adapter, ready to be run against other adapters
-- [ ] No existing call site changes; the app behaves exactly as before
+- [x] Adapters can be registered via the plugin controller and one is active at a time
+- [x] The Are.na adapter exposes every operation of the current Are.na module, returning the same Are.na-shaped data, plus `saveCanvas`, `subscribe`, `saveMode: "explicit"`
+- [x] `saveCanvas` reproduces today's save behaviour for the default canvas (update the `.canvas` block, or create it when missing)
+- [x] A reusable adapter **contract test suite** (`node --test`, fetch faked, in the style of the existing move-blocks test) passes against the Are.na adapter, ready to be run against other adapters
+- [x] No existing call site changes; the app behaves exactly as before
+
+## Comments
+
+- Implemented in `adapters/arena-adapter.js` (adapter) and `adapters/registry.js` (registry); `plugin.js` registers and activates the Are.na adapter and exposes `controller.registerStateAdapter` / `controller.getStateAdapter`.
+- Contract suite: `tests/state-adapter-contract.mjs`, run for Are.na by `tests/arena-adapter.test.mjs` against the real `arena.js` with a faked v3 API. Run everything with `node --test tests/*.test.mjs`.
+- Note for 02: the adapter's `saveCanvas` finds the `.canvas` block from the channel contents it has loaded, so loading must go through `adapter.get_channel_contents` before `saveCanvas` replaces `saveCanvasToArena`. Toasts and the `updated` flag stay with the caller; `saveCanvas` returns `{ ok, block }` or `{ ok: false, status }`.
