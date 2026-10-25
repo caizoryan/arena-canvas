@@ -36,7 +36,7 @@ import groupLayoutPlugin from "./plugins/group-layout.js";
 import pinPlugin from "./plugins/pin.js";
 import moveBlocksPlugin from "./plugins/move-blocks.js";
 import roomsPlugin from "./plugins/room/index.js";
-import blockKeyboardNavPlugin from "./plugins/block-keyboard-nav.js";
+
 
 // first order of business
 // 1. Get canvas showing and moving like before
@@ -864,11 +864,10 @@ register(PreviewBlockLink);
 register(blockRenderers);
 register(videoSrtLinks);
 register(pdfViewer);
-	register(todoPlugin);
-	register(groupLayoutPlugin);
-	register(pinPlugin);
-	register(moveBlocksPlugin);
-	register(blockKeyboardNavPlugin);
+register(todoPlugin);
+register(groupLayoutPlugin);
+register(pinPlugin);
+register(moveBlocksPlugin);
 register(roomsPlugin);
 
 mount()
