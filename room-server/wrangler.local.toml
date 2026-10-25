@@ -1,0 +1,18 @@
+# Local development on macOS < 13.5: `npm run dev:local`.
+# wrangler 3.78.8 ships workerd 2024-09-09, the last build for macOS 11.5+,
+# so the compatibility date is pinned to match. That runtime is two years
+# behind production; do final checks on a deployed dev Worker.
+name = "arena-canvas-rooms-local"
+main = "src/local.js"
+compatibility_date = "2024-09-09"
+compatibility_flags = ["nodejs_compat"]
+
+[[durable_objects.bindings]]
+name = "ROOM"
+class_name = "Room"
+
+# Key-value storage locally: the Room only uses the async storage API, which
+# both storage backends provide.
+[[migrations]]
+tag = "v1"
+new_classes = ["Room"]

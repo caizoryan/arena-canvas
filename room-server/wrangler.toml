@@ -1,0 +1,24 @@
+# Production Room server. Deploy with current wrangler: `npm run deploy`.
+# Local development on macOS < 13.5 uses wrangler.local.toml instead.
+name = "arena-canvas-rooms"
+main = "src/index.js"
+compatibility_date = "2025-09-01"
+compatibility_flags = ["nodejs_compat"]
+
+# No [assets]: the static app is served separately.
+
+[[durable_objects.bindings]]
+name = "ROOM"
+class_name = "Room"
+
+[[migrations]]
+tag = "v1"
+new_sqlite_classes = ["Room"]
+
+# A throwaway dev Worker for final checks: `npm run deploy:dev`.
+[env.dev]
+name = "arena-canvas-rooms-dev"
+
+[[env.dev.durable_objects.bindings]]
+name = "ROOM"
+class_name = "Room"

@@ -1,0 +1,21 @@
+{
+  "name": "arena-canvas-room-server",
+  "private": true,
+  "type": "module",
+  "description": "Cloudflare Worker + Durable Object that hosts Rooms (one instance per room).",
+  "scripts": {
+    "test": "node --test test/*.test.js",
+    "deploy": "wrangler deploy --env=\"\"",
+    "deploy:dev": "wrangler deploy --env dev",
+    "dev:local": "npx --yes wrangler@3.78.8 dev -c wrangler.local.toml"
+  },
+  "dependencies": {
+    "@automerge/automerge": "3.5.0",
+    "@automerge/automerge-repo": "2.5.6"
+  },
+  "devDependencies": {
+    "@automerge/automerge-repo-network-websocket": "2.5.6",
+    "wrangler": "^4.40.0",
+    "ws": "^8.18.0"
+  }
+}
