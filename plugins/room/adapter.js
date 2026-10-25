@@ -349,5 +349,8 @@ export const createRoomAdapter = ({
 		subscribe,
 		createRoom,
 		teardown,
+		// The network adapter reaching a room's server, once the room is open;
+		// presence rides its WebSocket (presence.js).
+		network: (roomId) => connections.get(roomId),
 	};
 };

@@ -1217,3 +1217,60 @@ button[updated='true'] {
 .timer-panel[active='true'] {
 	display: flex;
 }
+
+/* Presence in rooms */
+.section.people:not(:has(.people-list)) {
+	display: none;
+}
+
+.person {
+	display: flex;
+	align-items: center;
+	gap: .5em;
+	margin: .25em 0;
+}
+
+.presence-swatch {
+	display: inline-block;
+	width: .8em;
+	height: .8em;
+	border-radius: 50%;
+	flex: none;
+}
+
+.presence-layer {
+	position: absolute;
+	top: 0;
+	left: 0;
+	width: 0;
+	height: 0;
+	pointer-events: none;
+	z-index: 100000;
+}
+
+.presence-cursor {
+	position: absolute;
+	top: 0;
+	left: 0;
+	display: flex;
+	align-items: center;
+	gap: .3em;
+	transform-origin: 0 0;
+	white-space: nowrap;
+	font-size: 12px;
+}
+
+.presence-dot {
+	width: 10px;
+	height: 10px;
+	border-radius: 50%;
+	background: var(--color);
+	box-shadow: 0 0 0 2px var(--background, white);
+}
+
+.presence-name {
+	background: var(--color);
+	color: white;
+	padding: 0 .4em;
+	border-radius: 3px;
+}
