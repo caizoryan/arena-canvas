@@ -429,3 +429,114 @@ test("the first room opened can be asked for several things at once", async () =
 		await h.close();
 	}
 });
+
+test("native blocks get DURABLE- ids with ten unlookalike random characters, never a counter", async () => {
+	const h = await harness();
+	try {
+		const slug = await h.seed("garden", []);
+		const ids = [];
+		for (let i = 0; i < 40; i++) ids.push((await h.adapter.add_block(slug, "Moss", "soft")).id);
+
+		ids.forEach((id) => assert.match(id, /^DURABLE-[2-9a-hjkmnp-z]{10}$/));
+		assert.equal(new Set(ids).size, ids.length);
+	} finally {
+		await h.close();
+	}
+});
+
+test("a native block is shaped like an Are.na block so the renderers show it", async () => {
+	const h = await harness();
+	try {
+		const slug = await h.seed("garden", []);
+		const text = await h.adapter.add_block(slug, "Moss", "# soft");
+		const link = await h.adapter.add_link(slug, "https://example.com/");
+
+		// What the Text renderer and constructBlockData read.
+		assert.equal(text.type, "Text");
+		assert.equal(text.content.markdown, "# soft");
+		assert.equal(text.content.plain, "# soft");
+		assert.equal(text.title, "Moss");
+		assert.equal(text.state, "available");
+		// What the Link renderer reads.
+		assert.equal(link.type, "Link");
+		assert.equal(link.source.url, "https://example.com/");
+
+		const stored = (await h.adapter.get_channel_contents(slug)).data;
+		assert.deepEqual(stored.map((b) => b.id).sort(), [text.id, link.id].sort());
+	} finally {
+		await h.close();
+	}
+});
+
+test("concurrent typing in one text block keeps both edits", async () => {
+	const h = await harness();
+	try {
+		const handle = h.seedRoom("garden", [textBlock(1, "Note", "hello world")]);
+		await h.adapter.get_channel_contents(roomSlug(handle.documentId));
+
+		// Another client appends "!" while this one inserts "brave ".
+		const fork = AM.Automerge.change(AM.Automerge.clone(handle.doc()), (doc) => {
+			AM.updateText(doc, ["blocks", "1", "content", "markdown"], "hello world!");
+		});
+		await h.adapter.update_block(1, { content: "hello brave world" });
+		handle.update((doc) => AM.Automerge.merge(doc, fork));
+
+		await eventually(async () => (await h.adapter.get_block(1)).content.markdown == "hello brave world!");
+		assert.equal(handle.doc().blocks[1].content.markdown, "hello brave world!");
+	} finally {
+		await h.close();
+	}
+});
+
+test("a text edit is a splice of the characters that differ, not a rewrite", async () => {
+	const h = await harness();
+	try {
+		const handle = h.seedRoom("garden", [textBlock(1, "Note", "hello world")]);
+		await h.adapter.get_channel_contents(roomSlug(handle.documentId));
+
+		const before = AM.Automerge.getHeads(handle.doc());
+		await h.adapter.update_block(1, { content: "hello brave world" });
+		await eventually(() => handle.doc().blocks[1].content.markdown == "hello brave world");
+
+		const patches = AM.Automerge.diff(handle.doc(), before, AM.Automerge.getHeads(handle.doc()))
+			.filter((patch) => patch.path.join("/") == "blocks/1/content/markdown" || patch.path.join("/") == "blocks/1/content/markdown/6");
+		assert.ok(patches.length > 0);
+		assert.ok(patches.every((patch) => patch.action == "splice"), JSON.stringify(patches));
+		assert.ok(patches.every((patch) => !patch.value || patch.value.length <= 6), JSON.stringify(patches));
+	} finally {
+		await h.close();
+	}
+});
+
+test("titles are last-writer-wins", async () => {
+	const h = await harness();
+	try {
+		const handle = h.seedRoom("garden", [textBlock(1, "Note", "text")]);
+		await h.adapter.get_channel_contents(roomSlug(handle.documentId));
+
+		const fork = AM.Automerge.change(AM.Automerge.clone(handle.doc()), (doc) => { doc.blocks[1].title = "Theirs"; });
+		await h.adapter.update_block(1, { title: "Mine" });
+		handle.update((doc) => AM.Automerge.merge(doc, fork));
+
+		await wait(100);
+		const title = handle.doc().blocks[1].title;
+		assert.ok(title == "Mine" || title == "Theirs");
+		await eventually(async () => (await h.adapter.get_block(1)).title == title);
+	} finally {
+		await h.close();
+	}
+});
+
+test("a native block created in the adapter reaches the other client", async () => {
+	const h = await harness();
+	try {
+		const handle = h.seedRoom("garden", []);
+		const slug = roomSlug(handle.documentId);
+		await h.adapter.get_channel_contents(slug);
+
+		const block = await h.adapter.add_block(slug, "Moss", "soft");
+		await eventually(() => handle.doc().blocks[block.id]?.content.markdown == "soft");
+	} finally {
+		await h.close();
+	}
+});
