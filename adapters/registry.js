@@ -1,5 +1,7 @@
 // State adapters registered by core and plugins. Exactly one is active at a
-// time; core loads and saves through it.
+// time; core loads and saves through it. An adapter may also have a `prefix`
+// (it then owns `#<prefix>:<id>` URLs) and a `teardown()` that runs when the
+// app switches to another adapter.
 const OPERATIONS = [
 	"get_channel", "get_channel_contents", "get_block", "add_block",
 	"update_block", "connect_block", "disconnect_block", "upload_file", "me",
@@ -42,10 +44,16 @@ export const createStateAdapterRegistry = () => {
 		activate: (id) => {
 			let adapter = adapters.get(id);
 			if (!adapter) throw new Error(`No state adapter "${id}" is registered`);
+			if (activeAdapter && activeAdapter != adapter) activeAdapter.teardown?.();
 			activeAdapter = adapter;
 			return adapter;
 		},
 
 		active: () => activeAdapter,
+
+		get: (id) => adapters.get(id),
+
+		byPrefix: (prefix) =>
+			[...adapters.values()].find((adapter) => adapter.prefix == prefix),
 	};
 };

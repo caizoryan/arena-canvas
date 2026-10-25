@@ -2,10 +2,10 @@ import { memo } from "./chowk.js";
 import { dom } from "./dom.js";
 import { state, try_set_channel } from "./state.js";
 import { stateAdapter, try_auth } from "./adapters/index.js";
-import { canvasTitle, routeHash } from "./canvases.js";
+import { canvasTitle, parseRoute, routeHash } from "./canvases.js";
 import { notificationpopup } from "./notification.js";
 import { saveCanvas } from "./script.js";
-import { experimentalPlugins } from "./plugin.js";
+import { controller, experimentalPlugins } from "./plugin.js";
 
 let query = "";
 
@@ -167,12 +167,25 @@ let canvasRow = (canvas) => {
 	];
 };
 
+// Canvases belong to Are.na channels; other adapters (rooms) hold one canvas.
+let inChannel = () => !parseRoute(state.currentSlug.value()).adapter;
+
+// Plugins add actions for the open canvas with registerUI("canvases", ...),
+// either a dom spec or a function returning one.
+let canvasActions = () => controller.getUI("canvases")
+	.map((component) => typeof component == "function" ? component() : component);
+
 const canvases = [
 	".section.canvases",
 	["h4", "Canvases"],
-	memo(() => [".canvas-list", ...canvasRows().map(canvasRow)],
-		[state.channelCanvases, state.canvasName, state.currentSlug]),
-	["button", { onclick: newCanvas }, "+ New canvas"],
+	memo(() => inChannel()
+		? [".canvas-list", ...canvasRows().map(canvasRow),
+			["button", { onclick: newCanvas }, "+ New canvas"]]
+		: [".canvas-list"],
+	[state.channelCanvases, state.canvasName, state.currentSlug]),
+	// channelCanvases changes on every load, even when the slug doesn't.
+	memo(() => [".canvas-actions", ...canvasActions()],
+		[state.currentSlug, state.channelCanvases]),
 ];
 
 let logout = ["p", ["button", {

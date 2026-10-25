@@ -22,6 +22,12 @@ export const activateStateAdapter = (id) => {
 
 export const stateAdapter = () => stateAdapters.active();
 
+// A registered adapter by id, e.g. the Are.na adapter while a room is open.
+export const getStateAdapter = (id) => stateAdapters.get(id);
+
+// The adapter that owns `#<prefix>:<id>` URLs.
+export const stateAdapterForPrefix = (prefix) => stateAdapters.byPrefix(prefix);
+
 // The Save button, the "updated" flag and the unsaved-changes prompts only
 // mean something for adapters that save explicitly.
 export const hasUnsavedChanges = () =>
@@ -33,8 +39,9 @@ registerStateAdapter(createArenaAdapter(arena, {
 }));
 activateStateAdapter("arena");
 
+// Identity always comes from Are.na, whichever adapter is open.
 export let try_auth = () => {
-	stateAdapter().me()
+	getStateAdapter("arena").me()
 		.then(res=>{
 			if (res.status == 200) {
 				res.json().then(m => {

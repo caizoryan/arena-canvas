@@ -1,6 +1,13 @@
 import { dom } from "./dom.js";
 import { memo, reactive } from "./chowk.js";
-import { hasUnsavedChanges, stateAdapter, try_auth } from "./adapters/index.js";
+import {
+	activateStateAdapter,
+	getStateAdapter,
+	hasUnsavedChanges,
+	stateAdapter,
+	stateAdapterForPrefix,
+	try_auth,
+} from "./adapters/index.js";
 import { notificationpopup } from "./notification.js";
 import { mountContainer, moveToBlock, saveCanvas } from "./script.js";
 import { controller } from "./plugin.js";
@@ -300,14 +307,14 @@ let showUnsavedChangesModal = (route) => {
 		saveCanvas().then((saved) => {
 			if (!saved) return;
 			closeNavigationModal();
-			set_channel(next.slug, next.name, next.afterLoad);
+			set_channel(next.slug, next.name, next.afterLoad, next.adapterId);
 		});
 	};
 
 	let discardAndNavigate = () => {
 		let next = pendingRoute;
 		closeNavigationModal();
-		set_channel(next.slug, next.name, next.afterLoad);
+		set_channel(next.slug, next.name, next.afterLoad, next.adapterId);
 	};
 
 	navigationModal = dom([
@@ -336,18 +343,26 @@ window.addEventListener("beforeunload", (event) => {
 let currentHash = () =>
 	routeHash(state.currentSlug.value(), state.canvasName.value());
 
-// Open a channel's canvas from a slug, `slug/canvas name`, URL or hash.
-// afterLoad runs once that canvas has rendered.
+// Open a canvas from a slug, `slug/canvas name`, URL or hash. `<prefix>:<id>`
+// opens it with the adapter that owns that prefix (e.g. `room:<roomId>`);
+// everything else is Are.na. afterLoad runs once that canvas has rendered.
 export let try_set_channel = (slugOrURL, afterLoad) => {
 	if (typeof slugOrURL != "string") return;
 
-	let route = parseRoute(slugOrURL);
-	if (route.adapter) {
-		notificationpopup(`Can't open "${route.adapter}:" links yet`, true);
-		if (location.hash != currentHash()) history.replaceState("", "", currentHash());
-		return;
+	let parsed = parseRoute(slugOrURL);
+	let route;
+	if (parsed.adapter) {
+		let adapter = stateAdapterForPrefix(parsed.adapter);
+		if (!adapter || !parsed.id) {
+			notificationpopup(`Can't open "${parsed.adapter}:" links`, true);
+			if (location.hash != currentHash()) history.replaceState("", "", currentHash());
+			return;
+		}
+		route = { slug: `${parsed.adapter}:${parsed.id}`, name: "", adapterId: adapter.id };
+	} else {
+		if (!parsed.slug) return;
+		route = { ...parsed, adapterId: "arena" };
 	}
-	if (!route.slug) return;
 
 	let isOpen = route.slug == state.currentSlug.value() &&
 		route.name == state.canvasName.value();
@@ -361,7 +376,7 @@ export let try_set_channel = (slugOrURL, afterLoad) => {
 		return;
 	}
 
-	set_channel(route.slug, route.name, afterLoad);
+	set_channel(route.slug, route.name, afterLoad, route.adapterId);
 };
 let renderChannel = (blocks) => {
 	controller.setChannelBlocks(blocks);
@@ -383,12 +398,16 @@ let renderChannel = (blocks) => {
 	]);
 };
 
-let set_channel = (slug, name = "", afterLoad) => {
+// Load through the route's adapter, and only switch to it once that worked,
+// so a failed load leaves the open canvas working.
+let set_channel = (slug, name = "", afterLoad, adapterId = "arena") => {
 	notificationpopup("Loading " + slug + "...");
-	let adapter = stateAdapter();
+	let adapter = getStateAdapter(adapterId) ?? stateAdapter();
 	Promise.all([adapter.get_channel_contents(slug), adapter.get_channel(slug)])
 		.then(([res, channel]) => {
 			if (!res.data) {
+				// The URL already points at what failed; put back the open canvas.
+				if (location.hash != currentHash()) history.replaceState("", "", currentHash());
 				notificationpopup([
 					"span",
 					"Failed to get channel " + slug,
@@ -402,6 +421,7 @@ let set_channel = (slug, name = "", afterLoad) => {
 				notificationpopup("Loaded Channel: " + slug);
 				notificationpopup("Total Blocks: " + blocks.length);
 
+				if (stateAdapter() != adapter) activateStateAdapter(adapter.id);
 				state.canvasName.next(name);
 				state.currentSlug.next(slug);
 				if (location.hash != currentHash()) {
@@ -420,6 +440,7 @@ let set_channel = (slug, name = "", afterLoad) => {
 					|| slug;
 				addToRecents(slug, channelTitle);
 				renderChannel(blocks);
+				controller.dispatchHook("canvas:loaded", { slug, name, adapter: adapter.id });
 				afterLoad?.();
 
 				// The channel contents endpoint can return a stale .canvas block.

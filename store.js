@@ -88,6 +88,12 @@ export let createStore = (internal) => {
 
 	let subscriptions = new Map()
 	let childrenEnabled = new Map()
+	// Told about every primitive change, wherever it happened.
+	let observers = new Set()
+	let observe = (fn) => {
+		observers.add(fn)
+		return () => observers.delete(fn)
+	}
 	let conditionalSubscription = new Map()
 
 	let apply = (location, action, value, track = true) => {
@@ -181,6 +187,7 @@ export let createStore = (internal) => {
 		})
 
 		under.forEach(fns => fns.forEach(fn => fn(ref)))
+		observers.forEach(fn => fn(location, action, value))
 		if (!track) resumeTracking()
 	}
 
@@ -216,7 +223,7 @@ export let createStore = (internal) => {
 		return getref(copy, arr[index])
 	}
 	return {
-		apply, tr: apply, get, subscribe,
+		apply, tr: apply, get, subscribe, observe,
 		startBatch, endBatch,
 		doUndo, canUndo, doRedo, canRedo, pauseTracking, resumeTracking, relocate,clearHistory,
 		undo, redo, subscribeHistory

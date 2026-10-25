@@ -68,3 +68,30 @@ test("two adapters cannot share an id", () => {
 	registry.register(adapter("arena"));
 	assert.throws(() => registry.register(adapter("arena")), /arena/);
 });
+
+test("adapters can be found by id and by their URL prefix", () => {
+	const registry = createStateAdapterRegistry();
+	const arena = adapter("arena");
+	const room = { ...adapter("room", "live"), prefix: "room" };
+	registry.register(arena);
+	registry.register(room);
+
+	assert.equal(registry.get("arena"), arena);
+	assert.equal(registry.byPrefix("room"), room);
+	assert.equal(registry.byPrefix("arena"), undefined);
+	assert.equal(registry.get("missing"), undefined);
+});
+
+test("switching adapters tears down the one being left", async () => {
+	const registry = createStateAdapterRegistry();
+	const torndown = [];
+	registry.register({ ...adapter("arena"), teardown: () => torndown.push("arena") });
+	registry.register({ ...adapter("room", "live"), teardown: () => torndown.push("room") });
+
+	registry.activate("arena");
+	registry.activate("arena");
+	registry.activate("room");
+	registry.activate("arena");
+
+	assert.deepEqual(torndown, ["arena", "room"]);
+});

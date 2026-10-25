@@ -3,22 +3,32 @@
 //
 // makeHarness() resolves to:
 //   adapter            the adapter under test
-//   seed(slug, blocks) puts a channel with these blocks in the backend
-//   useCanvas(slug)    makes slug the canvas saveCanvas writes to
+//   seed(name, blocks) puts a channel with these blocks in the backend and
+//                      resolves to the id the adapter knows it by (a slug on
+//                      Are.na, a generated room id for rooms)
+//   useCanvas(id)      makes that channel the canvas saveCanvas writes to
 //   remoteChange?()    makes a collaborator change something (live adapters only)
+//   close?()           releases connections after each test
 import assert from "node:assert/strict";
 import test from "node:test";
 
 export function stateAdapterContract(name, makeHarness) {
-	const it = (title, fn) => test(`${name} adapter: ${title}`, async () => fn(await makeHarness()));
+	const it = (title, fn) => test(`${name} adapter: ${title}`, async () => {
+		const harness = await makeHarness();
+		try {
+			await fn(harness);
+		} finally {
+			await harness.close?.();
+		}
+	});
 
 	it("loads a channel, its contents and a single block", async ({ adapter, seed }) => {
-		seed("garden", [{ title: "Tulip", content: "red" }, { title: "Fern", content: "green" }]);
+		const garden = await seed("garden", [{ title: "Tulip", content: "red" }, { title: "Fern", content: "green" }]);
 
-		const channel = await adapter.get_channel("garden");
-		assert.equal(channel.slug, "garden");
+		const channel = await adapter.get_channel(garden);
+		assert.equal(channel.slug, garden);
 
-		const contents = await adapter.get_channel_contents("garden");
+		const contents = await adapter.get_channel_contents(garden);
 		assert.deepEqual(contents.data.map(b => b.title).sort(), ["Fern", "Tulip"]);
 
 		const tulip = contents.data.find(b => b.title == "Tulip");
@@ -28,19 +38,19 @@ export function stateAdapterContract(name, makeHarness) {
 	});
 
 	it("adds a block to a channel", async ({ adapter, seed }) => {
-		seed("garden", []);
+		const garden = await seed("garden", []);
 
-		const block = await adapter.add_block("garden", "Moss", "soft");
+		const block = await adapter.add_block(garden, "Moss", "soft");
 		assert.ok(block.id);
 
-		const contents = await adapter.get_channel_contents("garden");
+		const contents = await adapter.get_channel_contents(garden);
 		assert.deepEqual(contents.data.map(b => b.title), ["Moss"]);
 		assert.equal(contents.data[0].content.plain, "soft");
 	});
 
 	it("updates a block", async ({ adapter, seed }) => {
-		seed("garden", [{ title: "Tulip", content: "red" }]);
-		const [tulip] = (await adapter.get_channel_contents("garden")).data;
+		const garden = await seed("garden", [{ title: "Tulip", content: "red" }]);
+		const [tulip] = (await adapter.get_channel_contents(garden)).data;
 
 		const res = await adapter.update_block(tulip.id, { title: "Tulip", content: "yellow" });
 		assert.ok(res.ok);
@@ -48,24 +58,24 @@ export function stateAdapterContract(name, makeHarness) {
 	});
 
 	it("connects a block into another channel", async ({ adapter, seed }) => {
-		seed("garden", [{ title: "Tulip", content: "red" }]);
-		seed("vase", []);
-		const [tulip] = (await adapter.get_channel_contents("garden")).data;
+		const garden = await seed("garden", [{ title: "Tulip", content: "red" }]);
+		const vase = await seed("vase", []);
+		const [tulip] = (await adapter.get_channel_contents(garden)).data;
 
-		await adapter.connect_block("vase", tulip.id);
+		await adapter.connect_block(vase, tulip.id);
 
-		const vase = await adapter.get_channel_contents("vase");
-		assert.deepEqual(vase.data.map(b => b.id), [tulip.id]);
+		const contents = await adapter.get_channel_contents(vase);
+		assert.deepEqual(contents.data.map(b => b.id), [tulip.id]);
 	});
 
 	it("disconnects a block from a channel without deleting it", async ({ adapter, seed }) => {
-		seed("garden", [{ title: "Tulip", content: "red" }, { title: "Fern", content: "green" }]);
-		const tulip = (await adapter.get_channel_contents("garden")).data.find(b => b.title == "Tulip");
+		const garden = await seed("garden", [{ title: "Tulip", content: "red" }, { title: "Fern", content: "green" }]);
+		const tulip = (await adapter.get_channel_contents(garden)).data.find(b => b.title == "Tulip");
 
-		const res = await adapter.disconnect_block("garden", tulip.id);
+		const res = await adapter.disconnect_block(garden, tulip.id);
 		assert.ok(res.ok);
 
-		const contents = await adapter.get_channel_contents("garden");
+		const contents = await adapter.get_channel_contents(garden);
 		assert.deepEqual(contents.data.map(b => b.title), ["Fern"]);
 		assert.equal((await adapter.get_block(tulip.id)).title, "Tulip");
 	});
@@ -75,16 +85,16 @@ export function stateAdapterContract(name, makeHarness) {
 	});
 
 	it("saveCanvas stores the canvas so the next load sees it", async ({ adapter, seed, useCanvas }) => {
-		seed("garden", [{ title: "Tulip", content: "red" }]);
-		await useCanvas("garden");
+		const garden = await seed("garden", [{ title: "Tulip", content: "red" }]);
+		await useCanvas(garden);
 
 		const first = { nodes: [{ id: 1, x: 0, y: 0 }], edges: [] };
 		assert.ok((await adapter.saveCanvas(first)).ok);
 		const second = { nodes: [{ id: 1, x: 50, y: 60 }], edges: [] };
 		assert.ok((await adapter.saveCanvas(second)).ok);
 
-		await useCanvas("garden");
-		const canvases = (await adapter.get_channel_contents("garden")).data
+		await useCanvas(garden);
+		const canvases = (await adapter.get_channel_contents(garden)).data
 			.filter(b => b.title == ".canvas");
 		assert.equal(canvases.length, 1);
 		assert.deepEqual(JSON.parse(canvases[0].content.plain), second);

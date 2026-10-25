@@ -35,6 +35,7 @@ import hideUIPlugin from "./plugins/hide-ui.js";
 import groupLayoutPlugin from "./plugins/group-layout.js";
 import pinPlugin from "./plugins/pin.js";
 import moveBlocksPlugin from "./plugins/move-blocks.js";
+import roomsPlugin from "./plugins/room/index.js";
 
 // first order of business
 // 1. Get canvas showing and moving like before
@@ -53,7 +54,7 @@ let checkSlugUrl = (url) => {
 
 export const round = (n, r) => r ? Math.ceil(n / r) * r : n;
 
-let canvasData = () => {
+export let canvasData = () => {
 	let data = {
 		...store.get(["data"]),
 		transform: {
@@ -876,5 +877,6 @@ register(pdfViewer);
 	register(groupLayoutPlugin);
 	register(pinPlugin);
 	register(moveBlocksPlugin);
+register(roomsPlugin);
 
 mount()

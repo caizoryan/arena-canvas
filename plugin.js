@@ -1,5 +1,5 @@
 import { focusBlock } from "./script.js";
-import { registerStateAdapter, stateAdapter } from "./adapters/index.js";
+import { getStateAdapter, registerStateAdapter, stateAdapter } from "./adapters/index.js";
 import { dom } from "./dom.js";
 import { memo, reactive } from "./chowk.js";
 import { getNodeLocation, state, store } from "./state.js";
@@ -241,7 +241,8 @@ export const controller = {
 		return unregister;
 	},
 
-	getStateAdapter: () => stateAdapter(),
+	// The active adapter, or a registered one by id (e.g. "arena").
+	getStateAdapter: (id) => id ? getStateAdapter(id) : stateAdapter(),
 
 	registerHook: (hookName, callback, options = {}) => {
 		if (typeof hookName != "string" || !hookName) {

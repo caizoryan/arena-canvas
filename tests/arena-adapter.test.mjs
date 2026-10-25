@@ -139,7 +139,7 @@ async function harness() {
 	const adapter = createArenaAdapter(api, { getSlug: () => slug, getCanvasName: () => canvasName });
 	return {
 		adapter, server, notices,
-		seed: server.seed,
+		seed: (slug, items) => (server.seed(slug, items), slug),
 		// Opening a canvas loads its channel, as the app does. No name opens
 		// the default canvas.
 		useCanvas: async (next, name = "") => {
