@@ -4,10 +4,13 @@
 import { BlockElement, GroupElement } from "../../block.js";
 import { notificationpopup } from "../../notification.js";
 import { canvasData } from "../../script.js";
+import { reactive, memo } from "../../chowk.js";
 import { addNode, removeNode, state, store, try_set_channel } from "../../state.js";
 import { createRoomAdapter } from "./adapter.js";
 import { createRoomDocument, roomIdOf } from "./document.js";
 import { startMirror } from "./mirror.js";
+import { createIdentity } from "./presence.js";
+import { startPresence } from "./presence-ui.js";
 
 // The deployed dev Room server until production is deployed. Set
 // localStorage "room-server" to use another one.
@@ -89,12 +92,24 @@ export default {
 			nodeElement(node)?.remove();
 		};
 
+		// Who we are in rooms: the Are.na name when logged in, else a generated
+		// name and colour kept in localStorage.
+		let identity = createIdentity({
+			storage: { get: readStorage, set: writeStorage },
+			me: () => state.me,
+		});
+		let people = reactive([]); // everyone else present: { peerId, name, color }
+		let following = reactive(""); // peerId being followed
+		let me = reactive(identity.get());
+		let presence;
+
 		let stopMirror;
 		let stopViewport;
 		let leaveRoom = () => {
 			stopMirror?.();
 			stopViewport?.();
-			stopMirror = stopViewport = undefined;
+			presence?.stop();
+			stopMirror = stopViewport = presence = undefined;
 		};
 
 		controller.registerHook("canvas:loaded", ({ slug }) => {
@@ -124,7 +139,56 @@ export default {
 				clearTimeout(timer);
 				unsubscribers.forEach((unsubscribe) => unsubscribe());
 			};
+
+			startRoomPresence(roomId);
 		});
+
+		let setViewport = (transform) => {
+			state.canvasX.next(transform.x);
+			state.canvasY.next(transform.y);
+			state.canvasScale.next(transform.scale);
+		};
+		let startRoomPresence = (roomId) => {
+			let network = adapter.network(roomId);
+			if (!network) return;
+			me.next(identity.get());
+			presence = startPresence({
+				network,
+				identity,
+				getViewport: currentTransform,
+				setViewport,
+				onViewport: (listener) => {
+					let unsubscribers = [state.canvasX, state.canvasY, state.canvasScale]
+						.map((value) => value.subscribe(listener));
+					return () => unsubscribers.forEach((unsubscribe) => unsubscribe());
+				},
+				people,
+				following,
+			});
+		};
+
+		let rename = () => {
+			let name = prompt("Your name in rooms", identity.get().name);
+			if (name === null || !identity.rename(name)) return;
+			me.next(identity.get());
+			presence?.refresh();
+		};
+
+		// Sidebar: who is here, with a follow button each.
+		let peopleList = memo(() => [
+			".people-list",
+			[".person.you", [
+				"span.presence-swatch", { style: `background:${me.value().color}` },
+			], ["span", me.value().name + " (you)"],
+				...(identity.loggedIn() ? [] : [["button", { onclick: rename }, "rename"]])],
+			...people.value().map((person) => [".person", [
+				"span.presence-swatch", { style: `background:${person.color}` },
+			], ["span", person.name], following.value() == person.peerId
+				? ["button", { onclick: () => presence?.stopFollowing() }, "following"]
+				: ["button", { onclick: () => presence?.follow(person.peerId) }, "follow"]]),
+			...(people.value().length ? [] : [["p.room-note", "Nobody else is here yet."]]),
+		], [people, following, me]);
+		controller.registerUI("people", () => roomIdOf(state.currentSlug.value()) ? peopleList : ["span"]);
 
 		let eject = async () => {
 			let slug = state.currentSlug.value();

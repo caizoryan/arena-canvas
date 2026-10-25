@@ -188,6 +188,14 @@ const canvases = [
 		[state.currentSlug, state.channelCanvases]),
 ];
 
+// Plugins add the people present in the open canvas with
+// registerUI("people", ...). The section is empty outside rooms.
+const people = memo(() => {
+	let parts = controller.getUI("people")
+		.map((component) => typeof component == "function" ? component() : component);
+	return [".section.people", ["h4", "People"], ...parts];
+}, [state.currentSlug]);
+
 let logout = ["p", ["button", {
 	onclick: () => {
 		localStorage.setItem("auth", "");
@@ -245,6 +253,7 @@ export let sidebar = [
 	["h2", "Canvas"],
 	search,
 	canvases,
+	people,
 	authenticate,
 	pluginSettings,
 	monospaceness,
