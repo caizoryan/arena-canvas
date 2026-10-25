@@ -110,6 +110,15 @@ export default {
 				mount,
 				unmount,
 				edgesChanged: () => state.reRenderEdges.next((n) => n + .0001),
+				// Plugins mark the canvas changed when their data does.
+				watchDirty: (schedule) => state.updated.subscribe((saved) => {
+					if (saved === false) schedule();
+				}),
+				// A collaborator's change to a plugin's data: one call per key.
+				pluginDataChanged: (changedSlug, changes) => Object.entries(changes)
+					.forEach(([key, value]) => controller.dispatchHook("plugin-data:changed", {
+						slug: changedSlug, key, value,
+					})),
 			});
 
 			// Remember this person's viewport for the room as they pan and zoom.

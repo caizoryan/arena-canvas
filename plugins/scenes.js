@@ -58,6 +58,11 @@ const Scenes = {
 			scenes.next(isScenesObject(data?.scenes) ? data.scenes : {});
 		});
 
+		// A collaborator in a room changed the scenes.
+		controller.registerHook("plugin-data:changed", ({ key, value }) => {
+			if (key == "scenes") scenes.next(isScenesObject(value) ? value : {});
+		});
+
 		for (let number = 1; number <= 5; number++) {
 			controller.on(String(number), () => loadScene(number), {
 				disable_in_input: true,

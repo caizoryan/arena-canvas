@@ -464,6 +464,45 @@ test("a room opens even when its server answers after the client gave up waiting
 	}
 });
 
+test("a plugin's data change in one client reaches the other through plugin-data:changed", async () => {
+	const h = await harness();
+	try {
+		const scenes = (x) => ({ 1: { x, y: 0, scale: 1 } });
+		const { handle, app, stop } = await openRoom(h, { nodes: [node(1, 0, 0)], edges: [], scenes: scenes(0) });
+		stop();
+		const heard = [];
+		let pluginState = { scenes: scenes(0) };
+		let dirty;
+		const mirror = startMirror({
+			store: app.store, adapter: h.adapter, slug: roomSlug(handle.documentId),
+			getData: () => ({ ...app.store.get(["data"]), ...pluginState }),
+			delay: 0, ...app.callbacks,
+			watchDirty: (schedule) => { dirty = schedule; return () => {}; },
+			pluginDataChanged: (slug, changes) => heard.push(changes),
+		});
+
+		// Local: a plugin marks the canvas dirty after changing its data.
+		pluginState = { scenes: scenes(5) };
+		dirty();
+		await eventually(() => handle.doc().plugins.scenes[1].x == 5);
+		await wait(50);
+		assert.deepEqual(heard, [], "own changes aren't announced");
+
+		// Remote: another client replaces the value whole.
+		handle.change((doc) => { doc.plugins.scenes = { 2: { x: 9, y: 9, scale: 1 } }; });
+		await eventually(() => heard.length == 1);
+		assert.deepEqual(heard[0], { scenes: { 2: { x: 9, y: 9, scale: 1 } } });
+
+		// Unrelated remote changes don't announce plugin data again.
+		handle.change((doc) => { doc.canvas.nodes[1].x = 40; });
+		await eventually(() => app.node(1).x == 40);
+		assert.equal(heard.length, 1);
+		mirror();
+	} finally {
+		await h.close();
+	}
+});
+
 test("the first room opened can be asked for several things at once", async () => {
 	// The app loads a canvas's contents and its channel in parallel.
 	const h = await harness({ fresh: true });
