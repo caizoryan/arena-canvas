@@ -1,0 +1,3 @@
+# Presence bypasses automerge-repo's ephemeral relay
+
+Presence (cursor, viewport, identity) travels as its own message type on the room's WebSocket, and the Durable Object fans each message out directly to the other sockets. We don't use automerge-repo's built-in `Presence`/ephemeral messages because every client re-relays other peers' ephemeral messages back to the server, which drops them: in the `prototype/room-sync` spike 41 of 95 inbound messages (43%) were wasted relays, and inbound WebSocket messages count against the Workers Free plan request quota. The waste grows with the number of people in a room.

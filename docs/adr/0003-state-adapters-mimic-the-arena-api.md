@@ -1,0 +1,3 @@
+# State adapters mimic the Are.na API
+
+State adapters implement the same operations `arena.js` exposes (get channel/contents/block, add/update/connect block, upload, me) and return Are.na-shaped blocks, plus `saveCanvas`, `subscribe(onRemoteChange)` and a `saveMode` of `explicit` or `live`. Adapters are registered through the plugin system; Are.na ships in core and the Room adapter is a plugin. We chose this over a canvas-level interface (`load`, `moveNode`, ...) because it turns the migration of the ~9 direct `arena.js` callers into a mechanical swap and lets existing renderers consume Room blocks unchanged, at the cost of the Room carrying Are.na's data shape.

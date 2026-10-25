@@ -1,0 +1,3 @@
+# The Room document mirrors the store; the store stays the render source
+
+While a room is open, the existing `store` remains what every renderer and plugin reads, and the Room adapter mirrors it to and from the Automerge document: local store transactions become Automerge changes, and remote patches become store transactions tagged as remote-origin. That one flag suppresses echo (remote changes are not sent back) and keeps them out of undo history, which makes undo per-user. Nodes are an array in the store but a map with a `z` field in the document; the conversion lives only at this boundary. We rejected replacing the store with the Automerge document because it would make the whole core and every plugin Automerge-aware.

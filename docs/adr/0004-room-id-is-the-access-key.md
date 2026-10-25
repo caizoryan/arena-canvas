@@ -1,0 +1,3 @@
+# The room id is the access key
+
+For v1, a room has no accounts or auth: its id is the room's Automerge document id (base58, ~128 random bits; confirmed by the `prototype/room-sync` spike) and anyone holding it can read and edit, like an unlisted document link. We rejected verifying Are.na tokens in the Worker because it would make every room connection depend on Are.na and put user tokens on our server; remount still writes to Are.na with the user's own token, so channel permissions are enforced there. A leaked link cannot be revoked except by ejecting into a new room. The `#room:<roomId>` URL form leaves space to add a separate read-only id later.
