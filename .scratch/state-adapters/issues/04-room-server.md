@@ -20,5 +20,5 @@
 - Presence protocol (for ticket 09): text frames. Send `{"type":"presence","presence":…}`; others get `{"type":"presence","peerId","presence"}` and `{"type":"presence-left","peerId"}` when a socket closes.
 - The `Room` is a plain class, not `extends DurableObject`, so Node can construct it.
 - **Local dev is unchecked:** the pinned wrangler 3.78.8 setup is written and all three configs bundle with `wrangler deploy --dry-run`, but `npm run dev:local` hasn't been run. The disk was too full to download workerd. The `FinalizationRegistry` stub replaces the global outright: wasm-bindgen already guards against it being undefined, and another dependency constructs one without a guard.
-- Not deployed: `npm run deploy:dev` needs the maintainer's Cloudflare login.
 - No `package-lock.json` yet; `npm install` in `room-server/` will create one.
+- 2026-10-25: dev Worker deployed (`npm run deploy:dev`) at `wss://arena-canvas-rooms-dev.pashineaaryan.workers.dev`. `node scripts/smoke.js <wss url>` passed against it: two-client sync both ways, concurrent edits, presence fan-out without echo, leave announcements, and a later client loading the room. Remove with `npx wrangler delete --env dev` from `room-server/`.
