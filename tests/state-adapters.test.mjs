@@ -6,7 +6,7 @@ import { createStateAdapterRegistry } from "../adapters/registry.js";
 const adapter = (id, saveMode = "explicit") => ({
 	id, saveMode,
 	get_channel: async () => {}, get_channel_contents: async () => {}, get_block: async () => {},
-	add_block: async () => {}, update_block: async () => {}, connect_block: async () => {},
+	add_block: async () => {}, update_block: async () => {}, connect_block: async () => {}, disconnect_block: async () => {},
 	upload_file: async () => {}, me: async () => {},
 	saveCanvas: async () => ({ ok: true }), subscribe: () => () => {},
 });

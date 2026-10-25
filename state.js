@@ -14,6 +14,13 @@ import { createStore } from "./store.js";
 import { pixelatedLine, svgline, svgrect, svgrectnormal } from "./svg.js";
 import { dragTransforms } from "./dragOperations.js";
 import { mountBoundingBox } from "./bigBoundingBox.js";
+import {
+	canvasTitle,
+	channelCanvases,
+	isHiddenBlock,
+	parseRoute,
+	routeHash,
+} from "./canvases.js";
 
 let normalizeRecent = (entry) => {
 	if (typeof entry == "string" && entry) {
@@ -77,6 +84,10 @@ export let state = {
 
 	recentSlugs: reactive([]),
 	currentSlug: reactive("are-na-canvas"),
+	// The open canvas in the current channel; "" is the default canvas.
+	canvasName: reactive(""),
+	// Every canvas in the current channel, as { name, block }.
+	channelCanvases: reactive([]),
 	selected: reactive([]),
 
 	containerMouseX: reactive(0),
@@ -107,8 +118,6 @@ export let state = {
 	reRenderEdges: reactive(0),
 };
 
-// subscribe to currentSlug to update url
-state.currentSlug.subscribe((slug) => history.pushState("", "", "#" + slug));
 state.currentSlug.subscribe((slug) => addToRecents(slug));
 
 export let store = createStore({
@@ -274,31 +283,31 @@ load_local_storage();
 // Are.na Functions
 // ~~~~~~~~~~~---------
 let navigationModal;
-let pendingChannel;
+let pendingRoute;
 
 let closeNavigationModal = () => {
 	if (navigationModal) navigationModal.remove();
 	navigationModal = undefined;
-	pendingChannel = undefined;
+	pendingRoute = undefined;
 };
 
-let showUnsavedChangesModal = (slug) => {
-	pendingChannel = slug;
+let showUnsavedChangesModal = (route) => {
+	pendingRoute = route;
 	if (navigationModal) return;
 
 	let saveAndNavigate = () => {
-		let nextChannel = pendingChannel;
+		let next = pendingRoute;
 		saveCanvas().then((saved) => {
 			if (!saved) return;
 			closeNavigationModal();
-			set_channel(nextChannel);
+			set_channel(next.slug, next.name, next.afterLoad);
 		});
 	};
 
 	let discardAndNavigate = () => {
-		let nextChannel = pendingChannel;
+		let next = pendingRoute;
 		closeNavigationModal();
-		set_channel(nextChannel);
+		set_channel(next.slug, next.name, next.afterLoad);
 	};
 
 	navigationModal = dom([
@@ -324,29 +333,39 @@ window.addEventListener("beforeunload", (event) => {
 	event.returnValue = "You have unsaved changes. Save or cancel?";
 });
 
-export let try_set_channel = (slugOrURL) => {
+let currentHash = () =>
+	routeHash(state.currentSlug.value(), state.canvasName.value());
+
+// Open a channel's canvas from a slug, `slug/canvas name`, URL or hash.
+// afterLoad runs once that canvas has rendered.
+export let try_set_channel = (slugOrURL, afterLoad) => {
 	if (typeof slugOrURL != "string") return;
 
-	let isUrl = slugOrURL.includes("are.na/");
-	let slug = isUrl
-		? slugOrURL.split("/").filter((e) => e != "").pop()
-		: slugOrURL.trim();
-	if (!slug) return;
+	let route = parseRoute(slugOrURL);
+	if (route.adapter) {
+		notificationpopup(`Can't open "${route.adapter}:" links yet`, true);
+		if (location.hash != currentHash()) history.replaceState("", "", currentHash());
+		return;
+	}
+	if (!route.slug) return;
 
-	if (hasUnsavedChanges() && slug != state.currentSlug.value()) {
+	let isOpen = route.slug == state.currentSlug.value() &&
+		route.name == state.canvasName.value();
+	if (hasUnsavedChanges() && !isOpen) {
 		// A hashchange has already changed the URL by the time this runs. Put it
 		// back until the user chooses Save or Discard in the modal.
-		if (location.hash != "#" + state.currentSlug.value()) {
-			history.replaceState("", "", "#" + state.currentSlug.value());
+		if (location.hash != currentHash()) {
+			history.replaceState("", "", currentHash());
 		}
-		showUnsavedChangesModal(slug);
+		showUnsavedChangesModal({ ...route, afterLoad });
 		return;
 	}
 
-	set_channel(slug);
+	set_channel(route.slug, route.name, afterLoad);
 };
 let renderChannel = (blocks) => {
 	controller.setChannelBlocks(blocks);
+	state.channelCanvases.next(channelCanvases(blocks));
 	updateData(blocks);
 	// A channel with a .canvas block is already saved. Without one, saving
 	// will create the initial .canvas block.
@@ -364,7 +383,7 @@ let renderChannel = (blocks) => {
 	]);
 };
 
-let set_channel = (slug) => {
+let set_channel = (slug, name = "", afterLoad) => {
 	notificationpopup("Loading " + slug + "...");
 	let adapter = stateAdapter();
 	Promise.all([adapter.get_channel_contents(slug), adapter.get_channel(slug)])
@@ -377,12 +396,20 @@ let set_channel = (slug) => {
 				], true);
 			} else {
 				let blocks = res.data;
-				let channelCanvas = blocks.find((block) => block.title == ".canvas");
+				let title = canvasTitle(name);
+				let channelCanvas = blocks.find((block) => block.title == title);
 
 				notificationpopup("Loaded Channel: " + slug);
 				notificationpopup("Total Blocks: " + blocks.length);
 
+				state.canvasName.next(name);
 				state.currentSlug.next(slug);
+				if (location.hash != currentHash()) {
+					history.pushState("", "", currentHash());
+				}
+				if (name && !channelCanvas) {
+					notificationpopup(`No canvas "${name}" yet. Saving creates it.`);
+				}
 				// Some API responses include channel metadata. Keep the slug as a
 				// fallback for older responses and for legacy/local channels.
 				let channelTitle = channel?.title
@@ -393,6 +420,7 @@ let set_channel = (slug) => {
 					|| slug;
 				addToRecents(slug, channelTitle);
 				renderChannel(blocks);
+				afterLoad?.();
 
 				// The channel contents endpoint can return a stale .canvas block.
 				// Fetch the block directly and refresh the canvas in the background
@@ -684,7 +712,8 @@ let svgBackground = () => {
 };
 
 let updateData = (blocks) => {
-	state.dot_canvas = blocks.find((e) => e.title == ".canvas");
+	let title = canvasTitle(state.canvasName.value());
+	state.dot_canvas = blocks.find((e) => e.title == title);
 	if (state.dot_canvas) {
 		let parsed = JSON.parse(state.dot_canvas.content.plain);
 		controller.dispatchHook("canvas:deserialize", {
@@ -761,7 +790,7 @@ let updateData = (blocks) => {
 			hasCanvas: false,
 			blocks,
 		});
-		let nodes = blocks.filter((e) => e.title != ".canvas")
+		let nodes = blocks.filter((e) => !isHiddenBlock(e))
 			.map(constructBlockData);
 
 		setNodes(nodes);
@@ -769,7 +798,7 @@ let updateData = (blocks) => {
 };
 
 let processBlockForRendering = (blocks) => {
-	blocks = blocks.filter((e) => e.title != ".canvas");
+	blocks = blocks.filter((e) => !isHiddenBlock(e));
 	return blocks;
 };
 

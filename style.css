@@ -1094,6 +1094,34 @@ textarea {
 	box-shadow: 3px 3px 0 rgba(0, 0, 0, .3);
 }
 
+.canvas-list {
+	display: flex;
+	flex-direction: column;
+	gap: .4em;
+	margin-bottom: .4em;
+}
+
+.canvas-row {
+	display: flex;
+	gap: .3em;
+	align-items: center;
+}
+
+.canvas-row .canvas-link {
+	flex: 1;
+	min-width: 0;
+	overflow: hidden;
+}
+
+.canvas-link[open='true'] {
+	background: var(--background2);
+	font-weight: bold;
+}
+
+.section.canvases button {
+	border: 1.5px solid var(--highlight);
+}
+
 .group .label {
 	border-bottom: 1px solid black;
 	max-width: 400px;

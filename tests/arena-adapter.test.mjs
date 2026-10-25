@@ -16,6 +16,7 @@ function fakeArena() {
 	const blocks = new Map();
 	const requests = [];
 	let nextId = 100;
+	let nextConnection = 9000;
 	const failures = new Map(); // "METHOD path" -> status
 
 	const json = (body, status = 200) => new Response(JSON.stringify(body), {
@@ -27,12 +28,19 @@ function fakeArena() {
 		updated_at: new Date(0).toISOString(),
 	});
 
+	// Each block in a channel is there through a connection with its own id.
+	const connect = (slug, id) => {
+		const channel = channels.get(slug);
+		channel.ids.push(id);
+		channel.connections.set(id, nextConnection++);
+	};
+
 	const seed = (slug, items) => {
-		channels.set(slug, { slug, title: slug, ids: [] });
+		channels.set(slug, { slug, title: slug, ids: [], connections: new Map() });
 		items.forEach(({ title, content }) => {
 			const block = makeBlock(title, content);
 			blocks.set(block.id, block);
-			channels.get(slug).ids.push(block.id);
+			connect(slug, block.id);
 		});
 	};
 
@@ -48,7 +56,8 @@ function fakeArena() {
 		if ((match = path.match(/^channels\/([^/]+)\/contents$/))) {
 			const channel = channels.get(decodeURIComponent(match[1]));
 			if (!channel) return json({ error: "not found" }, 404);
-			return json({ data: channel.ids.map(id => blocks.get(id)).reverse(), meta: { has_more_pages: false } });
+			const data = channel.ids.map(id => ({ ...blocks.get(id), connection: { id: channel.connections.get(id) } }));
+			return json({ data: data.reverse(), meta: { has_more_pages: false } });
 		}
 		if ((match = path.match(/^channels\/([^/]+)$/))) {
 			const channel = channels.get(decodeURIComponent(match[1]));
@@ -57,7 +66,7 @@ function fakeArena() {
 		if (path == "blocks" && method == "POST") {
 			const block = makeBlock(body.title, body.value);
 			blocks.set(block.id, block);
-			body.channel_ids.forEach(slug => channels.get(slug).ids.push(block.id));
+			body.channel_ids.forEach(slug => connect(slug, block.id));
 			return json(block);
 		}
 		if ((match = path.match(/^blocks\/(\d+)$/))) {
@@ -72,8 +81,17 @@ function fakeArena() {
 			return json(block);
 		}
 		if (path == "connections") {
-			body.channels.forEach(({ id }) => channels.get(id).ids.push(body.connectable_id));
+			body.channels.forEach(({ id }) => connect(id, body.connectable_id));
 			return json({ ok: true });
+		}
+		if ((match = path.match(/^connections\/(\d+)$/)) && method == "DELETE") {
+			const id = Number(match[1]);
+			const channel = [...channels.values()].find(c => [...c.connections.values()].includes(id));
+			if (!channel) return json({ error: "not found" }, 404);
+			const [blockId] = [...channel.connections].find(([, conn]) => conn == id);
+			channel.ids = channel.ids.filter(other => other != blockId);
+			channel.connections.delete(blockId);
+			return new Response(null, { status: 204 });
 		}
 		if (path == "uploads/presign") {
 			return json({ files: [{
@@ -117,15 +135,20 @@ async function harness() {
 	const server = fakeArena();
 	const { api, notices } = loadArena(server);
 	let slug;
-	const adapter = createArenaAdapter(api, { getSlug: () => slug });
+	let canvasName = "";
+	const adapter = createArenaAdapter(api, { getSlug: () => slug, getCanvasName: () => canvasName });
 	return {
 		adapter, server, notices,
 		seed: server.seed,
-		// Opening a canvas loads its channel, as the app does.
-		useCanvas: async (next) => {
+		// Opening a canvas loads its channel, as the app does. No name opens
+		// the default canvas.
+		useCanvas: async (next, name = "") => {
 			slug = next;
+			canvasName = name;
 			await adapter.get_channel_contents(next);
 		},
+		canvasTitles: slug => server.channels.get(slug).ids
+			.map(id => server.blocks.get(id).title).filter(title => title.startsWith(".canvas")).sort(),
 	};
 }
 
@@ -145,7 +168,7 @@ test("Are.na adapter passes blocks, me and uploads straight through", async () =
 	const { adapter, seed } = await harness();
 	seed("garden", [{ title: "Tulip", content: "red" }]);
 	const [block] = (await adapter.get_channel_contents("garden")).data;
-	assert.deepEqual(Object.keys(block).sort(), ["content", "description", "id", "title", "type", "updated_at"]);
+	assert.deepEqual(Object.keys(block).sort(), ["connection", "content", "description", "id", "title", "type", "updated_at"]);
 	assert.equal((await (await adapter.me()).json()).slug, "gardener");
 	assert.equal(await adapter.upload_file({ name: "a.png", type: "image/png", arrayBuffer: async () => new ArrayBuffer(1) }),
 		"https://uploads.test/a.png");
@@ -217,4 +240,64 @@ test("a rejected save reports the status instead of throwing", async () => {
 	server.fail(`PUT blocks/${server.channels.get("garden").ids[0]}`, 401);
 
 	assert.deepEqual(await adapter.saveCanvas({ nodes: [] }), { ok: false, status: 401 });
+});
+
+test("a named canvas saves to its own .canvas:<name> block, leaving the default alone", async () => {
+	const { adapter, seed, useCanvas, canvasTitles, server } = await harness();
+	seed("garden", [{ title: ".canvas", content: "{\"nodes\":[]}" }]);
+	await useCanvas("garden", "spring plan");
+
+	const first = await adapter.saveCanvas({ nodes: [1] });
+	const second = await adapter.saveCanvas({ nodes: [2] });
+
+	assert.equal(first.created, true);
+	assert.equal(second.created, false);
+	assert.equal(second.block.id, first.block.id);
+	assert.deepEqual(canvasTitles("garden"), [".canvas", ".canvas:spring plan"]);
+	const def = [...server.blocks.values()].find(b => b.title == ".canvas");
+	assert.equal(def.content.plain, "{\"nodes\":[]}");
+	assert.equal(server.blocks.get(first.block.id).content.plain, JSON.stringify({ nodes: [2] }));
+});
+
+test("opening a named canvas saves to that canvas, not the first .canvas block", async () => {
+	const { adapter, seed, useCanvas, server } = await harness();
+	seed("garden", [{ title: ".canvas", content: "{}" }, { title: ".canvas:b", content: "{}" }]);
+	await useCanvas("garden", "b");
+	const named = [...server.blocks.values()].find(b => b.title == ".canvas:b");
+
+	await adapter.saveCanvas({ nodes: [] });
+
+	assert.equal(server.requests.find(r => r.method == "PUT").path, `blocks/${named.id}`);
+	assert.equal(server.requests.find(r => r.method == "PUT").body.title, ".canvas:b");
+});
+
+test("renaming a canvas block keeps saves going to it under its new name", async () => {
+	const { adapter, seed, useCanvas, server, canvasTitles } = await harness();
+	seed("garden", [{ title: ".canvas:old", content: "{}" }]);
+	await useCanvas("garden", "old");
+	const block = [...server.blocks.values()][0];
+
+	assert.ok((await adapter.update_block(block.id, { title: ".canvas:new" })).ok);
+	await useCanvas("garden", "new");
+	// The contents endpoint can lag behind; the adapter must not rely on it here.
+	server.blocks.get(block.id).title = ".canvas:old";
+	const result = await adapter.saveCanvas({ nodes: [] });
+
+	assert.equal(result.created, false);
+	assert.equal(result.block.id, block.id);
+	assert.deepEqual(canvasTitles("garden"), [".canvas:new"]);
+});
+
+test("disconnecting a canvas removes it from the channel through its connection", async () => {
+	const { adapter, seed, useCanvas, server } = await harness();
+	seed("garden", [{ title: ".canvas", content: "{}" }, { title: ".canvas:b", content: "{}" }]);
+	await useCanvas("garden");
+	const named = [...server.blocks.values()].find(b => b.title == ".canvas:b");
+	const connection = server.channels.get("garden").connections.get(named.id);
+
+	assert.ok((await adapter.disconnect_block("garden", named.id)).ok);
+
+	assert.ok(server.requests.some(r => r.method == "DELETE" && r.path == `connections/${connection}`));
+	await useCanvas("garden", "b");
+	assert.equal((await adapter.saveCanvas({ nodes: [] })).created, true);
 });

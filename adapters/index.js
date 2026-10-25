@@ -29,6 +29,7 @@ export const hasUnsavedChanges = () =>
 
 registerStateAdapter(createArenaAdapter(arena, {
 	getSlug: () => state.currentSlug.value(),
+	getCanvasName: () => state.canvasName.value(),
 }));
 activateStateAdapter("arena");
 

@@ -194,3 +194,15 @@ export const get_channel_contents = async (slug, page = 1, per = 100) => {
 			return json
 		})
 }
+
+// Removes a block or channel from a channel. Takes the connection id from the
+// block's `connection` in channel contents; the block itself is not deleted.
+export const disconnect_connection = async (connection_id) => {
+	return fetch(host3 + `connections/${connection_id}`, {
+		headers: headers(),
+		method: "DELETE",
+	}).then((res) => {
+		logRateLimitData(res);
+		return res;
+	});
+};

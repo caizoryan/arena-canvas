@@ -1,7 +1,10 @@
 import { memo } from "./chowk.js";
 import { dom } from "./dom.js";
 import { state, try_set_channel } from "./state.js";
-import { try_auth } from "./adapters/index.js";
+import { stateAdapter, try_auth } from "./adapters/index.js";
+import { canvasTitle, routeHash } from "./canvases.js";
+import { notificationpopup } from "./notification.js";
+import { saveCanvas } from "./script.js";
 import { experimentalPlugins } from "./plugin.js";
 
 let query = "";
@@ -67,6 +70,111 @@ const search = [
 	}, [state.recentSlugs]),
 ];
 
+// ~~~~~~~~~~~~~~
+// Canvases of the current channel
+// ~~~~~~~~~~~~~~
+let askCanvasName = (message, current = "") => {
+	let name = prompt(message, current)?.trim();
+	if (!name || name == current) return;
+	if (state.channelCanvases.value().some((canvas) => canvas.name == name)) {
+		notificationpopup(`A canvas named "${name}" already exists`, true);
+		return;
+	}
+	return name;
+};
+
+let openCanvas = (name) =>
+	try_set_channel(routeHash(state.currentSlug.value(), name));
+
+// A new canvas opens with the channel's blocks auto-placed and is saved
+// straight away, which creates its .canvas:<name> block.
+let newCanvas = () => {
+	let name = askCanvasName("Name the new canvas");
+	if (!name) return;
+	try_set_channel(routeHash(state.currentSlug.value(), name), () => saveCanvas());
+};
+
+let renameCanvas = ({ name, block }) => {
+	let next = askCanvasName("Rename canvas", name);
+	if (!next) return;
+	stateAdapter().update_block(block.id, { title: canvasTitle(next) }).then((res) => {
+		if (!res.ok) {
+			notificationpopup("Couldn't rename canvas: " + res.status, true);
+			return;
+		}
+		state.channelCanvases.next((canvases) => canvases.map((canvas) =>
+			canvas.block?.id == block.id ? { name: next, block } : canvas));
+		if (state.canvasName.value() == name) {
+			state.canvasName.next(next);
+			history.replaceState("", "", routeHash(state.currentSlug.value(), next));
+		}
+		notificationpopup(`Renamed to "${next}"`);
+	});
+};
+
+// Deleting disconnects the canvas block from the channel; Are.na keeps the
+// block itself.
+let deleteCanvas = ({ name, block }) => {
+	if (!confirm(`Delete the canvas "${name}"? It is removed from this channel.`)) return;
+	let slug = state.currentSlug.value();
+	stateAdapter().disconnect_block(slug, block.id).then((res) => {
+		if (!res.ok) {
+			notificationpopup("Couldn't delete canvas: " + res.status, true);
+			return;
+		}
+		state.channelCanvases.next((canvases) =>
+			canvases.filter((canvas) => canvas.block?.id != block.id));
+		notificationpopup(`Deleted "${name}"`);
+		if (state.canvasName.value() == name) {
+			// Its unsaved changes went with it.
+			state.updated.next(true);
+			openCanvas("");
+		}
+	});
+};
+
+// The default canvas is always listed, and so is the open canvas before its
+// first save.
+let canvasRows = () => {
+	let canvases = state.channelCanvases.value();
+	let open = state.canvasName.value();
+	let rows = [...canvases];
+	if (!rows.some((canvas) => canvas.name == "")) rows.unshift({ name: "" });
+	if (!rows.some((canvas) => canvas.name == open)) rows.push({ name: open });
+	return rows;
+};
+
+let canvasRow = (canvas) => {
+	let { name, block } = canvas;
+	let open = name == state.canvasName.value();
+	return [
+		".canvas-row",
+		["a.recent-slug.canvas-link", {
+			href: routeHash(state.currentSlug.value(), name),
+			title: name || "Default canvas",
+			open,
+			onclick: (event) => {
+				event.preventDefault();
+				openCanvas(name);
+			},
+		}, slicer(name || "Default", 30)],
+		...(name && block
+			? [
+				["button", { onclick: () => renameCanvas(canvas) }, "rename"],
+				["button", { onclick: () => deleteCanvas(canvas) }, "delete"],
+			]
+			: []),
+	];
+};
+
+const canvases = [
+	".section.canvases",
+	["h4", "Canvases"],
+	memo(() => [".canvas-list", ...canvasRows().map(canvasRow)],
+		[state.channelCanvases, state.canvasName, state.currentSlug]),
+	["button", { onclick: newCanvas }, "+ New canvas"],
+];
+
 let logout = ["p", ["button", {
 	onclick: () => {
 		localStorage.setItem("auth", "");
@@ -123,6 +231,7 @@ export let sidebar = [
 	{ open: state.sidebarOpen },
 	["h2", "Canvas"],
 	search,
+	canvases,
 	authenticate,
 	pluginSettings,
 	monospaceness,

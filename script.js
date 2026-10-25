@@ -261,6 +261,13 @@ export let saveCanvas = () => {
 	return adapter.saveCanvas(canvasData()).then((result) => {
 		if (result.ok) {
 			state.dot_canvas = result.block;
+			if (result.created) {
+				let name = state.canvasName.value();
+				state.channelCanvases.next((canvases) => [
+					...canvases.filter((canvas) => canvas.name != name),
+					{ name, block: result.block },
+				]);
+			}
 			notificationpopup(result.created ? "Saved 👍" : "Updated 👍");
 			state.updated.next(true);
 			return true;

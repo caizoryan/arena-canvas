@@ -1,4 +1,5 @@
 import { stateAdapter } from "../adapters/index.js";
+import { isHiddenBlock } from "../canvases.js";
 import { dom } from "../dom.js";
 
 const CONTENTS_PER_PAGE = 8;
@@ -58,7 +59,7 @@ const fetchPreviews = (slug) => {
 		.then((response) => {
 			if (!Array.isArray(response?.data)) throw new Error("Channel contents unavailable");
 			return response.data
-				.filter((block) => block.title != ".canvas")
+				.filter((block) => !isHiddenBlock(block))
 				.slice(0, MAX_PREVIEWS);
 		})
 		.catch((error) => {

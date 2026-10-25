@@ -58,6 +58,18 @@ export function stateAdapterContract(name, makeHarness) {
 		assert.deepEqual(vase.data.map(b => b.id), [tulip.id]);
 	});
 
+	it("disconnects a block from a channel without deleting it", async ({ adapter, seed }) => {
+		seed("garden", [{ title: "Tulip", content: "red" }, { title: "Fern", content: "green" }]);
+		const tulip = (await adapter.get_channel_contents("garden")).data.find(b => b.title == "Tulip");
+
+		const res = await adapter.disconnect_block("garden", tulip.id);
+		assert.ok(res.ok);
+
+		const contents = await adapter.get_channel_contents("garden");
+		assert.deepEqual(contents.data.map(b => b.title), ["Fern"]);
+		assert.equal((await adapter.get_block(tulip.id)).title, "Tulip");
+	});
+
 	it("declares how it saves", async ({ adapter }) => {
 		assert.ok(["explicit", "live"].includes(adapter.saveMode));
 	});

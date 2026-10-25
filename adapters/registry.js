@@ -2,7 +2,7 @@
 // time; core loads and saves through it.
 const OPERATIONS = [
 	"get_channel", "get_channel_contents", "get_block", "add_block",
-	"update_block", "connect_block", "upload_file", "me",
+	"update_block", "connect_block", "disconnect_block", "upload_file", "me",
 	"saveCanvas", "subscribe",
 ];
 const SAVE_MODES = ["explicit", "live"];
