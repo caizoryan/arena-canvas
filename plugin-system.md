@@ -406,6 +406,7 @@ The PDF plugin can use `focusBlock` after opening or selecting a target block. A
 
 - `canvas:serialize`
 - `canvas:deserialize`
+- `plugin-data:changed`
 - `canvas:before-save`
 - `canvas:saved`
 - `canvas:save-error`
@@ -420,6 +421,8 @@ The PDF plugin can use `focusBlock` after opening or selecting a target block. A
 - `transaction` with changed paths and undo label.
 - `error`, if applicable.
 - `controller`.
+
+`plugin-data:changed` fires in a Room when a collaborator changes a plugin's data, once per changed key, with `{ slug, key, value }` (`value` is undefined when the key was removed). A plugin's data is one opaque, last-writer-wins value per key, written whole whenever the canvas is marked changed (`controller.markDirty()`). Are.na canvases keep using `canvas:serialize`/`canvas:deserialize`; those hooks also supply and load plugin data in a Room.
 
 **Current seam:** `canvasData`/`saveCanvasToArena` in `script.js`, `updateData` in `state.js`, and the transaction/history methods in `store.js`.
 
