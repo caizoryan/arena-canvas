@@ -1,7 +1,7 @@
 import { memo } from "./chowk.js";
 import { dom } from "./dom.js";
 import { state, try_set_channel } from "./state.js";
-import { try_auth } from "./arena.js";
+import { try_auth } from "./adapters/index.js";
 import { experimentalPlugins } from "./plugin.js";
 
 let query = "";

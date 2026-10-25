@@ -27,7 +27,7 @@ export const createArenaAdapter = (api, { getSlug }) => {
 				title: ".canvas",
 				description,
 			});
-			if (res.ok) return { ok: true, block: canvas };
+			if (res.ok) return { ok: true, created: false, block: canvas };
 			if (res.status == 404) {
 				canvasBlocks.delete(slug);
 				return saveCanvas(data);
@@ -38,7 +38,7 @@ export const createArenaAdapter = (api, { getSlug }) => {
 		let block = await api.add_block(slug, ".canvas", content);
 		if (!block?.id) return { ok: false };
 		canvasBlocks.set(slug, block);
-		return { ok: true, block };
+		return { ok: true, created: true, block };
 	};
 
 	// Look operations up on call: the adapter is created while arena.js may

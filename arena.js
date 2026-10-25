@@ -194,19 +194,3 @@ export const get_channel_contents = async (slug, page = 1, per = 100) => {
 			return json
 		})
 }
-export let try_auth = () => {
-	me()
-		.then(res=>{
-			if (res.status == 200) {
-				res.json().then(m => {
-					Object.assign(state.me, m)
-					state.authSlug.next(m.slug)
-					notificationpopup('Authenticated as: ' + m.slug)
-				})
-			}
-			else {
-				console.log("Auth failed: ", res.status, res)
-				notificationpopup("Auth failed: " + res.status, true)
-			}
-		})
-}

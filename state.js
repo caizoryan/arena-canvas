@@ -1,8 +1,8 @@
 import { dom } from "./dom.js";
 import { memo, reactive } from "./chowk.js";
-import { get_block, get_channel, get_channel_contents, try_auth } from "./arena.js";
+import { hasUnsavedChanges, stateAdapter, try_auth } from "./adapters/index.js";
 import { notificationpopup } from "./notification.js";
-import { mountContainer, moveToBlock, saveCanvasToArena } from "./script.js";
+import { mountContainer, moveToBlock, saveCanvas } from "./script.js";
 import { controller } from "./plugin.js";
 import {
 	BlockElement,
@@ -288,7 +288,7 @@ let showUnsavedChangesModal = (slug) => {
 
 	let saveAndNavigate = () => {
 		let nextChannel = pendingChannel;
-		saveCanvasToArena().then((saved) => {
+		saveCanvas().then((saved) => {
 			if (!saved) return;
 			closeNavigationModal();
 			set_channel(nextChannel);
@@ -319,7 +319,7 @@ let showUnsavedChangesModal = (slug) => {
 // Browsers do not allow custom application modals during beforeunload. This
 // triggers the browser's native unsaved-changes confirmation instead.
 window.addEventListener("beforeunload", (event) => {
-	if (state.updated.value()) return;
+	if (!hasUnsavedChanges()) return;
 	event.preventDefault();
 	event.returnValue = "You have unsaved changes. Save or cancel?";
 });
@@ -333,7 +333,7 @@ export let try_set_channel = (slugOrURL) => {
 		: slugOrURL.trim();
 	if (!slug) return;
 
-	if (!state.updated.value() && slug != state.currentSlug.value()) {
+	if (hasUnsavedChanges() && slug != state.currentSlug.value()) {
 		// A hashchange has already changed the URL by the time this runs. Put it
 		// back until the user chooses Save or Discard in the modal.
 		if (location.hash != "#" + state.currentSlug.value()) {
@@ -366,7 +366,8 @@ let renderChannel = (blocks) => {
 
 let set_channel = (slug) => {
 	notificationpopup("Loading " + slug + "...");
-	Promise.all([get_channel_contents(slug), get_channel(slug)])
+	let adapter = stateAdapter();
+	Promise.all([adapter.get_channel_contents(slug), adapter.get_channel(slug)])
 		.then(([res, channel]) => {
 			if (!res.data) {
 				notificationpopup([
@@ -397,7 +398,7 @@ let set_channel = (slug) => {
 				// Fetch the block directly and refresh the canvas in the background
 				// when its timestamp differs.
 				if (channelCanvas?.id) {
-					get_block(channelCanvas.id).then((currentCanvas) => {
+					adapter.get_block(channelCanvas.id).then((currentCanvas) => {
 						if (
 							!currentCanvas ||
 							currentCanvas.updated_at == channelCanvas.updated_at

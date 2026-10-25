@@ -1,4 +1,4 @@
-import { update_block } from "../arena.js";
+import { stateAdapter } from "../adapters/index.js";
 import { memo, reactive } from "../chowk.js";
 import { dom } from "../dom.js";
 import { MD } from "../md.js";
@@ -82,7 +82,7 @@ const TextBlock = (block) => {
 
 	let saveBlock = () => {
 		attributes.edit.next(false);
-		update_block(block.id, { content: value })
+		stateAdapter().update_block(block.id, { content: value })
 			.then((res) => {
 				if (res.ok) {
 					notificationpopup("Updated 👍");

@@ -133,7 +133,7 @@ stateAdapterContract("Are.na", harness);
 
 test("Are.na adapter exposes every operation of the Are.na module", async () => {
 	const { adapter } = await harness();
-	const operations = arenaExports.filter(name => name != "try_auth");
+	const operations = arenaExports;
 	assert.ok(operations.length >= 8);
 	operations.forEach(name => assert.equal(typeof adapter[name], "function", name));
 	assert.equal(adapter.id, "arena");
@@ -159,6 +159,7 @@ test("first save of a channel without a canvas creates the .canvas block", async
 	const result = await adapter.saveCanvas({ nodes: [] });
 
 	assert.ok(result.ok);
+	assert.equal(result.created, true);
 	assert.equal(result.block.title, ".canvas");
 	const create = server.requests.find(r => r.method == "POST" && r.path == "blocks");
 	assert.deepEqual(create.body.channel_ids, ["garden"]);
@@ -171,7 +172,9 @@ test("saving an existing canvas updates its block with the Are.na Canvas descrip
 	await useCanvas("garden");
 	const [canvas] = [...server.blocks.values()];
 
-	assert.ok((await adapter.saveCanvas({ nodes: [] })).ok);
+	const result = await adapter.saveCanvas({ nodes: [] });
+	assert.ok(result.ok);
+	assert.equal(result.created, false);
 
 	const update = server.requests.find(r => r.method == "PUT");
 	assert.equal(update.path, `blocks/${canvas.id}`);

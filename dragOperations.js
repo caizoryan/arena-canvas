@@ -10,7 +10,7 @@ import {
 } from "./block.js";
 import { controller } from "./plugin.js";
 import { addNode, state, store } from "./state.js";
-import { add_block } from "./arena.js";
+import { stateAdapter } from "./adapters/index.js";
 
 let anchor = undefined;
 
@@ -113,7 +113,7 @@ export let dragOperations = {
 		if (dragAction == "making-block") {
 			dragAction = "pan";
 			if (width < 150 || height < 150) return;
-			add_block(state.currentSlug.value(), "", "# New Block")
+			stateAdapter().add_block(state.currentSlug.value(), "", "# New Block")
 				.then((res) => {
 					let newBlock = constructBlockData(res, { x, y, width, height });
 					addNode(newBlock);

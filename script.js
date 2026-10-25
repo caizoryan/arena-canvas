@@ -12,8 +12,7 @@ import { Keymanager } from "./keymanager.js";
 import { sidebar } from "./sidebar.js";
 import { dragOperations } from "./dragOperations.js";
 import { notificationpopup } from "./notification.js";
-import { add_block, add_file, add_link, connect_block, get_block,
-	update_block } from "./arena.js";
+import { saveMode, stateAdapter } from "./adapters/index.js";
 import {
 	BlockElement,
 	blockContextMenuItems,
@@ -103,12 +102,12 @@ let pasteInBlock = () => {
 				}
 
 				console.log("will connect block: ", id, " to slug");
-				connect_block(state.currentSlug.value(), id)
+				stateAdapter().connect_block(state.currentSlug.value(), id)
 					.then(async (response) => {
 						// v3 returns connection resources (`data` is an array), not
 						// the connected block. Fetch the block for rendering.
 						let block = response?.data || response;
-						if (!block?.type || !block?.id) block = await get_block(id);
+						if (!block?.type || !block?.id) block = await stateAdapter().get_block(id);
 						if (!block?.id) throw new Error("Connected block was not returned");
 
 						let newBlock = constructBlockData(block, {
@@ -127,7 +126,7 @@ let pasteInBlock = () => {
 						notificationpopup("Failed to add block", true);
 					});
 			} else if (link_is_url(res)) {
-				add_link(state.currentSlug.value(), res.trim())
+				stateAdapter().add_link(state.currentSlug.value(), res.trim())
 					.then((block) => {
 						console.log("BLock?", block);
 						let newBlock = constructBlockData(block, {
@@ -154,7 +153,7 @@ let copySelection = () => {
 };
 
 let uploadDroppedFile = (file, index = 0) => {
-	return add_file(state.currentSlug.value(), file)
+	return stateAdapter().add_file(state.currentSlug.value(), file)
 		.then((block) => {
 			if (!block?.id) {
 				notificationpopup(`Failed to create block for ${file.name}`, true);
@@ -193,7 +192,7 @@ let uploadDroppedFiles = (files) => {
 
 let refetchProcessingFile = (blockId, element) => {
 	setTimeout(() => {
-		get_block(blockId).then((block) => {
+		stateAdapter().get_block(blockId).then((block) => {
 			if (!block) return;
 			if (block.state == "processing") {
 				refetchProcessingFile(blockId, element);
@@ -254,42 +253,25 @@ let escape = () => {
 	});
 };
 
-export let saveCanvasToArena = () => {
-	let content = JSON.stringify(canvasData());
-	if (state.dot_canvas?.id) {
-		let description =
-			`This block was made using [Are.na Canvas](http://canvas.a-p.space). You can view this channel as a canvas [here](http://canvas.a-p.space/#${state.currentSlug.value()})`;
-		return update_block(state.dot_canvas.id, {
-			content,
-			title: ".canvas",
-			description,
-		})
-			.then((res) => {
-				if (res.ok) {
-					notificationpopup("Updated 👍");
-					state.updated.next(true);
-					return true;
-				} else if (res.status == 404) {
-					state.dot_canvas = undefined;
-					return saveCanvasToArena();
-				} else if (res.status == 401) {
-					notificationpopup("Failed: Unauthorized :( ", true);
-				} else notificationpopup("Failed :( status: " + res.status, true);
-				return false;
-			});
-	} else {
-		return add_block(state.currentSlug.value(), ".canvas", content).then((res) => {
-			if (res?.id) {
-				state.dot_canvas = res;
-				notificationpopup("Saved 👍");
-				state.updated.next(true);
-				return true;
-			} else if (!res) {
-				notificationpopup("Failed to save :(", true);
-			}
-			return false;
-		});
-	}
+export let saveCanvas = () => {
+	let adapter = stateAdapter();
+	// Live adapters persist every change as it happens.
+	if (adapter.saveMode != "explicit") return Promise.resolve(true);
+
+	return adapter.saveCanvas(canvasData()).then((result) => {
+		if (result.ok) {
+			state.dot_canvas = result.block;
+			notificationpopup(result.created ? "Saved 👍" : "Updated 👍");
+			state.updated.next(true);
+			return true;
+		}
+		if (result.status == 401) {
+			notificationpopup("Failed: Unauthorized :( ", true);
+		} else if (result.status) {
+			notificationpopup("Failed :( status: " + result.status, true);
+		}
+		return false;
+	});
 };
 
 // ---------------------
@@ -309,8 +291,9 @@ export const CSSTransformNoUnit = (x, y, width, height) => {
 };
 
 let openbtn = button(["span", "SIDEBAR ", ["code", "⌘E"]], toggleSidebar);
-let savebtn = button(["span", "SAVE ", ["code", "⌘S"]], saveCanvasToArena, {
+let savebtn = button(["span", "SAVE ", ["code", "⌘S"]], saveCanvas, {
 	updated: state.updated,
+	style: memo(() => saveMode.value() == "explicit" ? "" : "display: none", [saveMode]),
 });
 
 let helpbtn = button(
@@ -838,8 +821,8 @@ keys.on("escape", escape, { modifiers: false, disable_in_input: true });
 keys.on("b", vistLast, { modifiers: false, disable_in_input: true });
 keys.on("t", toggleTrackingMode, disableInput);
 
-keys.on("cmd + s", saveCanvasToArena, prevent);
-keys.on("ctrl + s", saveCanvasToArena, prevent);
+keys.on("cmd + s", saveCanvas, prevent);
+keys.on("ctrl + s", saveCanvas, prevent);
 
 keys.on("shift + ]",  increaseSnapSize, disableInputAndPrevent);
 keys.on("shift + [", decreaseSnapSize, disableInputAndPrevent);

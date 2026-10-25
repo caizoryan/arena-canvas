@@ -1,4 +1,4 @@
-import { add_block } from "./arena.js";
+import { stateAdapter } from "./adapters/index.js";
 import { memo, reactive } from "./chowk.js";
 import { dom } from "./dom.js";
 import { drag } from "./drag.js";
@@ -204,7 +204,7 @@ export function BlockElement(block) {
 
 	let onstart = (e) => {
 		if (e.altKey) {
-			add_block(
+			stateAdapter().add_block(
 				state.currentSlug.value(),
 				"",
 				store.get(getNodeLocation(block.id).concat(["text"])),

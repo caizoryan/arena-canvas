@@ -1,4 +1,4 @@
-import { get_channel_contents } from "../arena.js";
+import { stateAdapter } from "../adapters/index.js";
 import { dom } from "../dom.js";
 
 const CONTENTS_PER_PAGE = 8;
@@ -54,7 +54,7 @@ const fetchPreviews = (slug) => {
 	let request = channelRequests.get(slug);
 	if (request) return request;
 
-	request = get_channel_contents(slug, 1, CONTENTS_PER_PAGE)
+	request = stateAdapter().get_channel_contents(slug, 1, CONTENTS_PER_PAGE)
 		.then((response) => {
 			if (!Array.isArray(response?.data)) throw new Error("Channel contents unavailable");
 			return response.data
